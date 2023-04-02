@@ -38,7 +38,7 @@ Solar panel
     :align: left
     :figwidth: 200px
     
-In addition to the USB-C, and with the aim of extening the service time between (USB) charges of the battery, the |Product| can be configured to be powered from a solar panel. This version is not the default one, and 
+In addition to the USB-C, and with the aim of extending the service time between (USB) charges of the battery, the |Product| can be configured to be powered from a solar panel. This version is not the default one, and 
 would imply soldering the solar pannel to the board as indicated in the figure.
 
 USB-C
