@@ -125,8 +125,11 @@ sensor:
         - component.update: batpercent
 
   - platform: template
-    name: "Battery %"
+    # In order to have better naming in HA
+    name: "${friendly_name} Battery %"
     id: batpercent
+    # to have better mapping in HA
+    device_class: "battery"
     lambda: return id(batvolt).state;
     accuracy_decimals: 0
     unit_of_measurement: "%"
@@ -181,6 +184,8 @@ sensor:
     pin: GPIO1
     name: "Soil Moisture"
     id : soil
+    # In order to have proper mapping in HA
+    device_class: moisture
     icon: "mdi:cup-water"
     update_interval: 1s
     unit_of_measurement: "%"
