@@ -159,13 +159,15 @@ sensor:
     variant: AHT20 
     i2c_id: bus_a
     temperature:
-      name: "Temperature"
+      name: "${friendly_name} Temperature"
       id: temp
       icon: "mdi:thermometer"
+      device_class: temperature
     humidity:
-      name: "Air Humidity"
+      name: "${friendly_name} Air Humidity"
       id: hum
       icon: "mdi:water-percent"
+      device_class: humidity
     update_interval: 3s
 
   # Light sensor
@@ -173,16 +175,17 @@ sensor:
     address: 0x10
     update_interval: 1s
     ambient_light: 
-      name: "Ambient light"
+      name: "${friendly_name} Ambient light"
       id: light
       icon: "mdi:white-balance-sunny"
+      device_class: illuminance
     actual_gain:
       name: "Actual gain"
         
   # Capacitive soil moisture sensor
   - platform: adc
     pin: GPIO1
-    name: "Soil Moisture"
+    name: "${friendly_name} Soil Moisture"
     id : soil
     # In order to have proper mapping in HA
     device_class: moisture
