@@ -192,3 +192,9 @@ The |Product| PCB can be mounted in a custom :ref:`enclosure` that you can print
 
 .. image:: images/getting_started/Enclosed.jpg
     :width: 100%
+
+
+.. raw:: html
+        
+    <iframe src="https://www.printables.com/embed/1286920" width="640" height="190" scrolling="no" frameborder="0"></iframe>
+

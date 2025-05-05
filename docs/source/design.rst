@@ -39,6 +39,14 @@ This 3D model is intended to be printed on :term:`FDM` printers. Check your prin
 
 |
 
+
+
+.. raw:: html
+        
+    <iframe src="https://www.printables.com/embed/1286920" width="640" height="190" scrolling="no" frameborder="0"></iframe>
+
+
+
 Printable STL files:
 
 - :download:`Bottom STL<../../Enclosure/FDM/Smart-Plant Enclosure Bottom.stl>`
@@ -48,6 +56,7 @@ Editable STEP files:
 
 - :download:`Bottom STP<../../Enclosure/FDM/Smart-Plant Enclosure Bottom.stp>`
 - :download:`Top STP<../../Enclosure/FDM/Smart-Plant Enclosure Top.stp>`
+
 
 
 SLA version
