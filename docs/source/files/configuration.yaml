@@ -30,14 +30,16 @@ esp32:
 # Enable logging
 logger:
 
-# Enable MQTT for deep sleep compatibility
-mqtt:
-  broker: !secret mqtt_broker
-  discovery: true
-  discovery_retain: true
-  birth_message:
-  will_message:
-  log_topic:
+api:
+
+# Enable MQTT for deep sleep compatibility instead of the api if you preffer to use MQTT 
+# mqtt:
+#   broker: !secret mqtt_broker
+#   discovery: true
+#   discovery_retain: true
+#   birth_message:
+#   will_message:
+#   log_topic:
 
 # Enable Over The Air updates
 ota:
