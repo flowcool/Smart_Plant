@@ -45,7 +45,10 @@ api:
 ota:
   - platform: esphome
   
-
+#Public location of this yaml file
+dashboard_import:
+  package_import_url: github://JGAguado/Smart_Plant/docs/source/files/configuration.yaml@V2R1
+  import_full_config: false
 
 # Enable fallback hotspot (captive portal) in case wifi connection fails
 captive_portal:
