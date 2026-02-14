@@ -21,10 +21,7 @@ esphome:
 
      - script.execute: consider_deep_sleep
 
-external_components:
-  - source: github://Option-Zero/esphome-components@max17048
-    components: [max17048]
-    
+
 esp32:
   board: esp32-s2-saola-1
   framework:
@@ -33,17 +30,20 @@ esp32:
 # Enable logging
 logger:
 
-# Enable Home Assistant API
-api:
+# Enable MQTT for deep sleep compatibility
+mqtt:
+  broker: !secret mqtt_broker
+  discovery: true
+  discovery_retain: true
+  birth_message:
+  will_message:
+  log_topic:
 
 # Enable Over The Air updates
 ota:
   - platform: esphome
   
-#Public location of this yaml file
-dashboard_import:
-  package_import_url: github://JGAguado/Smart_Plant/docs/source/files/configuration.yaml@V2R1
-  import_full_config: false
+
 
 # Enable fallback hotspot (captive portal) in case wifi connection fails
 captive_portal:
@@ -51,6 +51,7 @@ captive_portal:
 improv_serial:
 
 wifi:
+  fast_connect: true
   ap:
     password: "${ap_pwd}"
 
@@ -95,31 +96,32 @@ font:
       - "\U0000e627" # sync
 
 time:
-  - platform: homeassistant
+  - platform: sntp
     id: esptime
 
 switch:
   - platform: gpio
     pin: GPIO4
     id: exc
-    name: "Excitation switch"
     icon: "mdi:power"
-    restore_mode: ALWAYS_ON  
+    restore_mode: ALWAYS_ON
+    internal: true  
     
     
 sensor:    
 
   # Battery level sensor    
-  - platform: max17048
+  - platform: max17043
+    id: max17043_id
     battery_voltage:
       id: batvolt      
       name: "${friendly_name} Battery voltage"
+      internal: true
+      force_update: true
     battery_level:
       id: batpercent
       name: "${friendly_name} Battery"
-    rate:
-      id: battery_rate
-      name: "${friendly_name} Battery rate"
+      force_update: true
 
   # Temperature and humidity sensor
   - platform: aht10
@@ -130,24 +132,28 @@ sensor:
       id: temp
       icon: "mdi:thermometer"
       device_class: temperature
+      force_update: true
     humidity:
       name: "${friendly_name} Air Humidity"
       id: hum
       icon: "mdi:water-percent"
       device_class: humidity
+      force_update: true
     update_interval: 3s
 
   # Light sensor
   - platform: veml7700
     address: 0x10
-    update_interval: 1s
+    update_interval: 3s
     ambient_light: 
       name: "${friendly_name} Ambient light"
       id: light
       icon: "mdi:white-balance-sunny"
       device_class: illuminance
+      force_update: true
     actual_gain:
       name: "Actual gain"
+      internal: true
         
   # Capacitive soil moisture sensor
   - platform: adc
@@ -157,9 +163,10 @@ sensor:
     # In order to have proper mapping in HA
     device_class: moisture
     icon: "mdi:cup-water"
-    update_interval: 1s
+    update_interval: 3s
     unit_of_measurement: "%"
     attenuation: 12db
+    force_update: true
     filters:
     - median:
         window_size: 5
@@ -369,6 +376,8 @@ script:
           then:
             - deep_sleep.prevent: deep_sleep_control 
           else:
+            - switch.turn_off: exc              # Cut sensor power before sleep
+            - max17043.sleep_mode: max17043_id  # Fuel gauge low-power mode
             - deep_sleep.enter: deep_sleep_control 
 
       - delay: 25s
