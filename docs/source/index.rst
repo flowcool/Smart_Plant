@@ -37,20 +37,6 @@ Contents
 :doc:`design`
     Design files of the |Product|.
 
-
-And comming soon ...
---------------------
-
-If you like this project and you would be interested on the future Smart Plant device, developed into a more user-friendly and finished product, leave your contact details and we will come back to you as soon as we have news!
-
-.. raw:: html
-        
-    <iframe src="_static/newsletter.html" style="width: 100%; height: 400px; border: none;"></iframe>
-
-
-.. Important::
-    You will not receive any confirmation email. However, as soon as we are ready to release some info about the new Smart Plant device, you will be the first one to know!
-
 .. _support:
 
 Technical support
