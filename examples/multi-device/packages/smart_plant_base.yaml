@@ -1,0 +1,290 @@
+# =============================================================================
+# Smart Plant — shared base package
+# =============================================================================
+# RFC: see https://github.com/JGAguado/Smart_Plant/pull/XXX
+#
+# Usage: create a device file (see ../my-lemon-tree.yaml) that defines only
+# the substitutions specific to that plant, then include this package.
+# Every change made here propagates to all devices on the next OTA flash.
+# =============================================================================
+
+# Default values — override any of these in your device file.
+substitutions:
+  device_name: "smart-plant"
+  friendly_name: "Smart Plant"
+  project_name: "smart.plant"
+  project_version: "2.2"
+  ap_pwd: "smartplant"
+  timezone: "UTC"
+  # Background image for the e-paper display (plant label)
+  label_image: "https://smart-plant.readthedocs.io/en/v2r1/_images/Lemon_tree_label_page_1.png"
+  # Soil calibration (ADC voltage → moisture %)
+  soil_v_wet: "1.25"   # voltage when sensor is fully submerged
+  soil_v_dry: "2.8"    # voltage in dry air
+  # Gauge display ranges
+  light_max: "3775"
+  temp_min: "-10"
+  temp_max: "50"
+  hum_min: "20"
+  hum_max: "80"
+
+esphome:
+  name: "${device_name}"
+  name_add_mac_suffix: true
+  project:
+    name: "${project_name}"
+    version: "${project_version}"
+  on_boot:
+    priority: 600
+    then:
+     - lambda: |-
+        Wire.begin();
+        delay(100);
+     - wait_until:
+         condition:
+           lambda: 'return id(esptime).now().is_valid();'
+         timeout: 30s
+     - script.execute: consider_deep_sleep
+
+esp32:
+  board: esp32-s2-saola-1
+  framework:
+    type: arduino
+
+logger:
+
+api:
+
+# Uncomment to use MQTT instead of the native API (avoids "unavailable"
+# state in HA during deep sleep — see issue #16 for details).
+# mqtt:
+#   broker: !secret mqtt_broker
+#   discovery: true
+#   discovery_retain: true
+#   birth_message:
+#   will_message:
+#   log_topic:
+
+ota:
+  - platform: esphome
+
+dashboard_import:
+  package_import_url: github://JGAguado/Smart_Plant/docs/source/files/configuration.yaml@V2R1
+  import_full_config: false
+
+captive_portal:
+improv_serial:
+
+wifi:
+  fast_connect: true
+  power_save_mode: none
+  ap:
+    password: "${ap_pwd}"
+
+i2c:
+  scl: GPIO34
+  sda: GPIO33
+  scan: false
+  id: bus_a
+
+spi:
+  clk_pin:  GPIO12
+  mosi_pin: GPIO11
+
+image:
+  - file: "${label_image}"
+    id: page_1_background
+    type: binary
+    invert_alpha: true
+
+font:
+  - file: "gfonts://Audiowide"
+    id: font_title
+    size: 20
+  - file: "gfonts://Audiowide"
+    id: font_subtitle
+    size: 15
+  - file: "gfonts://Audiowide"
+    id: font_parameters
+    size: 15
+  - file: 'gfonts://Material+Symbols+Outlined'
+    id: font_icon
+    size: 20
+    glyphs:
+      - "\U0000ebdc"
+      - "\U0000ebd9"
+      - "\U0000ebe0"
+      - "\U0000ebdd"
+      - "\U0000ebe2"
+      - "\U0000ebd4"
+      - "\U0000e1a4"
+      - "\U0000e627"
+
+time:
+  - platform: sntp
+    id: esptime
+    timezone: "${timezone}"
+
+switch:
+  - platform: gpio
+    pin: GPIO4
+    id: exc
+    icon: "mdi:power"
+    restore_mode: ALWAYS_ON
+    internal: true
+
+sensor:
+  - platform: max17043
+    id: max17043_id
+    battery_voltage:
+      id: batvolt
+      name: "${friendly_name} Battery voltage"
+      internal: true
+      force_update: true
+    battery_level:
+      id: batpercent
+      name: "${friendly_name} Battery"
+      device_class: battery
+      force_update: true
+
+  - platform: aht10
+    variant: AHT20
+    i2c_id: bus_a
+    temperature:
+      name: "${friendly_name} Temperature"
+      id: temp
+      icon: "mdi:thermometer"
+      device_class: temperature
+      force_update: true
+    humidity:
+      name: "${friendly_name} Air Humidity"
+      id: hum
+      icon: "mdi:water-percent"
+      device_class: humidity
+      force_update: true
+    update_interval: 3s
+
+  - platform: veml7700
+    address: 0x10
+    update_interval: 3s
+    ambient_light:
+      name: "${friendly_name} Ambient light"
+      id: light
+      icon: "mdi:white-balance-sunny"
+      device_class: illuminance
+      force_update: true
+    actual_gain:
+      name: "Actual gain"
+      internal: true
+
+  - platform: adc
+    pin: GPIO1
+    name: "${friendly_name} Soil Moisture"
+    id: soil
+    device_class: moisture
+    icon: "mdi:cup-water"
+    update_interval: 3s
+    unit_of_measurement: "%"
+    attenuation: 12db
+    force_update: true
+    filters:
+      - median:
+          window_size: 5
+          send_every: 5
+      - calibrate_linear:
+          - ${soil_v_wet} -> 100.00
+          - ${soil_v_dry} -> 0.00
+      - lambda: if (x < 1) return 0; else if (x > 100) return 100; return (x);
+    accuracy_decimals: 0
+
+display:
+  - platform: waveshare_epaper
+    cs_pin: GPIO10
+    dc_pin: GPIO13
+    busy_pin: GPIO14
+    reset_pin: GPIO15
+    rotation: 270
+    model: 2.90inv2
+    id: my_display
+    update_interval: never
+    full_update_every: 1
+    pages:
+      - id: page1
+        lambda: |-
+          #define H_LEFT_MARGIN 4
+          #define H_RIGHT_MARGIN 280
+          #define H_CENTER 128
+
+          it.image(0, 0, id(page_1_background));
+
+          float battery_perc = id(batpercent).state;
+          int battery_range = battery_perc / 16;
+          battery_range = (battery_range > 6) ? 6 : battery_range;
+          battery_range = (battery_range < 0)  ? 0 : battery_range;
+
+          const char* battery_icon_map[] = {
+            "\U0000ebdc", "\U0000ebd9", "\U0000ebe0", "\U0000ebdd",
+            "\U0000ebe2", "\U0000ebd4", "\U0000e1a4"
+          };
+          it.printf(278, 1, id(font_icon), TextAlign::TOP_LEFT, battery_icon_map[battery_range]);
+          it.printf(278, 1, id(font_subtitle), TextAlign::TOP_RIGHT, "%3.0f%%", battery_perc);
+
+          auto now = id(esptime).now();
+          if (now.is_valid()) {
+            it.strftime(278, 18, id(font_subtitle), TextAlign::TOP_RIGHT, "%H:%M %d/%m", now);
+          } else {
+            it.printf(278, 18, id(font_subtitle), TextAlign::TOP_RIGHT, "--:-- --/--");
+          }
+          it.printf(278, 18, id(font_icon), TextAlign::TOP_LEFT, "\U0000e627");
+
+          float pi = 3.141592653589793;
+          float alpha = 4.71238898038469;
+          float beta = 2*pi - alpha;
+          int radius = 22;
+          int thick = 7;
+
+          auto draw_gauge = [&](float value, float vmin, float vmax, int xc, int yc, const char* fmt) {
+            if (value < vmin) value = vmin;
+            if (value > vmax) value = vmax;
+            float val = (value - vmin) / abs(vmax - vmin) * alpha;
+            int x0 = static_cast<int>(xc + radius + radius * cos(pi / 2 + beta / 2 + val));
+            int y0 = static_cast<int>(yc + radius + radius * sin(pi / 2 + beta / 2 + val));
+            int x1 = static_cast<int>(xc + radius + (radius+thick) * cos(pi / 2 + beta / 2 + val + 0.1));
+            int y1 = static_cast<int>(yc + radius + (radius+thick) * sin(pi / 2 + beta / 2 + val + 0.1));
+            int x2 = static_cast<int>(xc + radius + (radius+thick) * cos(pi / 2 + beta / 2 + val - 0.1));
+            int y2 = static_cast<int>(yc + radius + (radius+thick) * sin(pi / 2 + beta / 2 + val - 0.1));
+            it.line(x0, y0, x1, y1);
+            it.line(x1, y1, x2, y2);
+            it.line(x2, y2, x0, y0);
+            it.printf(xc + radius, yc + 1.7*radius, id(font_parameters), TextAlign::TOP_CENTER, fmt, value);
+          };
+
+          draw_gauge(id(soil).state,  0,              100,             80,  50, "%.0f%%");
+          draw_gauge(id(light).state, 0,              ${light_max},   134,  70, "%.0flx");
+          draw_gauge(id(temp).state,  ${temp_min},    ${temp_max},    188,  50, "%.0f°C");
+          draw_gauge(id(hum).state,   ${hum_min},     ${hum_max},     242,  70, "%.0f%%");
+
+deep_sleep:
+  id: deep_sleep_control
+  sleep_duration: 1h
+
+script:
+  - id: consider_deep_sleep
+    mode: queued
+    then:
+      - delay: 5s
+      - component.update: my_display
+      - delay: 5s
+      - if:
+          condition:
+            sensor.in_range:
+              id: batpercent
+              above: 95
+          then:
+            - deep_sleep.prevent: deep_sleep_control
+          else:
+            - switch.turn_off: exc
+            - max17043.sleep_mode: max17043_id
+            - deep_sleep.enter: deep_sleep_control
+      - delay: 25s
+      - script.execute: consider_deep_sleep

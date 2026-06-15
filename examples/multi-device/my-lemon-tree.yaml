@@ -1,0 +1,23 @@
+# =============================================================================
+# My Lemon Tree — device-specific config
+# =============================================================================
+# Only override what's different from the base package defaults.
+# Everything else (sensors, display, deep sleep logic) is shared.
+# =============================================================================
+
+substitutions:
+  device_name: "lemon-tree"
+  friendly_name: "Lemon Tree"
+  timezone: "Europe/Paris"
+  label_image: "https://smart-plant.readthedocs.io/en/v2r1/_images/Lemon_tree_label_page_1.png"
+
+  # Lemon tree soil calibration (adjust to your sensor after measuring
+  # in dry air and fully submerged in water)
+  soil_v_wet: "1.25"
+  soil_v_dry: "2.8"
+
+  # Lemon trees tolerate more light than average
+  light_max: "8000"
+
+packages:
+  base: !include packages/smart_plant_base.yaml
