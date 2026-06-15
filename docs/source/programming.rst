@@ -49,24 +49,16 @@ the one I strongly recommend is the one through the `ESPHome Add-on for Home Ass
    :linenos:
 
 
-.. Important:: 
-    Note that with this example code, the Smart Plant enters into deep-sleep mode if the battery level is under a 95% (lines 393-401), so be aware that if you want to flash it :term:`OTA`, make sure the battery is fully charged or the Smart Plant powered via USB-C.
+.. Important::
+    Note that with this example code, the Smart Plant enters into deep-sleep mode if the battery level is under 95% (see ``consider_deep_sleep`` script at the end of the file), so be aware that if you want to flash it :term:`OTA`, make sure the battery is fully charged or the Smart Plant powered via USB-C.
 
     
 .. Note::
-    The Smart Plant integrates a *battery gauge* sensor (MAX17048), not natively supported by ESPHome at the moment. However by adding the following code, it would work::
-
-        external_components:
-            - source: github://Option-Zero/esphome-components@max17048
-                components: [max17048]
-        sensor:
-            - platform: max17048
-              battery_voltage:
-                name: Battery voltage
-              battery_level:
-                name: Battery level
-              rate:
-                name: Battery discharge rate
+    The Smart Plant integrates a *battery gauge* sensor (MAX17043/MAX17048).
+    ESPHome includes a **native** ``max17043`` component — no ``external_components``
+    are needed. The example configuration above already uses it. The native component
+    also provides a ``sleep_mode`` action used in the ``consider_deep_sleep`` script
+    to put the fuel gauge into low-power mode before entering deep sleep.
 
 
 .. Note::
