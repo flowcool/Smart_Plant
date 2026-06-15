@@ -11,14 +11,20 @@ esphome:
   project:
     name: "${project_name}"
     version: "${project_version}"
-  # Initialize the IIC bus immediatelly after the powering the sensors
+  # Initialize the IIC bus immediately after powering the sensors, then wait
+  # for SNTP to sync before running the display update script.
+  # Without the wait_until, the display can show 1970 or a drifted RTC time
+  # on the first wake after a long deep sleep.
   on_boot:
     priority: 600
     then:
      - lambda: |-
         Wire.begin();
         delay(100);
-
+     - wait_until:
+         condition:
+           lambda: 'return id(esptime).now().is_valid();'
+         timeout: 30s
      - script.execute: consider_deep_sleep
 
 
@@ -228,10 +234,15 @@ display:
           it.printf(278, 1, id(font_subtitle), TextAlign::TOP_RIGHT, 
           "%3.0f%%", battery_perc);
           
-          // Date
-          it.strftime(278, 18, id(font_subtitle), TextAlign::TOP_RIGHT, 
-          "%H:%M %d/%m", id(esptime).now());     
-          it.printf(278, 18, id(font_icon), TextAlign::TOP_LEFT, "\U0000e627");  
+          // Date — guard against SNTP not yet synced (avoids displaying 1970)
+          auto now = id(esptime).now();
+          if (now.is_valid()) {
+            it.strftime(278, 18, id(font_subtitle), TextAlign::TOP_RIGHT,
+            "%H:%M %d/%m", now);
+          } else {
+            it.printf(278, 18, id(font_subtitle), TextAlign::TOP_RIGHT, "--:-- --/--");
+          }
+          it.printf(278, 18, id(font_icon), TextAlign::TOP_LEFT, "\U0000e627");
 
 
           // Parameters
