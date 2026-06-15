@@ -4,6 +4,8 @@ substitutions:
   project_name: "smart.plant"
   project_version: "2.2"
   ap_pwd: "smartplant"
+  # IANA timezone string — find yours at https://en.wikipedia.org/wiki/List_of_tz_database_time_zones
+  timezone: "UTC"
 
 esphome:
   name: "${device_name}"
@@ -57,6 +59,7 @@ improv_serial:
 
 wifi:
   fast_connect: true
+  power_save_mode: none  # Disable WiFi modem sleep for faster reconnection on wake
   ap:
     password: "${ap_pwd}"
 
@@ -103,6 +106,7 @@ font:
 time:
   - platform: sntp
     id: esptime
+    timezone: "${timezone}"
 
 switch:
   - platform: gpio
