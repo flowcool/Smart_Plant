@@ -11,21 +11,13 @@ esphome:
   project:
     name: "${project_name}"
     version: "${project_version}"
-  # Initialize the IIC bus immediately after powering the sensors, then wait
-  # for SNTP to sync before running the display update script.
-  # Without the wait_until, the display can show 1970 or a drifted RTC time
-  # on the first wake after a long deep sleep.
+  # Start the main loop immediately after boot. SNTP sync is handled
+  # asynchronously via on_time_sync below, which triggers a display refresh
+  # the moment time becomes valid — no fixed delay needed.
   on_boot:
     priority: 600
     then:
-     - lambda: |-
-        Wire.begin();
-        delay(100);
-     - wait_until:
-         condition:
-           lambda: 'return id(esptime).now().is_valid();'
-         timeout: 30s
-     - script.execute: consider_deep_sleep
+      - script.execute: consider_deep_sleep
 
 
 esp32:
@@ -109,6 +101,13 @@ font:
 time:
   - platform: sntp
     id: esptime
+    servers:
+      - "162.159.200.1"    # Cloudflare NTP (stable anycast IP — no DNS needed)
+      - "216.239.35.0"     # Google NTP
+      - "pool.ntp.org"     # fallback
+    on_time_sync:
+      then:
+        - component.update: my_display
 
 switch:
   - platform: gpio
