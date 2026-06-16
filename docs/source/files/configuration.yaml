@@ -4,6 +4,8 @@ substitutions:
   project_name: "smart.plant"
   project_version: "2.2"
   ap_pwd: "smartplant"
+  # IANA timezone string — find yours at https://en.wikipedia.org/wiki/List_of_tz_database_time_zones
+  timezone: "UTC"
 
 esphome:
   name: "${device_name}"
@@ -55,6 +57,7 @@ improv_serial:
 
 wifi:
   fast_connect: true
+  power_save_mode: none  # Disable WiFi modem sleep for faster reconnection on wake
   ap:
     password: "${ap_pwd}"
 
@@ -101,6 +104,7 @@ font:
 time:
   - platform: sntp
     id: esptime
+    timezone: "${timezone}"
     servers:
       - "162.159.200.1"    # Cloudflare NTP (stable anycast IP — no DNS needed)
       - "216.239.35.0"     # Google NTP
