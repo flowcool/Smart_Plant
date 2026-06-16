@@ -147,6 +147,10 @@ time:
   - platform: sntp
     id: esptime
     timezone: "${timezone}"
+    servers:
+      - "pool.ntp.org"
+      - "time.cloudflare.com"
+      - "time.google.com"
     on_time_sync:
       then:
         - component.update: my_display
