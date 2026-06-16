@@ -53,9 +53,6 @@ esphome:
   on_boot:
     priority: 600
     then:
-      - lambda: |-
-          Wire.begin();
-          delay(100);
       - wait_until:
           condition:
             mqtt.connected:
