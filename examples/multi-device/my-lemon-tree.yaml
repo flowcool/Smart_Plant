@@ -1,18 +1,28 @@
 # =============================================================================
 # My Lemon Tree — device-specific config
 # =============================================================================
-# Only override what's different from the base package defaults.
-# Everything else (sensors, display, deep sleep logic) is shared.
+# Only define what's specific to this device. Everything else comes from the
+# base package (sensors, display, deep sleep, MQTT, fonts...).
 # =============================================================================
 
 substitutions:
   device_name: "lemon-tree"
   friendly_name: "Lemon Tree"
-  timezone: "Europe/Paris"
-  label_image: "https://smart-plant.readthedocs.io/en/v2r1/_images/Lemon_tree_label_page_1.png"
+  device_comment: "Citrus limon / Lemon Tree"
 
-  # Lemon tree soil calibration (adjust to your sensor after measuring
-  # in dry air and fully submerged in water)
+  # MQTT topic prefix — set once and never change (renaming orphans HA entities).
+  # Format: <device_name>-<last 3 bytes of MAC>, visible in ESPHome logs on first boot.
+  mqtt_topic_prefix: "lemon-tree-abcdef"
+
+  # OTA password for this device
+  ota_password: "replace-with-your-ota-password"
+
+  # Plant label image (place PNG in esphome/plant_labels/)
+  label_image: "plant_labels/Lemon_tree_label_page_1.png"
+
+  timezone: "Europe/Paris"
+
+  # Soil calibration — measure your specific sensor in dry air and submerged
   soil_v_wet: "1.25"
   soil_v_dry: "2.8"
 
@@ -20,4 +30,11 @@ substitutions:
   light_max: "8000"
 
 packages:
-  base: !include packages/smart_plant_base.yaml
+  base: github://flowcool/Smart_Plant/examples/multi-device/packages/smart_plant_base.yaml@V2R1
+
+# Static IP — merges on top of base wifi block. Remove this block for DHCP.
+wifi:
+  manual_ip:
+    static_ip: 192.168.1.100
+    gateway: 192.168.1.1
+    subnet: 255.255.255.0
