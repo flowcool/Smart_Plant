@@ -13,15 +13,13 @@ esphome:
   project:
     name: "${project_name}"
     version: "${project_version}"
-  # Initialize the IIC bus immediatelly after the powering the sensors
+  # Start the main loop immediately after boot. SNTP sync is handled
+  # asynchronously via on_time_sync below, which triggers a display refresh
+  # the moment time becomes valid — no fixed delay needed.
   on_boot:
     priority: 600
     then:
-     - lambda: |-
-        Wire.begin();
-        delay(100);
-
-     - script.execute: consider_deep_sleep
+      - script.execute: consider_deep_sleep
 
 
 esp32:
@@ -107,6 +105,13 @@ time:
   - platform: sntp
     id: esptime
     timezone: "${timezone}"
+    servers:
+      - "162.159.200.1"    # Cloudflare NTP (stable anycast IP — no DNS needed)
+      - "216.239.35.0"     # Google NTP
+      - "pool.ntp.org"     # fallback
+    on_time_sync:
+      then:
+        - component.update: my_display
 
 switch:
   - platform: gpio
@@ -232,10 +237,15 @@ display:
           it.printf(278, 1, id(font_subtitle), TextAlign::TOP_RIGHT, 
           "%3.0f%%", battery_perc);
           
-          // Date
-          it.strftime(278, 18, id(font_subtitle), TextAlign::TOP_RIGHT, 
-          "%H:%M %d/%m", id(esptime).now());     
-          it.printf(278, 18, id(font_icon), TextAlign::TOP_LEFT, "\U0000e627");  
+          // Date — guard against SNTP not yet synced (avoids displaying 1970)
+          auto now = id(esptime).now();
+          if (now.is_valid()) {
+            it.strftime(278, 18, id(font_subtitle), TextAlign::TOP_RIGHT,
+            "%H:%M %d/%m", now);
+          } else {
+            it.printf(278, 18, id(font_subtitle), TextAlign::TOP_RIGHT, "--:-- --/--");
+          }
+          it.printf(278, 18, id(font_icon), TextAlign::TOP_LEFT, "\U0000e627");
 
 
           // Parameters
