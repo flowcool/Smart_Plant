@@ -61,10 +61,6 @@ esphome:
           condition:
             mqtt.connected:
           timeout: 30s
-      - wait_until:
-          condition:
-            lambda: 'return id(esptime).now().is_valid();'
-          timeout: 30s
       - script.execute: consider_deep_sleep
 
 esp32:
@@ -151,6 +147,9 @@ time:
   - platform: sntp
     id: esptime
     timezone: "${timezone}"
+    on_time_sync:
+      then:
+        - component.update: my_display
 
 switch:
   - platform: gpio
