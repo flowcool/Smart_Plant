@@ -148,9 +148,9 @@ time:
     id: esptime
     timezone: "${timezone}"
     servers:
+      - "162.159.200.1"    # Cloudflare NTP (anycast, IP stable)
+      - "216.239.35.0"     # Google NTP
       - "pool.ntp.org"
-      - "time.cloudflare.com"
-      - "time.google.com"
     on_time_sync:
       then:
         - component.update: my_display
