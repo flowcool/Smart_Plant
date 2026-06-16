@@ -29,6 +29,10 @@ substitutions:
   # OTA password (leave empty string for no password)
   ota_password: ""
 
+  # Address used by ESPHome CLI/dashboard for OTA and log connections.
+  # Default: device hostname via mDNS. Set to static IP for reliability.
+  use_address: "${device_name}"
+
   # Background image for the e-paper display — local path or URL
   label_image: "https://smart-plant.readthedocs.io/en/v2r1/_images/Lemon_tree_label_page_1.png"
 
@@ -99,6 +103,7 @@ wifi:
   ssid: !secret wifi_ssid
   password: !secret wifi_password
   fast_connect: true
+  use_address: "${use_address}"
   ap:
     ssid: "${ap_ssid}"
     password: "${ap_pwd}"
