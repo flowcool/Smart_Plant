@@ -74,7 +74,7 @@ logger:
 
 # MQTT — required for deep-sleep compatibility: retained values survive sleep
 # so Home Assistant sees fresh data on wake without "unavailable" state.
-# To use native API instead, remove this block and uncomment `api:` below
+# To use native API instead, remove this block and uncomment `# api:` below
 # (deep sleep will still work but HA may briefly show entities as unavailable).
 mqtt:
   broker: !secret mqtt_broker
@@ -87,7 +87,7 @@ mqtt:
   log_topic:        # disabled — saves bandwidth on wake
   topic_prefix: "${mqtt_topic_prefix}"
 
-api:
+# api:
 
 ota:
   - platform: esphome
