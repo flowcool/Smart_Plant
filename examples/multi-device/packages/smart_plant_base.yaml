@@ -87,7 +87,7 @@ mqtt:
   log_topic:        # disabled — saves bandwidth on wake
   topic_prefix: "${mqtt_topic_prefix}"
 
-# api:
+api:
 
 ota:
   - platform: esphome
