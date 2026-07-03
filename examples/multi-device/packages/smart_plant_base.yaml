@@ -29,6 +29,16 @@ substitutions:
   # OTA password (leave empty string for no password)
   ota_password: ""
 
+  # WiFi/MQTT credentials — overridden per-device via !secret in the local
+  # device file. Must stay plain substitutions here (no !secret): this file
+  # is fetched as a remote package, and the remote-build bundler refuses to
+  # ship secrets.yaml to packages pulled from a github:// source.
+  wifi_ssid: ""
+  wifi_password: ""
+  mqtt_broker: ""
+  mqtt_username: ""
+  mqtt_password: ""
+
   # Address used by ESPHome CLI/dashboard for OTA and log connections.
   # Default: device hostname via mDNS. Set to static IP for reliability.
   use_address: "${device_name}"
@@ -77,9 +87,9 @@ logger:
 # To use native API instead, remove this block and uncomment `# api:` below
 # (deep sleep will still work but HA may briefly show entities as unavailable).
 mqtt:
-  broker: !secret mqtt_broker
-  username: !secret mqtt_username
-  password: !secret mqtt_password
+  broker: "${mqtt_broker}"
+  username: "${mqtt_username}"
+  password: "${mqtt_password}"
   discovery: true
   discovery_retain: true
   birth_message:    # disabled — prevents HA marking device offline during sleep
@@ -97,8 +107,8 @@ captive_portal:
 improv_serial:
 
 wifi:
-  ssid: !secret wifi_ssid
-  password: !secret wifi_password
+  ssid: "${wifi_ssid}"
+  password: "${wifi_password}"
   fast_connect: true
   power_save_mode: LIGHT
   use_address: "${use_address}"
