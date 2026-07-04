@@ -244,7 +244,7 @@ sensor:
 # framework update, without any manifest/hosting (unlike update: http_request).
 text_sensor:
   - platform: version
-    name: "ESPHome Version"
+    name: "${friendly_name} ESPHome Version"
     hide_timestamp: true
     hide_hash: true
 
