@@ -239,14 +239,6 @@ sensor:
       - lambda: if (x < 1) return 0; else if (x > 100) return 100; return (x);
     accuracy_decimals: 0
 
-# ESPHome core version the running firmware was compiled with — lets Home
-# Assistant flag devices that need a recompile+reflash after an ESPHome
-# framework update, without any manifest/hosting (unlike update: http_request).
-text_sensor:
-  - platform: version
-    name: "${friendly_name} ESPHome Version"
-    hide_timestamp: true
-
 display:
   - platform: waveshare_epaper
     cs_pin: GPIO10
