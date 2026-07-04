@@ -246,7 +246,6 @@ text_sensor:
   - platform: version
     name: "${friendly_name} ESPHome Version"
     hide_timestamp: true
-    hide_hash: true
 
 display:
   - platform: waveshare_epaper
