@@ -122,7 +122,10 @@ wifi:
   ssid: "${wifi_ssid}"
   password: "${wifi_password}"
   fast_connect: true
-  power_save_mode: LIGHT
+  # none (au lieu de LIGHT) : le modem wifi reste éveillé et répond aux requêtes
+  # mDNS multicast en continu → le dashboard garde mac/config_hash/version frais
+  # (sinon le device n'annonce le mDNS qu'à son boot). Coût = un peu plus de conso.
+  power_save_mode: none
   use_address: "${use_address}"
   ap:
     ssid: "${ap_ssid}"
