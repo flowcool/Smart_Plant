@@ -103,7 +103,12 @@ mqtt:
 
 # Native API — dashboard metadata only (see note above). reboot_timeout: 0s so a
 # sleeping device with no API client connected doesn't reboot itself.
+# encryption.key via ${api_encryption_key} substitution (repo public → jamais de
+# clé en clair ni de !secret ici ; chaque device yaml définit la substitution
+# depuis secrets.yaml).
 api:
+  encryption:
+    key: "${api_encryption_key}"
   reboot_timeout: 0s
 
 ota:
