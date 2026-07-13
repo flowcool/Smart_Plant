@@ -84,8 +84,12 @@ logger:
 
 # MQTT — required for deep-sleep compatibility: retained values survive sleep
 # so Home Assistant sees fresh data on wake without "unavailable" state.
-# To use native API instead, remove this block and uncomment `# api:` below
-# (deep sleep will still work but HA may briefly show entities as unavailable).
+# MQTT is kept as the data source for Home Assistant (retained values survive
+# deep sleep). The native API below is enabled ONLY so the ESPHome dashboard can
+# read rich device metadata (mac / config_hash / version) via the _esphomelib._tcp
+# mDNS record — MQTT-only devices advertise _http._tcp with `version` alone.
+# Do NOT add these devices to Home Assistant via the ESPHome (API) integration,
+# or you get duplicate entities that go unavailable during sleep. Keep them on MQTT.
 mqtt:
   broker: "${mqtt_broker}"
   username: "${mqtt_username}"
@@ -97,7 +101,10 @@ mqtt:
   log_topic:        # disabled — saves bandwidth on wake
   topic_prefix: "${mqtt_topic_prefix}"
 
-# api:
+# Native API — dashboard metadata only (see note above). reboot_timeout: 0s so a
+# sleeping device with no API client connected doesn't reboot itself.
+api:
+  reboot_timeout: 0s
 
 ota:
   - platform: esphome
