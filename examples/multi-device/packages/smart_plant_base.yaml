@@ -1,0 +1,343 @@
+# =============================================================================
+# Smart Plant — shared base package
+# =============================================================================
+# Usage: create a device file (see ../my-lemon-tree.yaml) that defines only
+# the substitutions specific to that plant, then reference this package via:
+#
+#   packages:
+#     base: github://flowcool/Smart_Plant/examples/multi-device/packages/smart_plant_base.yaml@V2R1
+#
+# Every change pushed here propagates to all devices on the next OTA flash.
+# =============================================================================
+
+# Default values — override any of these in your device file.
+substitutions:
+  device_name: "smart-plant"
+  friendly_name: "Smart Plant"
+  device_comment: "${friendly_name}"
+  project_name: "smart.plant"
+  project_version: "2.2"
+  ap_ssid: "Smart-Plant"
+  ap_pwd: "smartplant"
+  timezone: "Europe/Paris"
+
+  # MQTT topic prefix — must match retained prefix already in Home Assistant.
+  # Format: <device_name>-<last 3 bytes of MAC>. Set once, never change
+  # (renaming orphans all entities in HA).
+  mqtt_topic_prefix: "${device_name}"
+
+  # OTA password (leave empty string for no password)
+  ota_password: ""
+
+  # WiFi/MQTT credentials — overridden per-device via !secret in the local
+  # device file. Must stay plain substitutions here (no !secret): this file
+  # is fetched as a remote package, and the remote-build bundler refuses to
+  # ship secrets.yaml to packages pulled from a github:// source.
+  wifi_ssid: ""
+  wifi_password: ""
+  mqtt_broker: ""
+  mqtt_username: ""
+  mqtt_password: ""
+
+  # Address used by ESPHome CLI/dashboard for OTA and log connections.
+  # Default: device hostname via mDNS. Set to static IP for reliability.
+  use_address: "${device_name}"
+
+  # Background image for the e-paper display — local path or URL
+  label_image: "https://smart-plant.readthedocs.io/en/v2r1/_images/Lemon_tree_label_page_1.png"
+
+  # Soil moisture calibration (ADC voltage → %)
+  soil_v_wet: "1.25"   # voltage when sensor is fully submerged
+  soil_v_dry: "2.8"    # voltage in dry air
+
+  # Gauge display ranges
+  light_max: "3775"
+  temp_min: "-10"
+  temp_max: "50"
+  hum_min: "20"
+  hum_max: "80"
+
+esphome:
+  name: "${device_name}"
+  name_add_mac_suffix: true
+  comment: "${device_comment}"
+  project:
+    name: "${project_name}"
+    version: "${project_version}"
+  on_boot:
+    priority: 600
+    then:
+      - wait_until:
+          condition:
+            mqtt.connected:
+          timeout: 30s
+      - script.execute: consider_deep_sleep
+
+esp32:
+  board: esp32-s2-saola-1
+  framework:
+    type: arduino
+  cpu_frequency: 160MHz
+
+logger:
+  level: WARN
+
+# MQTT — required for deep-sleep compatibility: retained values survive sleep
+# so Home Assistant sees fresh data on wake without "unavailable" state.
+# MQTT is kept as the data source for Home Assistant (retained values survive
+# deep sleep). The native API below is enabled ONLY so the ESPHome dashboard can
+# read rich device metadata (mac / config_hash / version) via the _esphomelib._tcp
+# mDNS record — MQTT-only devices advertise _http._tcp with `version` alone.
+# Do NOT add these devices to Home Assistant via the ESPHome (API) integration,
+# or you get duplicate entities that go unavailable during sleep. Keep them on MQTT.
+mqtt:
+  broker: "${mqtt_broker}"
+  username: "${mqtt_username}"
+  password: "${mqtt_password}"
+  discovery: true
+  discovery_retain: true
+  birth_message:    # disabled — prevents HA marking device offline during sleep
+  will_message:
+  log_topic:        # disabled — saves bandwidth on wake
+  topic_prefix: "${mqtt_topic_prefix}"
+
+# Native API — dashboard metadata only (see note above). reboot_timeout: 0s so a
+# sleeping device with no API client connected doesn't reboot itself.
+# encryption.key via ${api_encryption_key} substitution (repo public → jamais de
+# clé en clair ni de !secret ici ; chaque device yaml définit la substitution
+# depuis secrets.yaml).
+api:
+  encryption:
+    key: "${api_encryption_key}"
+  reboot_timeout: 0s
+
+ota:
+  - platform: esphome
+    password: "${ota_password}"
+
+captive_portal:
+improv_serial:
+
+wifi:
+  ssid: "${wifi_ssid}"
+  password: "${wifi_password}"
+  fast_connect: true
+  # none (au lieu de LIGHT) : le modem wifi reste éveillé et répond aux requêtes
+  # mDNS multicast en continu → le dashboard garde mac/config_hash/version frais
+  # (sinon le device n'annonce le mDNS qu'à son boot). Coût = un peu plus de conso.
+  power_save_mode: none
+  use_address: "${use_address}"
+  ap:
+    ssid: "${ap_ssid}"
+    password: "${ap_pwd}"
+
+i2c:
+  scl: GPIO34
+  sda: GPIO33
+  scan: false
+  id: bus_a
+
+spi:
+  clk_pin:  GPIO12
+  mosi_pin: GPIO11
+
+image:
+  - file: "${label_image}"
+    id: page_1_background
+    type: BINARY
+    invert_alpha: true
+
+font:
+  - file: "gfonts://Audiowide"
+    id: font_title
+    size: 20
+  - file: "gfonts://Audiowide"
+    id: font_subtitle
+    size: 15
+  - file: "gfonts://Audiowide"
+    id: font_parameters
+    size: 15
+  - file: 'gfonts://Material+Symbols+Outlined'
+    id: font_icon
+    size: 20
+    glyphs:
+      - "\U0000ebdc"
+      - "\U0000ebd9"
+      - "\U0000ebe0"
+      - "\U0000ebdd"
+      - "\U0000ebe2"
+      - "\U0000ebd4"
+      - "\U0000e1a4"
+      - "\U0000e627"
+
+time:
+  - platform: sntp
+    id: esptime
+    timezone: "${timezone}"
+    servers:
+      - "162.159.200.1"    # Cloudflare NTP (anycast, IP stable)
+      - "216.239.35.0"     # Google NTP
+      - "pool.ntp.org"
+    on_time_sync:
+      then:
+        - component.update: my_display
+
+switch:
+  - platform: gpio
+    pin: GPIO4
+    id: exc
+    icon: "mdi:power"
+    restore_mode: ALWAYS_ON
+    internal: true
+
+sensor:
+  - platform: max17043
+    id: max17043_id
+    battery_voltage:
+      id: batvolt
+      name: "${friendly_name} Battery voltage"
+      internal: true
+    battery_level:
+      id: batpercent
+      device_class: "battery"
+      unit_of_measurement: "%"
+      name: "${friendly_name} Battery"
+      force_update: true
+
+  - platform: aht10
+    variant: AHT20
+    i2c_id: bus_a
+    temperature:
+      name: "${friendly_name} Temperature"
+      id: temp
+      icon: "mdi:thermometer"
+      device_class: temperature
+      force_update: true
+    humidity:
+      name: "${friendly_name} Air Humidity"
+      id: hum
+      icon: "mdi:water-percent"
+      device_class: humidity
+      force_update: true
+    update_interval: 3s
+
+  - platform: veml7700
+    address: 0x10
+    update_interval: 3s
+    ambient_light:
+      name: "${friendly_name} Ambient light"
+      id: light
+      icon: "mdi:white-balance-sunny"
+      device_class: illuminance
+      force_update: true
+    actual_gain:
+      name: "${friendly_name} Actual gain"
+      internal: true
+
+  - platform: adc
+    pin: GPIO1
+    name: "${friendly_name} Soil Moisture"
+    id: soil
+    icon: "mdi:cup-water"
+    device_class: moisture
+    update_interval: 3s
+    unit_of_measurement: "%"
+    attenuation: 12db
+    force_update: true
+    filters:
+      - median:
+          window_size: 5
+          send_every: 5
+      - calibrate_linear:
+          - ${soil_v_wet} -> 100.00
+          - ${soil_v_dry} -> 0.00
+      - lambda: if (x < 1) return 0; else if (x > 100) return 100; return (x);
+    accuracy_decimals: 0
+
+display:
+  - platform: waveshare_epaper
+    cs_pin: GPIO10
+    dc_pin: GPIO13
+    busy_pin: GPIO14
+    reset_pin: GPIO15
+    rotation: 270
+    model: 2.90inv2
+    id: my_display
+    update_interval: never
+    full_update_every: 1
+    pages:
+      - id: page1
+        lambda: |-
+          it.image(0, 0, id(page_1_background));
+
+          float battery_perc = id(batpercent).state;
+          int battery_range = battery_perc / 16;
+          battery_range = (battery_range > 6) ? 6 : battery_range;
+          battery_range = (battery_range < 0)  ? 0 : battery_range;
+
+          const char* battery_icon_map[] = {
+            "\U0000ebdc", "\U0000ebd9", "\U0000ebe0", "\U0000ebdd",
+            "\U0000ebe2", "\U0000ebd4", "\U0000e1a4"
+          };
+          it.printf(278, 1, id(font_icon), TextAlign::TOP_LEFT, battery_icon_map[battery_range]);
+          it.printf(278, 1, id(font_subtitle), TextAlign::TOP_RIGHT, "%3.0f%%", battery_perc);
+
+          auto now = id(esptime).now();
+          if (now.is_valid()) {
+            it.strftime(278, 18, id(font_subtitle), TextAlign::TOP_RIGHT, "%H:%M %d/%m", now);
+          } else {
+            it.printf(278, 18, id(font_subtitle), TextAlign::TOP_RIGHT, "--:-- --/--");
+          }
+          it.printf(278, 18, id(font_icon), TextAlign::TOP_LEFT, "\U0000e627");
+
+          float pi = 3.141592653589793;
+          float alpha = 4.71238898038469;
+          float beta = 2*pi - alpha;
+          int radius = 22;
+          int thick = 7;
+
+          auto draw_gauge = [&](float value, float vmin, float vmax, int xc, int yc, const char* fmt) {
+            if (value < vmin) value = vmin;
+            if (value > vmax) value = vmax;
+            float val = (value - vmin) / abs(vmax - vmin) * alpha;
+            int x0 = static_cast<int>(xc + radius + radius * cos(pi / 2 + beta / 2 + val));
+            int y0 = static_cast<int>(yc + radius + radius * sin(pi / 2 + beta / 2 + val));
+            int x1 = static_cast<int>(xc + radius + (radius+thick) * cos(pi / 2 + beta / 2 + val + 0.1));
+            int y1 = static_cast<int>(yc + radius + (radius+thick) * sin(pi / 2 + beta / 2 + val + 0.1));
+            int x2 = static_cast<int>(xc + radius + (radius+thick) * cos(pi / 2 + beta / 2 + val - 0.1));
+            int y2 = static_cast<int>(yc + radius + (radius+thick) * sin(pi / 2 + beta / 2 + val - 0.1));
+            it.line(x0, y0, x1, y1);
+            it.line(x1, y1, x2, y2);
+            it.line(x2, y2, x0, y0);
+            it.printf(xc + radius, yc + 1.7*radius, id(font_parameters), TextAlign::TOP_CENTER, fmt, value);
+          };
+
+          draw_gauge(id(soil).state,  0,            100,            80,  50, "%.0f%%");
+          draw_gauge(id(light).state, 0,            ${light_max},  134,  70, "%.0flx");
+          draw_gauge(id(temp).state,  ${temp_min},  ${temp_max},   188,  50, "%.0f°C");
+          draw_gauge(id(hum).state,   ${hum_min},   ${hum_max},    242,  70, "%.0f%%");
+
+deep_sleep:
+  id: deep_sleep_control
+  sleep_duration: 1h
+
+script:
+  - id: consider_deep_sleep
+    mode: queued
+    then:
+      - delay: 5s
+      - component.update: my_display
+      - delay: 5s
+      - if:
+          condition:
+            sensor.in_range:
+              id: batpercent
+              above: 90
+          then:
+            - deep_sleep.prevent: deep_sleep_control
+          else:
+            - switch.turn_off: exc
+            - max17043.sleep_mode: max17043_id
+            - deep_sleep.enter: deep_sleep_control
+      - delay: 25s
+      - script.execute: consider_deep_sleep
