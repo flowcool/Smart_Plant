@@ -57,6 +57,15 @@ substitutions:
   hum_min: "20"
   hum_max: "80"
 
+  # Maintenance mode: auto-resume sleep after this duration
+  maintenance_timeout: "30min"
+
+globals:
+  - id: maintenance_requested
+    type: bool
+    restore_value: false
+    initial_value: 'false'
+
 esphome:
   name: "${device_name}"
   name_add_mac_suffix: true
@@ -71,7 +80,10 @@ esphome:
           condition:
             mqtt.connected:
           timeout: 30s
-      - script.execute: consider_deep_sleep
+      - delay: 5s
+      - component.update: my_display
+      - delay: 5s
+      - script.execute: decide_sleep
 
 esp32:
   board: esp32-s2-saola-1
@@ -100,6 +112,10 @@ mqtt:
   will_message:
   log_topic:        # disabled — saves bandwidth on wake
   topic_prefix: "${mqtt_topic_prefix}"
+  on_message:
+    - topic: "${mqtt_topic_prefix}/cmd/maintenance"
+      then:
+        - lambda: 'id(maintenance_requested) = (x == "ON");'
 
 # Native API — dashboard metadata only (see note above). reboot_timeout: 0s so a
 # sleeping device with no API client connected doesn't reboot itself.
@@ -323,22 +339,39 @@ deep_sleep:
   sleep_duration: 1h
 
 script:
-  - id: consider_deep_sleep
-    mode: queued
+  - id: decide_sleep
+    mode: single
     then:
-      - delay: 5s
-      - component.update: my_display
-      - delay: 5s
       - if:
           condition:
-            sensor.in_range:
-              id: batpercent
-              above: 90
+            lambda: 'return id(maintenance_requested);'
           then:
             - deep_sleep.prevent: deep_sleep_control
+            - mqtt.publish:
+                topic: "${mqtt_topic_prefix}/status/maintenance"
+                payload: "ON"
+                retain: true
+            - script.execute: maintenance_watchdog
           else:
-            - switch.turn_off: exc
-            - max17043.sleep_mode: max17043_id
-            - deep_sleep.enter: deep_sleep_control
-      - delay: 25s
-      - script.execute: consider_deep_sleep
+            - if:
+                condition:
+                  sensor.in_range:
+                    id: batpercent
+                    above: 90
+                then:
+                  - deep_sleep.prevent: deep_sleep_control
+                else:
+                  - switch.turn_off: exc
+                  - max17043.sleep_mode: max17043_id
+                  - deep_sleep.enter: deep_sleep_control
+
+  - id: maintenance_watchdog
+    mode: restart
+    then:
+      - delay: ${maintenance_timeout}
+      - lambda: 'id(maintenance_requested) = false;'
+      - mqtt.publish:
+          topic: "${mqtt_topic_prefix}/status/maintenance"
+          payload: "OFF"
+          retain: true
+      - script.execute: decide_sleep
