@@ -436,6 +436,10 @@ script:
     mode: single
     then:
       - delay: 1s
+      # Normal wake cycles finish in less than ESPHome's default 60-second
+      # safe-mode validation window. Mark the running OTA image valid before
+      # deep sleep resets the CPU, otherwise ESP-IDF rolls back a healthy image.
+      - safe_mode.mark_successful
       - deep_sleep.allow: deep_sleep_control
       - switch.turn_off: exc
       - max17043.sleep_mode: max17043_id

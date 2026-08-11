@@ -52,3 +52,17 @@ The recommended update workflow is assisted rather than unattended:
 
 If OTA is not started or does not complete, the firmware watchdog clears both
 retained maintenance topics and returns the device to deep sleep.
+
+## One-time bootloader migration
+
+ESPHome OTA rollback requires a rollback-capable bootloader, and OTA updates do
+not replace the bootloader. Devices that log `Bootloader too old for OTA
+rollback` must therefore receive one serial/USB factory flash before relying on
+future OTA updates. Use the generated `firmware.factory.bin`, verify one normal
+wake/sleep cycle, and only then resume OTA maintenance.
+
+Every orderly sleep path calls `safe_mode.mark_successful` immediately before
+deep sleep. This is required because the normal measurement/display cycle can
+finish before ESPHome's default 60-second boot validation window; without the
+explicit mark, ESP-IDF treats deep sleep as a failed first boot and rolls back to
+the previous OTA partition.
