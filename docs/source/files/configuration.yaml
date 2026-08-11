@@ -383,22 +383,14 @@ deep_sleep:
 
 script:
   - id: consider_deep_sleep
-    mode: queued
+    mode: single
     then:
       - delay: 5s
       - component.update: my_display   
-      - delay: 5s           
-      - if:
-          condition:
-            sensor.in_range:
-              id: batpercent
-              above: 95
-          then:
-            - deep_sleep.prevent: deep_sleep_control 
-          else:
-            - switch.turn_off: exc              # Cut sensor power before sleep
-            - max17043.sleep_mode: max17043_id  # Fuel gauge low-power mode
-            - deep_sleep.enter: deep_sleep_control 
-
-      - delay: 25s
-      - script.execute: consider_deep_sleep
+      - delay: 5s
+      # A normal cycle can finish before ESPHome's default 60-second OTA
+      # validation window. Mark the image valid before deep sleep resets it.
+      - safe_mode.mark_successful
+      - switch.turn_off: exc              # Cut sensor power before sleep
+      - max17043.sleep_mode: max17043_id  # Fuel gauge low-power mode
+      - deep_sleep.enter: deep_sleep_control
