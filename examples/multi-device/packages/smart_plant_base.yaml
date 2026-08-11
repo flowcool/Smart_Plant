@@ -287,6 +287,15 @@ sensor:
       - lambda: if (x < 1) return 0; else if (x > 100) return 100; return (x);
     accuracy_decimals: 0
 
+# Running ESPHome core version. Keep the stable generic name so Home Assistant
+# reuses the existing MQTT entity instead of leaving stale per-device versions.
+text_sensor:
+  - platform: version
+    name: "ESPHome Version"
+    hide_timestamp: true
+    hide_hash: true
+    entity_category: diagnostic
+
 display:
   - platform: waveshare_epaper
     cs_pin: GPIO10

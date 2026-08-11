@@ -30,3 +30,25 @@ battery threshold is reset to `OFF`, reports `REJECTED_LOW_BATTERY`, and sleeps.
 Always validate one device before a batch OTA. To roll back this package, revert
 the package commit, push the branch, purge ESPHome's package cache, and reflash
 the last validated firmware over USB if OTA recovery is unavailable.
+
+## Home Assistant control and assisted updates
+
+Home Assistant should expose `<mqtt-prefix>/cmd/maintenance` as a retained MQTT
+switch and `<mqtt-prefix>/status/maintenance` as a diagnostic sensor. The switch
+represents the desired request; the diagnostic sensor shows the actual result,
+including `REJECTED_LOW_BATTERY`. Do not configure MQTT availability for these
+entities: retained state must remain visible while the device sleeps.
+
+The recommended update workflow is assisted rather than unattended:
+
+1. Compare the retained running ESPHome version with an operator-selected
+   target version and require recent telemetry plus sufficient battery.
+2. Notify the operator that the device is ready. An accepted notification action
+   publishes retained `ON` to the maintenance command topic.
+3. Wait until retained maintenance status is `ON`, then compile and upload one
+   canary from ESPHome Device Builder.
+4. Verify the new running version and at least one complete wake/sleep cycle
+   before updating more devices.
+
+If OTA is not started or does not complete, the firmware watchdog clears both
+retained maintenance topics and returns the device to deep sleep.
