@@ -229,6 +229,20 @@ switch:
     restore_mode: ALWAYS_ON
     internal: true
 
+  # Native MQTT-discovered control: ESPHome associates it with the same device
+  # as the plant sensors. Keep the established retained command topic so
+  # existing operators and automations remain compatible.
+  - platform: template
+    id: maintenance_control
+    name: "Maintenance"
+    icon: "mdi:wrench-cog"
+    optimistic: true
+    command_topic: "${mqtt_topic_prefix}/cmd/maintenance"
+    command_retain: true
+    subscribe_qos: 1
+    qos: 1
+    retain: true
+
 sensor:
   - platform: max17043
     id: max17043_id
@@ -301,6 +315,19 @@ text_sensor:
     hide_timestamp: true
     hide_hash: true
     entity_category: diagnostic
+
+  # Publish the actual state-machine result through a native entity so Home
+  # Assistant attaches it to the plant's MQTT device. REJECTED_LOW_BATTERY is
+  # intentionally distinct from the requested ON/OFF control state.
+  - platform: template
+    id: maintenance_status
+    name: "Maintenance Status"
+    icon: "mdi:information-outline"
+    entity_category: diagnostic
+    update_interval: never
+    state_topic: "${mqtt_topic_prefix}/status/maintenance"
+    qos: 1
+    retain: true
 
 display:
   - platform: waveshare_epaper
@@ -386,35 +413,32 @@ script:
                 then:
                   - lambda: 'id(maintenance_active) = true;'
                   - deep_sleep.prevent: deep_sleep_control
-                  - mqtt.publish:
-                      topic: "${mqtt_topic_prefix}/status/maintenance"
-                      payload: "ON"
-                      qos: 1
-                      retain: true
+                  - text_sensor.template.publish:
+                      id: maintenance_status
+                      state: "ON"
                   - script.execute: maintenance_watchdog
                 else:
                   - lambda: |-
                       id(maintenance_requested) = false;
                       id(maintenance_active) = false;
+                  - switch.template.publish:
+                      id: maintenance_control
+                      state: OFF
                   - mqtt.publish:
                       topic: "${mqtt_topic_prefix}/cmd/maintenance"
                       payload: "OFF"
                       qos: 1
                       retain: true
-                  - mqtt.publish:
-                      topic: "${mqtt_topic_prefix}/status/maintenance"
-                      payload: "REJECTED_LOW_BATTERY"
-                      qos: 1
-                      retain: true
+                  - text_sensor.template.publish:
+                      id: maintenance_status
+                      state: "REJECTED_LOW_BATTERY"
                   - script.execute: enter_deep_sleep
           else:
             - script.stop: maintenance_watchdog
             - lambda: 'id(maintenance_active) = false;'
-            - mqtt.publish:
-                topic: "${mqtt_topic_prefix}/status/maintenance"
-                payload: "OFF"
-                qos: 1
-                retain: true
+            - text_sensor.template.publish:
+                id: maintenance_status
+                state: "OFF"
             - script.execute: enter_deep_sleep
 
   - id: maintenance_watchdog
@@ -424,16 +448,17 @@ script:
       - lambda: |-
           id(maintenance_requested) = false;
           id(maintenance_active) = false;
+      - switch.template.publish:
+          id: maintenance_control
+          state: OFF
       - mqtt.publish:
           topic: "${mqtt_topic_prefix}/cmd/maintenance"
           payload: "OFF"
           qos: 1
           retain: true
-      - mqtt.publish:
-          topic: "${mqtt_topic_prefix}/status/maintenance"
-          payload: "OFF"
-          qos: 1
-          retain: true
+      - text_sensor.template.publish:
+          id: maintenance_status
+          state: "OFF"
       - script.execute: enter_deep_sleep
 
   # Give retained status/command publications a short flush window before the

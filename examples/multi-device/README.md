@@ -33,11 +33,14 @@ the last validated firmware over USB if OTA recovery is unavailable.
 
 ## Home Assistant control and assisted updates
 
-Home Assistant should expose `<mqtt-prefix>/cmd/maintenance` as a retained QoS 1
-MQTT switch and `<mqtt-prefix>/status/maintenance` as a diagnostic sensor. The
-switch represents the desired request; the diagnostic sensor shows the result,
-including `REJECTED_LOW_BATTERY`. Do not configure MQTT availability for these
-entities: retained state must remain visible while the device sleeps.
+The firmware exposes `Maintenance` and `Maintenance Status` as native ESPHome
+MQTT discovery entities. Home Assistant therefore attaches them to the same
+MQTT device as the plant sensors. The switch uses the retained QoS 1
+`<mqtt-prefix>/cmd/maintenance` contract and represents the desired request;
+the diagnostic text sensor uses `<mqtt-prefix>/status/maintenance` and shows
+the actual result, including `REJECTED_LOW_BATTERY`. Do not add separate manual
+MQTT entities or configure availability: duplicates would be created, and
+retained state must remain visible while the device sleeps.
 
 The recommended update workflow is assisted rather than unattended:
 
