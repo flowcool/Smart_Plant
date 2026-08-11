@@ -13,6 +13,7 @@ paths:
 - Before adding other observability entities, verify HA/ESPHome does not already
   expose the same state and preserve existing MQTT unique IDs.
 - MQTT prefixes include the original MAC suffix — never change them (HA entity orphan risk).
+- Maintenance commands must be retained and published/subscribed at QoS 1.
 - Packages are fetched from GitHub — after pushing changes, clear the package cache on NAS before flashing.
 - Every orderly deep-sleep path must call `safe_mode.mark_successful` before
   `deep_sleep.enter` so a healthy first OTA boot is not rolled back.

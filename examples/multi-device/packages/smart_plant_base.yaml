@@ -91,7 +91,12 @@ esphome:
           condition:
             mqtt.connected:
           timeout: 30s
-      - delay: 5s
+      # Keep the e-paper refresh single-shot, but give SNTP a bounded window so
+      # a slow first sync does not leave stale placeholder time for one hour.
+      - wait_until:
+          condition:
+            lambda: 'return id(esptime).now().is_valid();'
+          timeout: 10s
       - component.update: my_display
       - delay: 5s
       - lambda: 'id(boot_sequence_complete) = true;'
@@ -126,6 +131,7 @@ mqtt:
   topic_prefix: "${mqtt_topic_prefix}"
   on_message:
     - topic: "${mqtt_topic_prefix}/cmd/maintenance"
+      qos: 1
       then:
         - lambda: 'id(maintenance_requested) = (x == "ON");'
         - if:

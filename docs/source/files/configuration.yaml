@@ -13,9 +13,8 @@ esphome:
   project:
     name: "${project_name}"
     version: "${project_version}"
-  # Start the main loop immediately after boot. SNTP sync is handled
-  # asynchronously via on_time_sync below, which triggers a display refresh
-  # the moment time becomes valid — no fixed delay needed.
+  # Run one bounded boot workflow. It waits briefly for valid time, refreshes the
+  # display once, marks the OTA image valid, and enters deep sleep.
   on_boot:
     priority: 600
     then:
@@ -110,10 +109,6 @@ time:
       - "162.159.200.1"    # Cloudflare NTP (stable anycast IP — no DNS needed)
       - "216.239.35.0"     # Google NTP
       - "pool.ntp.org"     # fallback
-    on_time_sync:
-      then:
-        - component.update: my_display
-
 switch:
   - platform: gpio
     pin: GPIO4
@@ -385,7 +380,10 @@ script:
   - id: consider_deep_sleep
     mode: single
     then:
-      - delay: 5s
+      - wait_until:
+          condition:
+            lambda: 'return id(esptime).now().is_valid();'
+          timeout: 10s
       - component.update: my_display   
       - delay: 5s
       # A normal cycle can finish before ESPHome's default 60-second OTA

@@ -7,7 +7,7 @@ OTA maintenance uses a retained MQTT desired-state command so a sleeping device
 can receive it on its next hourly wake:
 
 ```sh
-mosquitto_pub -r -t "<mqtt-prefix>/cmd/maintenance" -m "ON"
+mosquitto_pub -q 1 -r -t "<mqtt-prefix>/cmd/maintenance" -m "ON"
 ```
 
 The request is accepted only when the measured battery level is at least
@@ -19,7 +19,7 @@ that timeout.
 After the OTA and checks, end maintenance explicitly:
 
 ```sh
-mosquitto_pub -r -t "<mqtt-prefix>/cmd/maintenance" -m "OFF"
+mosquitto_pub -q 1 -r -t "<mqtt-prefix>/cmd/maintenance" -m "OFF"
 ```
 
 `OFF` stops the watchdog and enters deep sleep. A timeout also writes retained
@@ -33,9 +33,9 @@ the last validated firmware over USB if OTA recovery is unavailable.
 
 ## Home Assistant control and assisted updates
 
-Home Assistant should expose `<mqtt-prefix>/cmd/maintenance` as a retained MQTT
-switch and `<mqtt-prefix>/status/maintenance` as a diagnostic sensor. The switch
-represents the desired request; the diagnostic sensor shows the actual result,
+Home Assistant should expose `<mqtt-prefix>/cmd/maintenance` as a retained QoS 1
+MQTT switch and `<mqtt-prefix>/status/maintenance` as a diagnostic sensor. The
+switch represents the desired request; the diagnostic sensor shows the result,
 including `REJECTED_LOW_BATTERY`. Do not configure MQTT availability for these
 entities: retained state must remain visible while the device sleeps.
 

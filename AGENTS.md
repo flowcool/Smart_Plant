@@ -54,7 +54,8 @@
 - OTA upload: `docker exec esphome esphome upload /config/<device>.yaml
   --device <ip>`.
 - Maintenance uses retained `<prefix>/cmd/maintenance` and
-  `<prefix>/status/maintenance`; see `examples/multi-device/README.md`.
+  `<prefix>/status/maintenance`; publish commands retained at QoS 1. See
+  `examples/multi-device/README.md`.
 
 ## Durable work state
 
