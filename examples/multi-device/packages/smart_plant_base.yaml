@@ -57,11 +57,22 @@ substitutions:
   hum_min: "20"
   hum_max: "80"
 
-  # Maintenance mode: auto-resume sleep after this duration
-  maintenance_timeout: "30min"
+  # OTA maintenance is accepted only above this battery level and always times
+  # out. A full battery permits maintenance; it never keeps the device awake by
+  # itself.
+  ota_min_battery: "50"
+  maintenance_timeout: "15min"
 
 globals:
   - id: maintenance_requested
+    type: bool
+    restore_value: false
+    initial_value: 'false'
+  - id: boot_sequence_complete
+    type: bool
+    restore_value: false
+    initial_value: 'false'
+  - id: maintenance_active
     type: bool
     restore_value: false
     initial_value: 'false'
@@ -83,6 +94,7 @@ esphome:
       - delay: 5s
       - component.update: my_display
       - delay: 5s
+      - lambda: 'id(boot_sequence_complete) = true;'
       - script.execute: decide_sleep
 
 esp32:
@@ -116,6 +128,13 @@ mqtt:
     - topic: "${mqtt_topic_prefix}/cmd/maintenance"
       then:
         - lambda: 'id(maintenance_requested) = (x == "ON");'
+        - if:
+            condition:
+              lambda: |-
+                return id(boot_sequence_complete) &&
+                       (x == "ON" || (x == "OFF" && id(maintenance_active)));
+            then:
+              - script.execute: decide_sleep
 
 # Native API — dashboard metadata only (see note above). reboot_timeout: 0s so a
 # sleeping device with no API client connected doesn't reboot itself.
@@ -195,9 +214,6 @@ time:
       - "162.159.200.1"    # Cloudflare NTP (anycast, IP stable)
       - "216.239.35.0"     # Google NTP
       - "pool.ntp.org"
-    on_time_sync:
-      then:
-        - component.update: my_display
 
 switch:
   - platform: gpio
@@ -340,38 +356,78 @@ deep_sleep:
 
 script:
   - id: decide_sleep
-    mode: single
+    mode: restart
     then:
       - if:
           condition:
             lambda: 'return id(maintenance_requested);'
           then:
-            - deep_sleep.prevent: deep_sleep_control
-            - mqtt.publish:
-                topic: "${mqtt_topic_prefix}/status/maintenance"
-                payload: "ON"
-                retain: true
-            - script.execute: maintenance_watchdog
-          else:
             - if:
                 condition:
-                  sensor.in_range:
-                    id: batpercent
-                    above: 90
+                  lambda: |-
+                    return id(batpercent).has_state() &&
+                           !isnan(id(batpercent).state) &&
+                           id(batpercent).state >= ${ota_min_battery};
                 then:
+                  - lambda: 'id(maintenance_active) = true;'
                   - deep_sleep.prevent: deep_sleep_control
+                  - mqtt.publish:
+                      topic: "${mqtt_topic_prefix}/status/maintenance"
+                      payload: "ON"
+                      qos: 1
+                      retain: true
+                  - script.execute: maintenance_watchdog
                 else:
-                  - switch.turn_off: exc
-                  - max17043.sleep_mode: max17043_id
-                  - deep_sleep.enter: deep_sleep_control
+                  - lambda: |-
+                      id(maintenance_requested) = false;
+                      id(maintenance_active) = false;
+                  - mqtt.publish:
+                      topic: "${mqtt_topic_prefix}/cmd/maintenance"
+                      payload: "OFF"
+                      qos: 1
+                      retain: true
+                  - mqtt.publish:
+                      topic: "${mqtt_topic_prefix}/status/maintenance"
+                      payload: "REJECTED_LOW_BATTERY"
+                      qos: 1
+                      retain: true
+                  - script.execute: enter_deep_sleep
+          else:
+            - script.stop: maintenance_watchdog
+            - lambda: 'id(maintenance_active) = false;'
+            - mqtt.publish:
+                topic: "${mqtt_topic_prefix}/status/maintenance"
+                payload: "OFF"
+                qos: 1
+                retain: true
+            - script.execute: enter_deep_sleep
 
   - id: maintenance_watchdog
     mode: restart
     then:
       - delay: ${maintenance_timeout}
-      - lambda: 'id(maintenance_requested) = false;'
+      - lambda: |-
+          id(maintenance_requested) = false;
+          id(maintenance_active) = false;
+      - mqtt.publish:
+          topic: "${mqtt_topic_prefix}/cmd/maintenance"
+          payload: "OFF"
+          qos: 1
+          retain: true
       - mqtt.publish:
           topic: "${mqtt_topic_prefix}/status/maintenance"
           payload: "OFF"
+          qos: 1
           retain: true
-      - script.execute: decide_sleep
+      - script.execute: enter_deep_sleep
+
+  # Give retained status/command publications a short flush window before the
+  # Wi-Fi and sensor rail disappear. Repeated calls are intentionally ignored.
+  - id: enter_deep_sleep
+    mode: single
+    then:
+      - delay: 1s
+      - deep_sleep.allow: deep_sleep_control
+      - switch.turn_off: exc
+      - max17043.sleep_mode: max17043_id
+      - deep_sleep.enter: deep_sleep_control
