@@ -71,6 +71,14 @@ Always validate one device before a batch OTA. To roll back this package, revert
 the package commit, push the branch, purge ESPHome's package cache, and reflash
 the last validated firmware over USB if OTA recovery is unavailable.
 
+The repeatable operator workflow is implemented by
+`scripts/esphome_fleet_update.py`. It reads device identities from
+`plants.yaml`, keeps MQTT credentials on the NAS, resets both local and paired
+remote build environments through the Device Builder API, retries transient
+cold-build failures, and queues deferred OTA installs. Run its `--help` output
+before use; execute `reset`, then maintenance and install for one canary before
+using `all` for the validated fleet.
+
 ## Home Assistant control and assisted updates
 
 The firmware exposes `Maintenance` and `Maintenance Status` as native ESPHome
