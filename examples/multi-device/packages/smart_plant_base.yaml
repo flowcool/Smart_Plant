@@ -234,7 +234,7 @@ switch:
   # existing operators and automations remain compatible.
   - platform: template
     id: maintenance_control
-    name: "Maintenance"
+    name: "${friendly_name} Maintenance"
     icon: "mdi:wrench-cog"
     optimistic: true
     command_topic: "${mqtt_topic_prefix}/cmd/maintenance"
@@ -312,11 +312,11 @@ sensor:
       - lambda: if (x < 1) return 0; else if (x > 100) return 100; return (x);
     accuracy_decimals: 0
 
-# Running ESPHome core version. Keep the stable generic name so Home Assistant
-# reuses the existing MQTT entity instead of leaving stale per-device versions.
+# Running ESPHome core version. Prefix the name like the historical sensors so
+# ESPHome's legacy MQTT discovery generator creates a per-device unique ID.
 text_sensor:
   - platform: version
-    name: "ESPHome Version"
+    name: "${friendly_name} ESPHome Version"
     hide_timestamp: true
     hide_hash: true
     entity_category: diagnostic
@@ -326,7 +326,7 @@ text_sensor:
   # intentionally distinct from the requested ON/OFF control state.
   - platform: template
     id: maintenance_status
-    name: "Maintenance Status"
+    name: "${friendly_name} Maintenance Status"
     icon: "mdi:information-outline"
     entity_category: diagnostic
     update_interval: never
