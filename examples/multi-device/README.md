@@ -44,7 +44,7 @@ mosquitto_pub -q 1 -r -t "<mqtt-prefix>/cmd/maintenance" -m "ON"
 The request is accepted only when the measured battery level is at least
 `${ota_min_battery}` (50% by default). An accepted device publishes retained
 `ON` to `<mqtt-prefix>/status/maintenance` and stays awake for at most
-`${maintenance_timeout}` (15 minutes by default). Publishing `ON` again restarts
+`${maintenance_timeout}` (25 minutes by default). Publishing `ON` again restarts
 that timeout. The device shows a minimal maintenance page with the expected end
 time; publishing `ON` again refreshes that deadline. If SNTP time is unavailable,
 the page shows the remaining duration instead. No periodic display updates run
