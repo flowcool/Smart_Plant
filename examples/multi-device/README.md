@@ -45,7 +45,10 @@ The request is accepted only when the measured battery level is at least
 `${ota_min_battery}` (50% by default). An accepted device publishes retained
 `ON` to `<mqtt-prefix>/status/maintenance` and stays awake for at most
 `${maintenance_timeout}` (15 minutes by default). Publishing `ON` again restarts
-that timeout.
+that timeout. The device shows a minimal maintenance page with the expected end
+time; publishing `ON` again refreshes that deadline. If SNTP time is unavailable,
+the page shows the remaining duration instead. No periodic display updates run
+while the device stays awake.
 
 After the OTA and checks, end maintenance explicitly:
 
@@ -57,6 +60,9 @@ mosquitto_pub -q 1 -r -t "<mqtt-prefix>/cmd/maintenance" -m "OFF"
 `OFF` to both the command and status topics before sleeping, preventing a stale
 command from reactivating maintenance at the next wake. A request below the
 battery threshold is reset to `OFF`, reports `REJECTED_LOW_BATTERY`, and sleeps.
+A successful OTA clears both retained maintenance states immediately before its
+automatic reboot. Failed or abandoned OTA attempts leave maintenance available
+for retry until manual `OFF` or the watchdog ends the window.
 
 Always validate one device before a batch OTA. To roll back this package, revert
 the package commit, push the branch, purge ESPHome's package cache, and reflash
@@ -73,10 +79,17 @@ the actual result, including `REJECTED_LOW_BATTERY`. Do not add separate manual
 MQTT entities or configure availability: duplicates would be created, and
 retained state must remain visible while the device sleeps.
 
+Home Assistant's device information reports the Smart Plant release and stamped
+functional Git revision through `esphome.project.version`, followed by the
+ESPHome core version, for example `2.2+abcdef0 (ESPHome 2026.7.4)`. Update the
+revision stamp only after committing and verifying a functional firmware change;
+the following metadata-only stamp commit intentionally identifies that preceding
+functional commit.
+
 The recommended update workflow is assisted rather than unattended:
 
-1. Compare the retained running ESPHome version with an operator-selected
-   target version and require recent telemetry plus sufficient battery.
+1. Compare the reported Smart Plant revision and ESPHome core version with the
+   operator-selected target and require recent telemetry plus sufficient battery.
 2. Notify the operator that the device is ready. An accepted notification action
    publishes retained `ON` to the maintenance command topic.
 3. Wait until retained maintenance status is `ON`, then compile and upload one

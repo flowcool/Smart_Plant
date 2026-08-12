@@ -16,7 +16,10 @@ substitutions:
   friendly_name: "Smart Plant"
   device_comment: "${friendly_name}"
   project_name: "smart.plant"
-  project_version: "2.2"
+  # Smart Plant release plus the Git revision of the functional firmware
+  # commit. The revision is stamped after each accepted firmware change so HA
+  # shows e.g. "2.2+abcdef0 (ESPHome 2026.7.4)" under Firmware.
+  project_version: "2.2+pending"
   ap_ssid: "Smart-Plant"
   ap_pwd: "smartplant"
   timezone: "Europe/Paris"
@@ -61,7 +64,8 @@ substitutions:
   # out. A full battery permits maintenance; it never keeps the device awake by
   # itself.
   ota_min_battery: "50"
-  maintenance_timeout: "25min"
+  maintenance_timeout_minutes: "25"
+  maintenance_timeout: "${maintenance_timeout_minutes}min"
 
 globals:
   - id: maintenance_requested
@@ -76,6 +80,14 @@ globals:
     type: bool
     restore_value: false
     initial_value: 'false'
+  - id: maintenance_end_hour
+    type: int
+    restore_value: false
+    initial_value: '-1'
+  - id: maintenance_end_minute
+    type: int
+    restore_value: false
+    initial_value: '-1'
 
 esphome:
   name: "${device_name}"
@@ -97,6 +109,7 @@ esphome:
           condition:
             lambda: 'return id(esptime).now().is_valid();'
           timeout: 10s
+      - display.page.show: page1
       - component.update: my_display
       - delay: 5s
       - lambda: 'id(boot_sequence_complete) = true;'
@@ -155,6 +168,26 @@ api:
 ota:
   - platform: esphome
     password: "${ota_password}"
+    # on_end runs only after the image has been transferred successfully and
+    # immediately before the OTA reboot. Clear the one-shot retained request so
+    # the new firmware performs a normal measurement/display/sleep cycle.
+    on_end:
+      then:
+        - lambda: |-
+            id(maintenance_requested) = false;
+            id(maintenance_active) = false;
+        - switch.template.publish:
+            id: maintenance_control
+            state: OFF
+        - mqtt.publish:
+            topic: "${mqtt_topic_prefix}/cmd/maintenance"
+            payload: "OFF"
+            qos: 1
+            retain: true
+        - text_sensor.template.publish:
+            id: maintenance_status
+            state: "OFF"
+        - delay: 1s
 
 captive_portal:
 improv_serial:
@@ -397,6 +430,17 @@ display:
           draw_gauge(id(temp).state,  ${temp_min},  ${temp_max},   188,  50, "%.0f°C");
           draw_gauge(id(hum).state,   ${hum_min},   ${hum_max},    242,  70, "%.0f%%");
 
+      - id: page_maintenance
+        lambda: |-
+          it.printf(148, 25, id(font_title), TextAlign::TOP_CENTER, "MAINTENANCE");
+          if (id(maintenance_end_hour) >= 0) {
+            it.printf(148, 75, id(font_title), TextAlign::TOP_CENTER, "FIN %02d:%02d",
+                      id(maintenance_end_hour), id(maintenance_end_minute));
+          } else {
+            it.printf(148, 75, id(font_title), TextAlign::TOP_CENTER,
+                      "FIN DANS ${maintenance_timeout_minutes} MIN");
+          }
+
 deep_sleep:
   id: deep_sleep_control
   sleep_duration: 1h
@@ -416,11 +460,24 @@ script:
                            !isnan(id(batpercent).state) &&
                            id(batpercent).state >= ${ota_min_battery};
                 then:
-                  - lambda: 'id(maintenance_active) = true;'
+                  - lambda: |-
+                      id(maintenance_active) = true;
+                      auto now = id(esptime).now();
+                      if (now.is_valid()) {
+                        int end_minutes = now.hour * 60 + now.minute +
+                                          ${maintenance_timeout_minutes};
+                        id(maintenance_end_hour) = (end_minutes / 60) % 24;
+                        id(maintenance_end_minute) = end_minutes % 60;
+                      } else {
+                        id(maintenance_end_hour) = -1;
+                        id(maintenance_end_minute) = -1;
+                      }
                   - deep_sleep.prevent: deep_sleep_control
                   - text_sensor.template.publish:
                       id: maintenance_status
                       state: "ON"
+                  - display.page.show: page_maintenance
+                  - component.update: my_display
                   - script.execute: maintenance_watchdog
                 else:
                   - lambda: |-
