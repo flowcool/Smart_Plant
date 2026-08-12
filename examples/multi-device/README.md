@@ -56,13 +56,16 @@ After the OTA and checks, end maintenance explicitly:
 mosquitto_pub -q 1 -r -t "<mqtt-prefix>/cmd/maintenance" -m "OFF"
 ```
 
-`OFF` stops the watchdog and enters deep sleep. A timeout also writes retained
-`OFF` to both the command and status topics before sleeping, preventing a stale
-command from reactivating maintenance at the next wake. A request below the
-battery threshold is reset to `OFF`, reports `REJECTED_LOW_BATTERY`, and sleeps.
-A successful OTA clears both retained maintenance states immediately before its
-automatic reboot. Failed or abandoned OTA attempts leave maintenance available
-for retry until manual `OFF` or the watchdog ends the window.
+`OFF` stops the watchdog, restores the normal page once with the latest sensor
+readings, and enters deep sleep. A timeout follows the same display path and
+writes retained `OFF` to both the command and status topics before sleeping,
+preventing a stale command from reactivating maintenance at the next wake. A
+request below the battery threshold is reset to `OFF`, reports
+`REJECTED_LOW_BATTERY`, and sleeps without showing the maintenance page. A
+successful OTA clears both retained maintenance states immediately before its
+automatic reboot; the reboot performs the normal display refresh instead of an
+extra pre-reboot refresh. Failed or abandoned OTA attempts leave maintenance
+available for retry until manual `OFF` or the watchdog ends the window.
 
 Always validate one device before a batch OTA. To roll back this package, revert
 the package commit, push the branch, purge ESPHome's package cache, and reflash

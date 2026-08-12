@@ -496,16 +496,29 @@ script:
                   - script.execute: enter_deep_sleep
           else:
             - script.stop: maintenance_watchdog
-            - lambda: 'id(maintenance_active) = false;'
-            - text_sensor.template.publish:
-                id: maintenance_status
-                state: "OFF"
-            - script.execute: enter_deep_sleep
+            - if:
+                condition:
+                  lambda: 'return id(maintenance_active);'
+                then:
+                  - script.execute: exit_maintenance
+                else:
+                  - text_sensor.template.publish:
+                      id: maintenance_status
+                      state: "OFF"
+                  - script.execute: enter_deep_sleep
 
   - id: maintenance_watchdog
     mode: restart
     then:
       - delay: ${maintenance_timeout}
+      - script.execute: exit_maintenance
+
+  # The e-paper keeps its last image without power. Replace the maintenance
+  # page with the latest plant readings before an explicit OFF or watchdog
+  # sleep, so the physical display cannot contradict the retained MQTT state.
+  - id: exit_maintenance
+    mode: single
+    then:
       - lambda: |-
           id(maintenance_requested) = false;
           id(maintenance_active) = false;
@@ -520,6 +533,8 @@ script:
       - text_sensor.template.publish:
           id: maintenance_status
           state: "OFF"
+      - display.page.show: page1
+      - component.update: my_display
       - script.execute: enter_deep_sleep
 
   # Give retained status/command publications a short flush window before the
