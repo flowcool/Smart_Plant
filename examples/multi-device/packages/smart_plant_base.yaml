@@ -19,7 +19,7 @@ substitutions:
   # Smart Plant release plus the Git revision of the functional firmware
   # commit. The revision is stamped after each accepted firmware change so HA
   # shows e.g. "2.2+abcdef0 (ESPHome 2026.7.4)" under Firmware.
-  project_version: "2.2+pending"
+  project_version: "2.2+28369ec"
   ap_ssid: "Smart-Plant"
   ap_pwd: "smartplant"
   timezone: "Europe/Paris"
