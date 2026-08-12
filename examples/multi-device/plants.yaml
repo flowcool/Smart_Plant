@@ -1,0 +1,121 @@
+# Repository identity registry for the eight deployed Smart Plant devices.
+# Live ESPHome YAML files remain authoritative for credentials and runtime config.
+# device_name and mqtt_topic_prefix are immutable integration identifiers.
+
+plants:
+  ceropegia-woodii1:
+    display_name: "Guirlande de cœurs — Cuisine"
+    botanical_name: "Ceropegia woodii"
+    room: "Cuisine"
+    ip_address: "192.168.2.232"
+    mqtt_topic_prefix: "ceropegia-woodii1-54a8f2"
+    label_image: "plant_labels/Ceropegia_woodii_label_page_1.png"
+    timezone: "Europe/Paris"
+    soil_calibration:
+      wet_voltage: 1.25
+      dry_voltage: 2.8
+      status: "shared-default-not-measured-per-probe"
+
+  ceropegia-woodii2:
+    display_name: "Guirlande de cœurs — Séjour"
+    botanical_name: "Ceropegia woodii"
+    room: "Séjour"
+    ip_address: "192.168.2.235"
+    mqtt_topic_prefix: "ceropegia-woodii2-54a99c"
+    label_image: "plant_labels/Ceropegia_woodii_label_page_1.png"
+    timezone: "Europe/Paris"
+    soil_calibration:
+      wet_voltage: 1.25
+      dry_voltage: 2.8
+      status: "shared-default-not-measured-per-probe"
+
+  cyperus-papyrus:
+    display_name: "Papyrus"
+    botanical_name: "Cyperus papyrus"
+    room: null
+    ip_address: "192.168.2.237"
+    mqtt_topic_prefix: "cyperus-papyrus-54a9b2"
+    label_image: "plant_labels/Cyperus_papyrus_label_page_1.png"
+    timezone: "Europe/Paris"
+    soil_calibration:
+      wet_voltage: 1.25
+      dry_voltage: 2.8
+      status: "shared-default-not-measured-per-probe"
+
+  equisetum-hyemale:
+    display_name: "Prêle du Japon"
+    botanical_name: "Equisetum hyemale"
+    room: null
+    ip_address: "192.168.2.238"
+    mqtt_topic_prefix: "equisetum-hyemale-54a994"
+    label_image: "plant_labels/Equisetum_hyemale_label_page_1.png"
+    timezone: "Europe/Paris"
+    soil_calibration:
+      wet_voltage: 1.25
+      dry_voltage: 2.8
+      status: "shared-default-not-measured-per-probe"
+
+  oxalis-triangularis:
+    display_name: "Trèfle pourpre"
+    botanical_name: "Oxalis triangularis"
+    room: null
+    ip_address: "192.168.2.234"
+    mqtt_topic_prefix: "oxalis-triangularis-5326ba"
+    label_image: "plant_labels/Oxalis_triangularis_label_page_1.png"
+    timezone: "Europe/Paris"
+    soil_calibration:
+      wet_voltage: 1.25
+      dry_voltage: 2.8
+      status: "shared-default-not-measured-per-probe"
+
+  peperomia-tetraphylla:
+    display_name: "Peperomia ‘Hope’"
+    botanical_name: null
+    horticultural_name: "Peperomia ‘Hope’"
+    identification_note: >-
+      The immutable technical slug predates this registry. Trade sources use
+      Peperomia tetraphylla 'Hope', while the cultivar patent describes a
+      hybrid; retain the slug but do not claim a verified species identity.
+    identification_references:
+      accepted_species: >-
+        https://powo.science.kew.org/taxon/urn:lsid:ipni.org:names:1068802-2
+      cultivar_patent: "https://patents.google.com/patent/USPP24794P3/en"
+    room: null
+    ip_address: "192.168.2.236"
+    mqtt_topic_prefix: "peperomia-tetraphylla-54a940"
+    label_image: "plant_labels/Peperomia_Hope_label_page_1.png"
+    timezone: "Europe/Paris"
+    soil_calibration:
+      wet_voltage: 1.25
+      dry_voltage: 2.8
+      status: "shared-default-not-measured-per-probe"
+
+  pilea-peperomioides:
+    display_name: "Plante à monnaie chinoise"
+    botanical_name: "Pilea peperomioides"
+    room: null
+    ip_address: "192.168.2.231"
+    mqtt_topic_prefix: "pilea-peperomioides-54a8e4"
+    label_image: "plant_labels/Pilea_peperomioides_label_page_1.png"
+    timezone: "Europe/Paris"
+    soil_calibration:
+      wet_voltage: 1.25
+      dry_voltage: 2.8
+      status: "shared-default-not-measured-per-probe"
+
+  rhipsalis-baccifera:
+    display_name: "Cactus-gui"
+    botanical_name: "Rhipsalis baccifera"
+    room: null
+    ip_address: "192.168.2.233"
+    mqtt_topic_prefix: "rhipsalis-baccifera-54a936"
+    label_image: "plant_labels/Rhipsalis_baccifera_label_page_1.png"
+    timezone: "Europe/Paris"
+    soil_calibration:
+      wet_voltage: 1.25
+      dry_voltage: 2.8
+      status: "shared-default-not-measured-per-probe"
+
+unused_label_images:
+  - "plant_labels/Lemon_tree_label_page_1.png"
+  - "plant_labels/Lysimachia_nummularia_Aurea_label_page_1.png"

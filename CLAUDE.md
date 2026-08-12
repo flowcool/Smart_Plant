@@ -27,18 +27,15 @@ Upstream PRs: #9,#12,#13,#17,#18,#19,#20 merged. PR #22 (multi-device packages) 
 
 ## Device inventory
 
-| device_name | IP | MQTT prefix |
-|---|---|---|
-| ceropegia-woodii1 | 192.168.2.232 | ceropegia-woodii1-54a8f2 |
-| ceropegia-woodii2 | 192.168.2.235 | ceropegia-woodii2-54a99c |
-| cyperus-papyrus | 192.168.2.237 | cyperus-papyrus-54a9b2 |
-| equisetum-hyemale | 192.168.2.238 | equisetum-hyemale-54a994 |
-| oxalis-triangularis | 192.168.2.234 | oxalis-triangularis-5326ba |
-| peperomia-tetraphylla | 192.168.2.236 | peperomia-tetraphylla-54a940 |
-| pilea-peperomioides | 192.168.2.231 | pilea-peperomioides-54a8e4 |
-| rhipsalis-baccifera | 192.168.2.233 | rhipsalis-baccifera-54a936 |
+`examples/multi-device/plants.yaml` is the keyed repository identity registry
+for the eight deployed plants. It records immutable device names and MQTT
+prefixes, French display names, botanical labels, IPs, label images, timezone,
+and calibration status. Live ESPHome files remain authoritative for credentials
+and runtime configuration.
 
-Soil calibration identical: `1.25V → 100%, 2.8V → 0%`. MQTT prefixes include MAC suffix — never change.
+MQTT prefixes include the historical MAC suffix and must never change. The
+shared `1.25V → 100%, 2.8V → 0%` soil values are defaults; they are not evidence
+of individual probe calibration.
 
 ## Operations
 

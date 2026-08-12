@@ -1,5 +1,36 @@
 # Multi-device OTA maintenance
 
+## Device identity
+
+The repository identity registry is [`plants.yaml`](plants.yaml). Live ESPHome
+files remain authoritative for credentials and runtime configuration, while the
+registry records the stable mapping operators need when comparing ESPHome,
+MQTT, and Home Assistant.
+
+Keep these identity layers separate:
+
+- `device_name` is the immutable lowercase technical slug used by ESPHome; it
+  is usually derived from the original botanical identification.
+- `mqtt_topic_prefix` is the immutable slug plus the historical MAC suffix.
+- `display_name` is the correctly accented French label shown to people; add a
+  room after an em dash only when two plants need disambiguation.
+- `botanical_name` uses a capitalized genus and lowercase species epithet.
+- `device_comment` combines botanical and French labels for diagnostics.
+
+The current live files still use the legacy `friendly_name` substitution for
+entity names. `display_name` defines the desired human label in the registry;
+do not apply it to existing entities until the canary migration proves that
+their MQTT discovery identities remain stable.
+
+Do not rename existing device names, MQTT prefixes, entity names, entity IDs,
+or discovery unique IDs as part of a cosmetic cleanup. Such a migration needs
+captured MQTT discovery payloads and a single-device canary first. The current
+installation timezone is intentionally `Europe/Paris`.
+
+The shared soil calibration values are defaults, not evidence that every probe
+was individually measured. `plants.yaml` records this explicitly. Unused label
+images are inventoried there and intentionally retained.
+
 The shared package performs one measurement/display cycle and then enters deep
 sleep for one hour. Battery charge alone never keeps a device awake.
 
