@@ -61,7 +61,7 @@ substitutions:
   # out. A full battery permits maintenance; it never keeps the device awake by
   # itself.
   ota_min_battery: "50"
-  maintenance_timeout: "15min"
+  maintenance_timeout: "25min"
 
 globals:
   - id: maintenance_requested
