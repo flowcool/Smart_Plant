@@ -16,10 +16,7 @@ substitutions:
   friendly_name: "Smart Plant"
   device_comment: "${friendly_name}"
   project_name: "smart.plant"
-  # Smart Plant release plus the Git revision of the functional firmware
-  # commit. The revision is stamped after each accepted firmware change so HA
-  # shows e.g. "2.2+abcdef0 (ESPHome 2026.7.4)" under Firmware.
-  project_version: "2.2+e371e40"
+  project_version: "2.2"
   ap_ssid: "Smart-Plant"
   ap_pwd: "smartplant"
   timezone: "Europe/Paris"
@@ -351,7 +348,9 @@ text_sensor:
   - platform: version
     name: "${friendly_name} ESPHome Version"
     hide_timestamp: true
-    hide_hash: true
+    # Keep the native config hash: unlike a manually stamped Git revision, it
+    # identifies the effective per-device configuration compiled into the image.
+    hide_hash: false
     entity_category: diagnostic
 
   # Publish the actual state-machine result through a native entity so Home

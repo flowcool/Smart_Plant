@@ -79,16 +79,16 @@ the actual result, including `REJECTED_LOW_BATTERY`. Do not add separate manual
 MQTT entities or configure availability: duplicates would be created, and
 retained state must remain visible while the device sleeps.
 
-Home Assistant's device information reports the Smart Plant release and stamped
-functional Git revision through `esphome.project.version`, followed by the
-ESPHome core version, for example `2.2+abcdef0 (ESPHome 2026.7.4)`. Update the
-revision stamp only after committing and verifying a functional firmware change;
-the following metadata-only stamp commit intentionally identifies that preceding
-functional commit.
+Home Assistant's device information reports the Smart Plant release and ESPHome
+core version. The diagnostic ESPHome Version entity also retains ESPHome's native
+configuration hash, for example `2026.7.4 (config hash 0x761df8d0)`. This hash
+identifies the effective per-device configuration compiled into the image and
+can be compared with the corresponding Device Builder artifact. Record the
+`config_hash`, source commit, and artifact SHA-256 together in deployment notes.
 
 The recommended update workflow is assisted rather than unattended:
 
-1. Compare the reported Smart Plant revision and ESPHome core version with the
+1. Compare the reported configuration hash and ESPHome core version with the
    operator-selected target and require recent telemetry plus sufficient battery.
 2. Notify the operator that the device is ready. An accepted notification action
    publishes retained `ON` to the maintenance command topic.
