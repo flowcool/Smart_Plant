@@ -264,10 +264,7 @@ switch:
   # existing operators and automations remain compatible.
   - platform: template
     id: maintenance_control
-    # ESPHome 2026.7 does not expose a per-entity MQTT unique_id override. Its
-    # legacy generator derives unique_id from the name after removing the device
-    # friendly-name prefix, so retain device_name as a stable unique suffix.
-    name: "${friendly_name} Maintenance ${device_name}"
+    name: "${friendly_name} Maintenance"
     icon: "mdi:wrench-cog"
     optimistic: true
     command_topic: "${mqtt_topic_prefix}/cmd/maintenance"
@@ -345,11 +342,11 @@ sensor:
       - lambda: if (x < 1) return 0; else if (x > 100) return 100; return (x);
     accuracy_decimals: 0
 
-# Running ESPHome core version. Prefix the name like the historical sensors so
-# ESPHome's legacy MQTT discovery generator creates a per-device unique ID.
+# Running ESPHome core version. Follow the same visible naming convention as
+# the historical sensors; Home Assistant cleanup owns legacy collision removal.
 text_sensor:
   - platform: version
-    name: "${friendly_name} ESPHome Version ${device_name}"
+    name: "${friendly_name} ESPHome Version"
     hide_timestamp: true
     # Keep the native config hash: unlike a manually stamped Git revision, it
     # identifies the effective per-device configuration compiled into the image.
@@ -361,7 +358,7 @@ text_sensor:
   # intentionally distinct from the requested ON/OFF control state.
   - platform: template
     id: maintenance_status
-    name: "${friendly_name} Maintenance Status ${device_name}"
+    name: "${friendly_name} Maintenance Status"
     icon: "mdi:information-outline"
     entity_category: diagnostic
     update_interval: never
