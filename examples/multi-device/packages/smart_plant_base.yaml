@@ -265,6 +265,9 @@ switch:
   - platform: template
     id: maintenance_control
     name: "${friendly_name} Maintenance"
+    # The legacy MQTT discovery unique_id is derived from object_id. Include the
+    # immutable MAC-suffixed topic prefix so all eight devices remain distinct.
+    object_id: "${mqtt_topic_prefix}_maintenance"
     icon: "mdi:wrench-cog"
     optimistic: true
     command_topic: "${mqtt_topic_prefix}/cmd/maintenance"
@@ -347,6 +350,7 @@ sensor:
 text_sensor:
   - platform: version
     name: "${friendly_name} ESPHome Version"
+    object_id: "${mqtt_topic_prefix}_esphome_version"
     hide_timestamp: true
     # Keep the native config hash: unlike a manually stamped Git revision, it
     # identifies the effective per-device configuration compiled into the image.
@@ -359,6 +363,7 @@ text_sensor:
   - platform: template
     id: maintenance_status
     name: "${friendly_name} Maintenance Status"
+    object_id: "${mqtt_topic_prefix}_maintenance_status"
     icon: "mdi:information-outline"
     entity_category: diagnostic
     update_interval: never
