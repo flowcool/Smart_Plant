@@ -45,10 +45,10 @@ The request is accepted only when the measured battery level is at least
 `${ota_min_battery}` (50% by default). An accepted device publishes retained
 `ON` to `<mqtt-prefix>/status/maintenance` and stays awake for at most
 `${maintenance_timeout}` (25 minutes by default). Publishing `ON` again restarts
-that timeout. The device shows a minimal maintenance page with the expected end
-time; publishing `ON` again refreshes that deadline. If SNTP time is unavailable,
-the page shows the remaining duration instead. No periodic display updates run
-while the device stays awake.
+that timeout. The device shows its friendly name on a minimal maintenance page
+with the expected end time; publishing `ON` again refreshes that deadline. If
+SNTP time is unavailable, the page shows the remaining duration instead. No
+periodic display updates run while the device stays awake.
 
 After the OTA and checks, end maintenance explicitly:
 

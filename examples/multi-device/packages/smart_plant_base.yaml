@@ -431,12 +431,13 @@ display:
 
       - id: page_maintenance
         lambda: |-
-          it.printf(148, 25, id(font_title), TextAlign::TOP_CENTER, "MAINTENANCE");
+          it.printf(148, 8, id(font_subtitle), TextAlign::TOP_CENTER, "${friendly_name}");
+          it.printf(148, 38, id(font_title), TextAlign::TOP_CENTER, "MAINTENANCE");
           if (id(maintenance_end_hour) >= 0) {
-            it.printf(148, 75, id(font_title), TextAlign::TOP_CENTER, "FIN %02d:%02d",
+            it.printf(148, 82, id(font_title), TextAlign::TOP_CENTER, "FIN %02d:%02d",
                       id(maintenance_end_hour), id(maintenance_end_minute));
           } else {
-            it.printf(148, 75, id(font_title), TextAlign::TOP_CENTER,
+            it.printf(148, 82, id(font_title), TextAlign::TOP_CENTER,
                       "FIN DANS ${maintenance_timeout_minutes} MIN");
           }
 
