@@ -62,8 +62,13 @@ writes retained `OFF` to both the command and status topics before sleeping,
 preventing a stale command from reactivating maintenance at the next wake. A
 request below the battery threshold is reset to `OFF`, reports
 `REJECTED_LOW_BATTERY`, and sleeps without showing the maintenance page. A
-successful OTA clears both retained maintenance states immediately before its
-automatic reboot and never starts a physical refresh at that boundary. A normal
+missing fuel-gauge reading instead reports `BATTERY_UNAVAILABLE`; it is never
+misrepresented as a genuinely low battery. The MAX17043 remains awake across
+MCU deep sleep because ESPHome 2026.7.4 provides a sleep action but no matching
+wake action, and reliable OTA admission is more important than the gauge's
+small software-sleep saving. A successful OTA clears both retained maintenance
+states immediately before its automatic reboot and never starts a physical
+refresh at that boundary. A normal
 reboot performs the normal display refresh; a persisted Storage Mode records a
 one-shot pending refresh and restores its page after reboot. Every controlled
 refresh waits for the panel's active-high BUSY transition to clear before sleep

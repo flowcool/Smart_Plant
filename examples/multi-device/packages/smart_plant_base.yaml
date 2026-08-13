@@ -120,6 +120,10 @@ globals:
     # No refresh is in flight at boot. settle_display resets this before every
     # activation and only restores it after BUSY is observed low.
     initial_value: 'true'
+  - id: preserve_maintenance_status
+    type: bool
+    restore_value: false
+    initial_value: 'false'
 
 esphome:
   name: "${device_name}"
@@ -670,6 +674,7 @@ script:
     mode: restart
     then:
       - switch.turn_on: exc
+      - delay: 250ms
       - component.update: max17043_id
       - wait_until:
           condition:
@@ -750,6 +755,7 @@ script:
                   - lambda: |-
                       id(maintenance_requested) = false;
                       id(maintenance_active) = false;
+                      id(preserve_maintenance_status) = true;
                   - switch.template.publish:
                       id: maintenance_control
                       state: OFF
@@ -758,9 +764,19 @@ script:
                       payload: "OFF"
                       qos: 1
                       retain: true
-                  - text_sensor.template.publish:
-                      id: maintenance_status
-                      state: "REJECTED_LOW_BATTERY"
+                  - if:
+                      condition:
+                        lambda: |-
+                          return id(batpercent).has_state() &&
+                                 !isnan(id(batpercent).state);
+                      then:
+                        - text_sensor.template.publish:
+                            id: maintenance_status
+                            state: "REJECTED_LOW_BATTERY"
+                      else:
+                        - text_sensor.template.publish:
+                            id: maintenance_status
+                            state: "BATTERY_UNAVAILABLE"
                   - if:
                       condition:
                         lambda: 'return id(storage_requested);'
@@ -837,9 +853,14 @@ script:
       - text_sensor.template.publish:
           id: storage_status
           state: "ON"
-      - text_sensor.template.publish:
-          id: maintenance_status
-          state: "OFF"
+      - if:
+          condition:
+            lambda: 'return !id(preserve_maintenance_status);'
+          then:
+            - text_sensor.template.publish:
+                id: maintenance_status
+                state: "OFF"
+      - lambda: 'id(preserve_maintenance_status) = false;'
       - if:
           condition:
             lambda: |-
@@ -927,7 +948,6 @@ script:
             - safe_mode.mark_successful
             - deep_sleep.allow: deep_sleep_control
             - switch.turn_off: exc
-            - max17043.sleep_mode: max17043_id
             - if:
                 condition:
                   lambda: 'return id(storage_active);'
