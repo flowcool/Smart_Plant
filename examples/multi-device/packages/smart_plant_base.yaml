@@ -112,6 +112,13 @@ esphome:
     priority: 600
     then:
       - lambda: 'id(storage_requested) = id(storage_active);'
+      - if:
+          condition:
+            lambda: 'return id(storage_active);'
+          then:
+            # Persisted Storage Mode can disable the sensor excitation rail
+            # before waiting for retained MQTT commands.
+            - switch.turn_off: exc
       - wait_until:
           condition:
             mqtt.connected:
@@ -119,14 +126,8 @@ esphome:
       # Retained desired-state commands arrive immediately after MQTT connect,
       # but connection itself does not guarantee their callbacks have run.
       - delay: 1s
-      # Keep the e-paper refresh single-shot, but give SNTP a bounded window so
-      # a slow first sync does not leave stale placeholder time for one hour.
-      - wait_until:
-          condition:
-            lambda: 'return id(esptime).now().is_valid();'
-          timeout: 10s
       - lambda: 'id(boot_sequence_complete) = true;'
-      - script.execute: decide_sleep
+      - script.execute: prepare_cycle
 
 esp32:
   board: esp32-s2-saola-1
@@ -166,7 +167,13 @@ mqtt:
                 return id(boot_sequence_complete) &&
                        (x == "ON" || (x == "OFF" && id(maintenance_active)));
             then:
-              - script.execute: decide_sleep
+              - if:
+                  condition:
+                    lambda: 'return x == "ON";'
+                  then:
+                    - script.execute: prepare_cycle
+                  else:
+                    - script.execute: decide_sleep
     - topic: "${mqtt_topic_prefix}/cmd/storage_mode"
       qos: 1
       then:
@@ -175,7 +182,7 @@ mqtt:
             condition:
               lambda: 'return id(boot_sequence_complete) && !id(maintenance_active);'
             then:
-              - script.execute: decide_sleep
+              - script.execute: prepare_cycle
 
 # Native API — dashboard metadata only (see note above). reboot_timeout: 0s so a
 # sleeping device with no API client connected doesn't reboot itself.
@@ -321,6 +328,7 @@ switch:
 sensor:
   - platform: max17043
     id: max17043_id
+    update_interval: never
     battery_voltage:
       id: batvolt
       name: "${friendly_name} Battery voltage"
@@ -335,6 +343,7 @@ sensor:
       accuracy_decimals: 0
 
   - platform: aht10
+    id: aht20_sensor
     variant: AHT20
     i2c_id: bus_a
     temperature:
@@ -351,11 +360,12 @@ sensor:
       device_class: humidity
       force_update: true
       accuracy_decimals: 0
-    update_interval: 3s
+    update_interval: never
 
   - platform: veml7700
+    id: veml7700_sensor
     address: 0x10
-    update_interval: 3s
+    update_interval: never
     ambient_light:
       name: "${friendly_name} Ambient light"
       id: light
@@ -373,7 +383,7 @@ sensor:
     id: soil
     icon: "mdi:cup-water"
     device_class: moisture
-    update_interval: 3s
+    update_interval: never
     unit_of_measurement: "%"
     attenuation: 12db
     force_update: true
@@ -513,6 +523,73 @@ deep_sleep:
   sleep_duration: 1h
 
 script:
+  # Choose the smallest acquisition path only after retained MQTT commands have
+  # had a chance to override the persisted Storage Mode state.
+  - id: prepare_cycle
+    mode: restart
+    then:
+      - if:
+          condition:
+            lambda: 'return id(maintenance_requested);'
+          then:
+            - script.execute: sample_battery
+            - script.wait: sample_battery
+            - wait_until:
+                condition:
+                  lambda: 'return id(esptime).now().is_valid();'
+                timeout: 10s
+            - script.execute: decide_sleep
+          else:
+            - if:
+                condition:
+                  lambda: 'return id(storage_requested);'
+                then:
+                  - if:
+                      condition:
+                        # The first Storage page needs a current battery value;
+                        # later daily checks acquire no sensor state at all.
+                        lambda: 'return !id(storage_active);'
+                      then:
+                        - script.execute: sample_battery
+                        - script.wait: sample_battery
+                  - script.execute: decide_sleep
+                else:
+                  - script.execute: acquire_normal
+
+  - id: sample_battery
+    mode: restart
+    then:
+      - switch.turn_on: exc
+      - component.update: max17043_id
+      - wait_until:
+          condition:
+            lambda: |-
+              return id(batpercent).has_state() &&
+                     !isnan(id(batpercent).state);
+          timeout: 3s
+
+  # Six explicit samples preserve the soil filter's existing first publication
+  # followed by its five-sample median cadence, without background polling.
+  - id: acquire_normal
+    mode: restart
+    then:
+      - switch.turn_on: exc
+      - component.update: max17043_id
+      - repeat:
+          count: 6
+          then:
+            - component.update: aht20_sensor
+            - component.update: veml7700_sensor
+            - component.update: soil
+            - delay: 3s
+      # Keep the normal e-paper refresh single-shot, but give SNTP a bounded
+      # window so a slow first sync does not leave stale time for one hour.
+      - wait_until:
+          condition:
+            lambda: 'return id(esptime).now().is_valid();'
+          timeout: 10s
+      - script.execute: decide_sleep
+
   - id: decide_sleep
     mode: restart
     then:
