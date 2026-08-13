@@ -133,18 +133,26 @@ esphome:
     name: "${project_name}"
     version: "${project_version}"
   on_boot:
-    priority: 600
-    then:
-      - lambda: 'id(storage_requested) = id(storage_active);'
-      - wait_until:
-          condition:
-            mqtt.connected:
-          timeout: 30s
-      # Retained desired-state commands arrive immediately after MQTT connect,
-      # but connection itself does not guarantee their callbacks have run.
-      - delay: 1s
-      - lambda: 'id(boot_sequence_complete) = true;'
-      - script.execute: prepare_cycle
+    # GPIO switches initialize at HARDWARE priority 800 and MAX17043 at DATA
+    # priority 600. Block setup between them so the switched I2C rail is stable
+    # before the fuel gauge performs its one supported wake/config setup.
+    - priority: 700
+      then:
+        - lambda: 'delay(250);'
+    # Retained MQTT state handling suspends until MQTT is connected; this keeps
+    # cycle preparation after the remaining component setup work.
+    - priority: 600
+      then:
+        - lambda: 'id(storage_requested) = id(storage_active);'
+        - wait_until:
+            condition:
+              mqtt.connected:
+            timeout: 30s
+        # Retained desired-state commands arrive immediately after MQTT connect,
+        # but connection itself does not guarantee their callbacks have run.
+        - delay: 1s
+        - lambda: 'id(boot_sequence_complete) = true;'
+        - script.execute: prepare_cycle
 
 esp32:
   board: esp32-s2-saola-1
@@ -908,6 +916,7 @@ script:
           condition:
             lambda: 'return id(storage_requested);'
           then:
+            - lambda: 'id(storage_display_refresh_pending) = true;'
             - script.execute: enter_storage
           else:
             - if:
