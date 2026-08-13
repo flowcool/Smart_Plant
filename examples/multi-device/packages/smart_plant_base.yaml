@@ -64,6 +64,7 @@ substitutions:
   maintenance_timeout_minutes: "25"
   maintenance_timeout: "${maintenance_timeout_minutes}min"
   storage_sleep_duration: "24h"
+  display_busy_gpio: "14"
   # The legacy driver returns immediately after MASTER ACTIVATION. Observe the
   # panel's active-high BUSY transition directly instead of guessing a delay.
   display_busy_assert_timeout: "2s"
@@ -109,6 +110,16 @@ globals:
     type: bool
     restore_value: false
     initial_value: 'false'
+  - id: display_busy_seen
+    type: bool
+    restore_value: false
+    initial_value: 'false'
+  - id: display_safe_to_sleep
+    type: bool
+    restore_value: false
+    # No refresh is in flight at boot. settle_display resets this before every
+    # activation and only restores it after BUSY is observed low.
+    initial_value: 'true'
 
 esphome:
   name: "${device_name}"
@@ -443,7 +454,7 @@ display:
   - platform: waveshare_epaper
     cs_pin: GPIO10
     dc_pin: GPIO13
-    busy_pin: GPIO14
+    busy_pin: GPIO${display_busy_gpio}
     reset_pin: GPIO15
     rotation: 270
     model: 2.90inv2
@@ -538,26 +549,59 @@ script:
   - id: settle_display
     mode: restart
     then:
-      - lambda: 'id(display_settle_ok) = false;'
+      - lambda: |-
+          id(display_settle_ok) = false;
+          id(display_busy_seen) = false;
+          id(display_safe_to_sleep) = false;
       - delay: 100ms
       - wait_until:
           condition:
-            lambda: 'return digitalRead(14) == HIGH;'
+            lambda: 'return digitalRead(${display_busy_gpio}) == HIGH;'
           timeout: ${display_busy_assert_timeout}
-      - wait_until:
-          condition:
-            lambda: 'return digitalRead(14) == LOW;'
-          timeout: ${display_busy_clear_timeout}
       - if:
           condition:
-            lambda: 'return digitalRead(14) == LOW;'
+            lambda: 'return digitalRead(${display_busy_gpio}) == HIGH;'
+          then:
+            - lambda: 'id(display_busy_seen) = true;'
+            - wait_until:
+                condition:
+                  lambda: 'return digitalRead(${display_busy_gpio}) == LOW;'
+                timeout: ${display_busy_clear_timeout}
+      - lambda: |-
+          const bool busy_low = digitalRead(${display_busy_gpio}) == LOW;
+          id(display_safe_to_sleep) = busy_low;
+          id(display_settle_ok) = id(display_busy_seen) && busy_low;
+      - if:
+          condition:
+            lambda: 'return id(display_settle_ok);'
           then:
             - delay: 500ms
-            - lambda: 'id(display_settle_ok) = true;'
           else:
             - logger.log:
                 level: ERROR
-                format: "E-paper BUSY did not clear before timeout"
+                format: "E-paper refresh not confirmed (asserted=%s, safe_low=%s)"
+                args:
+                  - 'id(display_busy_seen) ? "true" : "false"'
+                  - 'id(display_safe_to_sleep) ? "true" : "false"'
+
+  - id: sleep_after_display
+    mode: restart
+    then:
+      - if:
+          condition:
+            lambda: 'return id(display_safe_to_sleep);'
+          then:
+            - script.execute: enter_deep_sleep
+          else:
+            # No automatic lifecycle boundary is safe while the panel reports
+            # BUSY. Stay online for diagnosis and explicit operator recovery.
+            - deep_sleep.prevent: deep_sleep_control
+            - text_sensor.template.publish:
+                id: maintenance_status
+                state: "DISPLAY_BUSY_TIMEOUT"
+            - logger.log:
+                level: ERROR
+                format: "E-paper remains BUSY; refusing power cut and deep sleep"
 
   # Choose the smallest acquisition path only after retained MQTT commands have
   # had a chance to override the persisted Storage Mode state.
@@ -584,7 +628,9 @@ script:
                       condition:
                         # The first Storage page needs a current battery value;
                         # later daily checks acquire no sensor state at all.
-                        lambda: 'return !id(storage_active);'
+                        lambda: |-
+                          return !id(storage_active) ||
+                                 id(storage_display_refresh_pending);
                       then:
                         - script.execute: sample_battery
                         - script.wait: sample_battery
@@ -657,12 +703,27 @@ script:
                   - component.update: my_display
                   - script.execute: settle_display
                   - script.wait: settle_display
-                  # ON is the OTA readiness handshake: the maintenance page
-                  # has had its full settling guard before this is published.
-                  - text_sensor.template.publish:
-                      id: maintenance_status
-                      state: "ON"
-                  - script.execute: maintenance_watchdog
+                  - if:
+                      condition:
+                        lambda: 'return id(display_settle_ok);'
+                      then:
+                        # ON is the OTA readiness handshake and is emitted only
+                        # after an observed BUSY HIGH -> LOW refresh cycle.
+                        - text_sensor.template.publish:
+                            id: maintenance_status
+                            state: "ON"
+                        - script.execute: maintenance_watchdog
+                      else:
+                        - text_sensor.template.publish:
+                            id: maintenance_status
+                            state: "DISPLAY_REFRESH_FAILED"
+                        - if:
+                            condition:
+                              lambda: 'return id(display_safe_to_sleep);'
+                            then:
+                              - script.execute: enter_deep_sleep
+                            else:
+                              - deep_sleep.prevent: deep_sleep_control
                 else:
                   - lambda: |-
                       id(maintenance_requested) = false;
@@ -688,7 +749,7 @@ script:
                         - component.update: my_display
                         - script.execute: settle_display
                         - script.wait: settle_display
-                        - script.execute: enter_deep_sleep
+                        - script.execute: sleep_after_display
           else:
             - script.stop: maintenance_watchdog
             - if:
@@ -719,7 +780,7 @@ script:
                               - component.update: my_display
                               - script.execute: settle_display
                               - script.wait: settle_display
-                              - script.execute: enter_deep_sleep
+                              - script.execute: sleep_after_display
 
   - id: maintenance_watchdog
     mode: restart
@@ -736,7 +797,9 @@ script:
               return !id(storage_active) ||
                      id(storage_display_refresh_pending);
           then:
-            - lambda: 'id(storage_active) = true;'
+            - lambda: |-
+                id(storage_active) = true;
+                id(storage_display_refresh_pending) = true;
             - display.page.show: page_storage
             - component.update: my_display
             - script.execute: settle_display
@@ -755,7 +818,15 @@ script:
       - text_sensor.template.publish:
           id: maintenance_status
           state: "OFF"
-      - script.execute: enter_deep_sleep
+      - if:
+          condition:
+            lambda: |-
+              return !id(storage_display_refresh_pending) &&
+                     id(display_safe_to_sleep);
+          then:
+            - script.execute: enter_deep_sleep
+          else:
+            - script.execute: sleep_after_display
 
   - id: exit_storage
     mode: single
@@ -776,7 +847,7 @@ script:
       - component.update: my_display
       - script.execute: settle_display
       - script.wait: settle_display
-      - script.execute: enter_deep_sleep
+      - script.execute: sleep_after_display
 
   # The e-paper keeps its last image without power. Replace the maintenance
   # page with the latest plant readings before an explicit OFF or watchdog
@@ -814,7 +885,7 @@ script:
                   - component.update: my_display
                   - script.execute: settle_display
                   - script.wait: settle_display
-                  - script.execute: enter_deep_sleep
+                  - script.execute: sleep_after_display
 
   # Give retained status/command publications a short flush window before the
   # Wi-Fi and sensor rail disappear. Repeated calls are intentionally ignored.

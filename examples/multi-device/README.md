@@ -71,6 +71,14 @@ or another lifecycle boundary. Failed or abandoned OTA attempts leave
 maintenance available for retry until manual `OFF` or the watchdog ends the
 window.
 
+Maintenance Status becomes `DISPLAY_REFRESH_FAILED` when the firmware cannot
+confirm a complete BUSY HIGH-to-LOW refresh cycle, and OTA readiness is not
+published. If BUSY remains high, `DISPLAY_BUSY_TIMEOUT` is reported and the
+device refuses deep sleep or a power cut so the panel is not interrupted. A
+Storage page obtains a fresh battery value only when it must actually refresh
+(first entry, post-OTA restoration, or a later retry); ordinary daily Storage
+checks still perform no sensor acquisition.
+
 Always validate one device before a batch OTA. To roll back this package, revert
 the package commit, push the branch, purge ESPHome's package cache, and reflash
 the last validated firmware over USB if OTA recovery is unavailable.
