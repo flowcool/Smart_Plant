@@ -77,9 +77,12 @@ The repeatable operator workflow is implemented by
 remote build environments through the Device Builder API, retries transient
 cold-build failures, and queues deferred OTA installs. Its `update` command
 precompiles every selected device before opening any maintenance window, then
-starts all install jobs so one slow or failed device cannot prevent the others
-from being armed. Run its `--help` output before use; execute `reset`, then
-`update` for one canary before using `update all` for the validated fleet.
+waits independently for each device to be online with retained Maintenance
+Status `ON`. After a 10-second display-settling guard, it arms that device's
+install without making slower devices block ready ones. The default readiness
+timeout is 75 minutes, covering one hourly sleep cycle with margin. Run its
+`--help` output before use; execute `reset`, then `update` for one canary before
+using `update all` for the validated fleet.
 
 ## Home Assistant control and assisted updates
 

@@ -77,6 +77,34 @@ subprocess.run(
 )
 '''
 
+MQTT_READER = r'''import subprocess
+import sys
+
+
+def secret(name):
+    path = "/volume1/docker/homeassistant/esphome/secrets.yaml"
+    with open(path, encoding="utf-8") as handle:
+        for line in handle:
+            key, separator, value = line.partition(":")
+            if separator and key.strip() == name:
+                return value.strip().strip("\"'")
+    raise RuntimeError(f"missing {name} in {path}")
+
+
+topics = sys.argv[1:]
+command = [
+    "docker", "exec", "mqtt", "mosquitto_sub", "-h", "127.0.0.1",
+    "-u", secret("mqtt_username"), "-P", secret("mqtt_password"),
+    "-W", "3", "-C", str(len(topics)), "-F", "%t\\t%p",
+]
+for topic in topics:
+    command.extend(["-t", topic])
+result = subprocess.run(command, text=True, capture_output=True)
+if result.returncode not in (0, 27):
+    raise RuntimeError(result.stderr.strip() or f"mosquitto_sub exited {result.returncode}")
+print(result.stdout, end="")
+'''
+
 
 def encoded_python(source: str) -> str:
     payload = base64.b64encode(source.encode()).decode()
@@ -164,6 +192,38 @@ class FleetUpdater:
             )
             print(f"{name}\tmaintenance={payload}")
 
+    def maintenance_statuses(self, names: list[str]) -> dict[str, str]:
+        topics = {
+            f"{self.devices[name]['topic']}/status/maintenance": name for name in names
+        }
+        output = self.ssh(
+            [
+                "sudo",
+                "python3",
+                "-c",
+                encoded_python(MQTT_READER),
+                *topics,
+            ]
+        )
+        statuses: dict[str, str] = {}
+        for line in output.splitlines():
+            topic, separator, payload = line.partition("\t")
+            if separator and topic in topics:
+                statuses[topics[topic]] = payload
+        return statuses
+
+    def runtime_states(self) -> dict[str, str]:
+        devices = self.api("devices/list")["configured"]
+        by_configuration = {row["configuration"]: row for row in devices}
+        return {
+            name: str(
+                by_configuration.get(values["configuration"], {})
+                .get("runtime_state", {})
+                .get("state", "unknown")
+            )
+            for name, values in self.devices.items()
+        }
+
     def install(self, name: str, retries: int) -> dict[str, Any]:
         configuration = self.devices[name]["configuration"]
         for attempt in range(1, retries + 2):
@@ -235,23 +295,58 @@ class FleetUpdater:
         )
         raise RuntimeError(f"fleet precompile failed; maintenance not enabled: {details}")
 
-    def update_many(self, names: list[str], retries: int) -> None:
+    def wait_for_maintenance(
+        self,
+        names: list[str],
+        timeout_seconds: int,
+        settle_seconds: int,
+    ) -> tuple[dict[str, str], dict[str, str]]:
+        """Arm installs only after online + ON remain true for the guard."""
+        deadline = time.monotonic() + timeout_seconds
+        settling_since: dict[str, float] = {}
+        jobs: dict[str, str] = {}
+        pending = set(names)
+        while pending and time.monotonic() < deadline:
+            statuses = self.maintenance_statuses(list(pending))
+            runtime = self.runtime_states()
+            now = time.monotonic()
+            for name in list(pending):
+                ready = runtime.get(name) == "online" and statuses.get(name) == "ON"
+                if not ready:
+                    settling_since.pop(name, None)
+                    continue
+                settling_since.setdefault(name, now)
+                if now - settling_since[name] < settle_seconds:
+                    continue
+                configuration = self.devices[name]["configuration"]
+                job = self.api(
+                    "firmware/install",
+                    {"configuration": configuration, "port": "OTA"},
+                )
+                jobs[name] = job["job_id"]
+                pending.remove(name)
+                print(f"{configuration}: maintenance settled; install armed")
+            if pending:
+                time.sleep(self.poll_seconds)
+        return jobs, {name: "maintenance readiness timeout" for name in pending}
+
+    def update_many(
+        self,
+        names: list[str],
+        retries: int,
+        maintenance_timeout: int,
+        settle_seconds: int,
+    ) -> None:
         """Precompile the fleet, then open maintenance and arm every install."""
         self.compile_many(names, retries)
         self.publish_maintenance(names, "ON")
 
+        jobs: dict[str, str] = {}
         failures: dict[str, str] = {}
         try:
-            jobs = {
-                name: self.api(
-                    "firmware/install",
-                    {
-                        "configuration": self.devices[name]["configuration"],
-                        "port": "OTA",
-                    },
-                )["job_id"]
-                for name in names
-            }
+            jobs, failures = self.wait_for_maintenance(
+                names, maintenance_timeout, settle_seconds
+            )
             for name, job_id in jobs.items():
                 result = self.wait_job(job_id)
                 if result["status"] != "completed":
@@ -340,6 +435,8 @@ def main() -> None:
     update = subparsers.add_parser("update")
     update.add_argument("devices", nargs="+", metavar="DEVICE")
     update.add_argument("--retries", type=int, default=2)
+    update.add_argument("--maintenance-timeout", type=int, default=4500)
+    update.add_argument("--settle-seconds", type=int, default=10)
 
     args = parser.parse_args()
     updater = FleetUpdater(
@@ -358,7 +455,12 @@ def main() -> None:
     elif args.command == "install":
         updater.install_many(parse_names(updater, args.devices), args.retries)
     elif args.command == "update":
-        updater.update_many(parse_names(updater, args.devices), args.retries)
+        updater.update_many(
+            parse_names(updater, args.devices),
+            args.retries,
+            args.maintenance_timeout,
+            args.settle_seconds,
+        )
 
 
 if __name__ == "__main__":
