@@ -551,6 +551,7 @@ script:
     then:
       # A new refresh invalidates any delayed recovery from an older one.
       - script.stop: recover_display_busy
+      - script.stop: enter_deep_sleep
       - lambda: |-
           id(display_settle_ok) = false;
           id(display_busy_seen) = false;
@@ -911,22 +912,33 @@ script:
   # Give retained status/command publications a short flush window before the
   # Wi-Fi and sensor rail disappear. Repeated calls are intentionally ignored.
   - id: enter_deep_sleep
-    mode: single
+    mode: restart
     then:
       - delay: 1s
-      # Normal wake cycles finish in less than ESPHome's default 60-second
-      # safe-mode validation window. Mark the running OTA image valid before
-      # deep sleep resets the CPU, otherwise ESP-IDF rolls back a healthy image.
-      - safe_mode.mark_successful
-      - deep_sleep.allow: deep_sleep_control
-      - switch.turn_off: exc
-      - max17043.sleep_mode: max17043_id
       - if:
           condition:
-            lambda: 'return id(storage_active);'
+            lambda: |-
+              return id(display_safe_to_sleep) &&
+                     digitalRead(${display_busy_gpio}) == LOW;
           then:
-            - deep_sleep.enter:
-                id: deep_sleep_control
-                sleep_duration: ${storage_sleep_duration}
+            # Normal wake cycles finish in less than ESPHome's default
+            # 60-second validation window. Mark the image valid only after the
+            # final post-flush BUSY check and immediately before safe shutdown.
+            - safe_mode.mark_successful
+            - deep_sleep.allow: deep_sleep_control
+            - switch.turn_off: exc
+            - max17043.sleep_mode: max17043_id
+            - if:
+                condition:
+                  lambda: 'return id(storage_active);'
+                then:
+                  - deep_sleep.enter:
+                      id: deep_sleep_control
+                      sleep_duration: ${storage_sleep_duration}
+                else:
+                  - deep_sleep.enter: deep_sleep_control
           else:
-            - deep_sleep.enter: deep_sleep_control
+            - logger.log:
+                level: WARN
+                format: "E-paper became BUSY before sleep; cancelling shutdown"
+            - script.execute: sleep_after_display
