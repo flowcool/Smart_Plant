@@ -63,9 +63,13 @@ preventing a stale command from reactivating maintenance at the next wake. A
 request below the battery threshold is reset to `OFF`, reports
 `REJECTED_LOW_BATTERY`, and sleeps without showing the maintenance page. A
 successful OTA clears both retained maintenance states immediately before its
-automatic reboot; the reboot performs the normal display refresh instead of an
-extra pre-reboot refresh. Failed or abandoned OTA attempts leave maintenance
-available for retry until manual `OFF` or the watchdog ends the window.
+automatic reboot and never starts a physical refresh at that boundary. A normal
+reboot performs the normal display refresh; a persisted Storage Mode records a
+one-shot pending refresh and restores its page after reboot. Every controlled
+refresh waits for the panel's active-high BUSY transition to clear before sleep
+or another lifecycle boundary. Failed or abandoned OTA attempts leave
+maintenance available for retry until manual `OFF` or the watchdog ends the
+window.
 
 Always validate one device before a batch OTA. To roll back this package, revert
 the package commit, push the branch, purge ESPHome's package cache, and reflash

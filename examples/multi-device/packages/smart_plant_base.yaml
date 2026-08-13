@@ -64,9 +64,10 @@ substitutions:
   maintenance_timeout_minutes: "25"
   maintenance_timeout: "${maintenance_timeout_minutes}min"
   storage_sleep_duration: "24h"
-  # Conservative guard for the legacy waveshare_epaper driver, which returns
-  # after starting the physical refresh rather than after BUSY becomes idle.
-  display_settle_time: "10s"
+  # The legacy driver returns immediately after MASTER ACTIVATION. Observe the
+  # panel's active-high BUSY transition directly instead of guessing a delay.
+  display_busy_assert_timeout: "2s"
+  display_busy_clear_timeout: "30s"
 
 globals:
   - id: maintenance_requested
@@ -97,6 +98,14 @@ globals:
     restore_value: true
     initial_value: 'false'
   - id: storage_requested
+    type: bool
+    restore_value: false
+    initial_value: 'false'
+  - id: storage_display_refresh_pending
+    type: bool
+    restore_value: true
+    initial_value: 'false'
+  - id: display_settle_ok
     type: bool
     restore_value: false
     initial_value: 'false'
@@ -220,12 +229,11 @@ ota:
             condition:
               lambda: 'return id(storage_active);'
             then:
-              # OTA reboot would otherwise preserve the maintenance page while
-              # the persisted Storage Mode skips its normal daily refresh.
-              - display.page.show: page_storage
-              - component.update: my_display
-              - delay: ${display_settle_time}
-        - delay: 1s
+              # Never start a physical refresh immediately before OTA reboot.
+              # Persist a one-shot request that the new image services after
+              # boot, where BUSY can be observed through completion.
+              - lambda: 'id(storage_display_refresh_pending) = true;'
+        - delay: 2s
 
 captive_portal:
 improv_serial:
@@ -523,6 +531,34 @@ deep_sleep:
   sleep_duration: 1h
 
 script:
+  # Waveshare 2.9 V2 BUSY is active high. ESPHome 2026.7.4 waits for idle
+  # before writing but returns immediately after MASTER ACTIVATION, so every
+  # caller must observe the subsequent HIGH -> LOW transition before sleep or
+  # another lifecycle boundary.
+  - id: settle_display
+    mode: restart
+    then:
+      - lambda: 'id(display_settle_ok) = false;'
+      - delay: 100ms
+      - wait_until:
+          condition:
+            lambda: 'return digitalRead(14) == HIGH;'
+          timeout: ${display_busy_assert_timeout}
+      - wait_until:
+          condition:
+            lambda: 'return digitalRead(14) == LOW;'
+          timeout: ${display_busy_clear_timeout}
+      - if:
+          condition:
+            lambda: 'return digitalRead(14) == LOW;'
+          then:
+            - delay: 500ms
+            - lambda: 'id(display_settle_ok) = true;'
+          else:
+            - logger.log:
+                level: ERROR
+                format: "E-paper BUSY did not clear before timeout"
+
   # Choose the smallest acquisition path only after retained MQTT commands have
   # had a chance to override the persisted Storage Mode state.
   - id: prepare_cycle
@@ -619,7 +655,8 @@ script:
                   - deep_sleep.prevent: deep_sleep_control
                   - display.page.show: page_maintenance
                   - component.update: my_display
-                  - delay: ${display_settle_time}
+                  - script.execute: settle_display
+                  - script.wait: settle_display
                   # ON is the OTA readiness handshake: the maintenance page
                   # has had its full settling guard before this is published.
                   - text_sensor.template.publish:
@@ -649,7 +686,8 @@ script:
                       else:
                         - display.page.show: page1
                         - component.update: my_display
-                        - delay: ${display_settle_time}
+                        - script.execute: settle_display
+                        - script.wait: settle_display
                         - script.execute: enter_deep_sleep
           else:
             - script.stop: maintenance_watchdog
@@ -679,7 +717,8 @@ script:
                                   state: "OFF"
                               - display.page.show: page1
                               - component.update: my_display
-                              - delay: ${display_settle_time}
+                              - script.execute: settle_display
+                              - script.wait: settle_display
                               - script.execute: enter_deep_sleep
 
   - id: maintenance_watchdog
@@ -693,12 +732,20 @@ script:
     then:
       - if:
           condition:
-            lambda: 'return !id(storage_active);'
+            lambda: |-
+              return !id(storage_active) ||
+                     id(storage_display_refresh_pending);
           then:
             - lambda: 'id(storage_active) = true;'
             - display.page.show: page_storage
             - component.update: my_display
-            - delay: ${display_settle_time}
+            - script.execute: settle_display
+            - script.wait: settle_display
+            - if:
+                condition:
+                  lambda: 'return id(display_settle_ok);'
+                then:
+                  - lambda: 'id(storage_display_refresh_pending) = false;'
       - switch.template.publish:
           id: storage_control
           state: ON
@@ -727,7 +774,8 @@ script:
           state: "OFF"
       - display.page.show: page1
       - component.update: my_display
-      - delay: ${display_settle_time}
+      - script.execute: settle_display
+      - script.wait: settle_display
       - script.execute: enter_deep_sleep
 
   # The e-paper keeps its last image without power. Replace the maintenance
@@ -764,7 +812,8 @@ script:
                 else:
                   - display.page.show: page1
                   - component.update: my_display
-                  - delay: ${display_settle_time}
+                  - script.execute: settle_display
+                  - script.wait: settle_display
                   - script.execute: enter_deep_sleep
 
   # Give retained status/command publications a short flush window before the
