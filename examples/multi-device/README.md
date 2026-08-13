@@ -75,9 +75,11 @@ The repeatable operator workflow is implemented by
 `scripts/esphome_fleet_update.py`. It reads device identities from
 `plants.yaml`, keeps MQTT credentials on the NAS, resets both local and paired
 remote build environments through the Device Builder API, retries transient
-cold-build failures, and queues deferred OTA installs. Run its `--help` output
-before use; execute `reset`, then maintenance and install for one canary before
-using `all` for the validated fleet.
+cold-build failures, and queues deferred OTA installs. Its `update` command
+precompiles every selected device before opening any maintenance window, then
+starts all install jobs so one slow or failed device cannot prevent the others
+from being armed. Run its `--help` output before use; execute `reset`, then
+`update` for one canary before using `update all` for the validated fleet.
 
 ## Home Assistant control and assisted updates
 

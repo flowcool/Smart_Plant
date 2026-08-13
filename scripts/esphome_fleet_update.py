@@ -204,6 +204,92 @@ class FleetUpdater:
         for name in names:
             self.install(name, retries)
 
+    def compile_many(self, names: list[str], retries: int) -> None:
+        """Precompile every target before opening any maintenance window."""
+        pending = list(names)
+        failures: dict[str, dict[str, Any]] = {}
+        for attempt in range(1, retries + 2):
+            jobs = {
+                name: self.api(
+                    "firmware/compile",
+                    {"configuration": self.devices[name]["configuration"]},
+                )["job_id"]
+                for name in pending
+            }
+            failures = {}
+            for name, job_id in jobs.items():
+                result = self.wait_job(job_id)
+                if result["status"] != "completed":
+                    failures[name] = result
+            if not failures:
+                return
+            if attempt <= retries:
+                pending = list(failures)
+                print(
+                    f"retrying {len(pending)} failed precompile(s) "
+                    f"({attempt}/{retries})"
+                )
+        details = ", ".join(
+            f"{name}: {result.get('error') or result.get('failure_reason') or result['status']}"
+            for name, result in failures.items()
+        )
+        raise RuntimeError(f"fleet precompile failed; maintenance not enabled: {details}")
+
+    def update_many(self, names: list[str], retries: int) -> None:
+        """Precompile the fleet, then open maintenance and arm every install."""
+        self.compile_many(names, retries)
+        self.publish_maintenance(names, "ON")
+
+        failures: dict[str, str] = {}
+        try:
+            jobs = {
+                name: self.api(
+                    "firmware/install",
+                    {
+                        "configuration": self.devices[name]["configuration"],
+                        "port": "OTA",
+                    },
+                )["job_id"]
+                for name in names
+            }
+            for name, job_id in jobs.items():
+                result = self.wait_job(job_id)
+                if result["status"] != "completed":
+                    failures[name] = (
+                        result.get("error")
+                        or result.get("failure_reason")
+                        or result["status"]
+                    )
+                    continue
+                configuration = self.devices[name]["configuration"]
+                candidates = self.api(
+                    "firmware/get_jobs", {"configuration": configuration}
+                )
+                uploads = [
+                    candidate
+                    for candidate in candidates
+                    if candidate.get("job_type") == "upload"
+                    and candidate.get("depends_on") == job_id
+                ]
+                if not uploads:
+                    print(f"{configuration}: compiled; deferred OTA armed")
+                    continue
+                upload = self.wait_job(uploads[-1]["job_id"])
+                if upload["status"] != "completed":
+                    failures[name] = (
+                        upload.get("error")
+                        or upload.get("failure_reason")
+                        or upload["status"]
+                    )
+        except Exception:
+            self.publish_maintenance(names, "OFF")
+            raise
+
+        if failures:
+            self.publish_maintenance(list(failures), "OFF")
+            details = ", ".join(f"{name}: {error}" for name, error in failures.items())
+            raise RuntimeError(f"fleet update partially failed: {details}")
+
     def status(self) -> None:
         devices = self.api("devices/list")["configured"]
         selected = {row["configuration"]: row for row in devices}
@@ -251,6 +337,9 @@ def main() -> None:
     install = subparsers.add_parser("install")
     install.add_argument("devices", nargs="+", metavar="DEVICE")
     install.add_argument("--retries", type=int, default=2)
+    update = subparsers.add_parser("update")
+    update.add_argument("devices", nargs="+", metavar="DEVICE")
+    update.add_argument("--retries", type=int, default=2)
 
     args = parser.parse_args()
     updater = FleetUpdater(
@@ -268,6 +357,8 @@ def main() -> None:
         updater.publish_maintenance(parse_names(updater, args.devices), args.state)
     elif args.command == "install":
         updater.install_many(parse_names(updater, args.devices), args.retries)
+    elif args.command == "update":
+        updater.update_many(parse_names(updater, args.devices), args.retries)
 
 
 if __name__ == "__main__":
