@@ -549,6 +549,8 @@ script:
   - id: settle_display
     mode: restart
     then:
+      # A new refresh invalidates any delayed recovery from an older one.
+      - script.stop: recover_display_busy
       - lambda: |-
           id(display_settle_ok) = false;
           id(display_busy_seen) = false;
@@ -614,11 +616,19 @@ script:
           then:
             - delay: 1s
       - delay: 500ms
-      - lambda: 'id(display_safe_to_sleep) = true;'
-      - logger.log:
-          level: WARN
-          format: "E-paper BUSY cleared after timeout; resuming safe sleep"
-      - script.execute: enter_deep_sleep
+      - if:
+          condition:
+            lambda: 'return digitalRead(${display_busy_gpio}) == LOW;'
+          then:
+            - lambda: 'id(display_safe_to_sleep) = true;'
+            - logger.log:
+                level: WARN
+                format: "E-paper BUSY cleared after timeout; resuming safe sleep"
+            - script.execute: enter_deep_sleep
+          else:
+            # BUSY asserted again during the stability margin. Treat it as a
+            # new in-flight refresh and resume bounded observation.
+            - script.execute: recover_display_busy
 
   # Choose the smallest acquisition path only after retained MQTT commands have
   # had a chance to override the persisted Storage Mode state.
