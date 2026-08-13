@@ -84,6 +84,30 @@ timeout is 75 minutes, covering one hourly sleep cycle with margin. Run its
 `--help` output before use; execute `reset`, then `update` for one canary before
 using `update all` for the validated fleet.
 
+## Storage Mode
+
+Storage Mode is a retained seasonal desired state for devices that are not
+installed on a plant. Publish commands retained at QoS 1:
+
+```sh
+mosquitto_pub -q 1 -r -t "<mqtt-prefix>/cmd/storage_mode" -m "ON"
+mosquitto_pub -q 1 -r -t "<mqtt-prefix>/cmd/storage_mode" -m "OFF"
+```
+
+An accepted `ON` is persisted across deep sleep and broker outages, publishes
+retained `ON` to `<mqtt-prefix>/status/storage_mode`, shows the dedicated
+Storage Mode page once, and changes sleep duration from one hour to 24 hours.
+Later daily checks preserve the e-paper image without refreshing it. Physical
+reset does not bypass the persisted state; retained `OFF` is consumed on the
+next daily wake and performs one complete normal display cycle before restoring
+the one-hour schedule. Maximum unattended remote exit latency is therefore 24
+hours. Maintenance takes precedence over Storage Mode at a daily wake and
+returns to the persistent Storage Mode page when maintenance ends.
+
+The firmware exposes native `Storage Mode` and diagnostic `Storage Mode Status`
+entities on the existing MQTT device. Do not change the immutable topic prefix
+or add the device through Home Assistant's ESPHome integration.
+
 ## Home Assistant control and assisted updates
 
 The firmware exposes `Maintenance` and `Maintenance Status` as native ESPHome

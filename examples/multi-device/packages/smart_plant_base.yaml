@@ -63,6 +63,7 @@ substitutions:
   ota_min_battery: "50"
   maintenance_timeout_minutes: "25"
   maintenance_timeout: "${maintenance_timeout_minutes}min"
+  storage_sleep_duration: "24h"
   # Conservative guard for the legacy waveshare_epaper driver, which returns
   # after starting the physical refresh rather than after BUSY becomes idle.
   display_settle_time: "10s"
@@ -88,6 +89,17 @@ globals:
     type: int
     restore_value: false
     initial_value: '-1'
+  # The accepted seasonal state is the only Storage Mode value persisted.
+  # The requested state starts from it and is overridden by retained MQTT when
+  # the broker is reachable.
+  - id: storage_active
+    type: bool
+    restore_value: true
+    initial_value: 'false'
+  - id: storage_requested
+    type: bool
+    restore_value: false
+    initial_value: 'false'
 
 esphome:
   name: "${device_name}"
@@ -99,19 +111,20 @@ esphome:
   on_boot:
     priority: 600
     then:
+      - lambda: 'id(storage_requested) = id(storage_active);'
       - wait_until:
           condition:
             mqtt.connected:
           timeout: 30s
+      # Retained desired-state commands arrive immediately after MQTT connect,
+      # but connection itself does not guarantee their callbacks have run.
+      - delay: 1s
       # Keep the e-paper refresh single-shot, but give SNTP a bounded window so
       # a slow first sync does not leave stale placeholder time for one hour.
       - wait_until:
           condition:
             lambda: 'return id(esptime).now().is_valid();'
           timeout: 10s
-      - display.page.show: page1
-      - component.update: my_display
-      - delay: ${display_settle_time}
       - lambda: 'id(boot_sequence_complete) = true;'
       - script.execute: decide_sleep
 
@@ -154,6 +167,15 @@ mqtt:
                        (x == "ON" || (x == "OFF" && id(maintenance_active)));
             then:
               - script.execute: decide_sleep
+    - topic: "${mqtt_topic_prefix}/cmd/storage_mode"
+      qos: 1
+      then:
+        - lambda: 'id(storage_requested) = (x == "ON");'
+        - if:
+            condition:
+              lambda: 'return id(boot_sequence_complete) && !id(maintenance_active);'
+            then:
+              - script.execute: decide_sleep
 
 # Native API — dashboard metadata only (see note above). reboot_timeout: 0s so a
 # sleeping device with no API client connected doesn't reboot itself.
@@ -187,6 +209,15 @@ ota:
         - text_sensor.template.publish:
             id: maintenance_status
             state: "OFF"
+        - if:
+            condition:
+              lambda: 'return id(storage_active);'
+            then:
+              # OTA reboot would otherwise preserve the maintenance page while
+              # the persisted Storage Mode skips its normal daily refresh.
+              - display.page.show: page_storage
+              - component.update: my_display
+              - delay: ${display_settle_time}
         - delay: 1s
 
 captive_portal:
@@ -271,6 +302,17 @@ switch:
     icon: "mdi:wrench-cog"
     optimistic: true
     command_topic: "${mqtt_topic_prefix}/cmd/maintenance"
+    command_retain: true
+    subscribe_qos: 1
+    qos: 1
+    retain: true
+
+  - platform: template
+    id: storage_control
+    name: "${friendly_name} Storage Mode"
+    icon: "mdi:archive-outline"
+    optimistic: true
+    command_topic: "${mqtt_topic_prefix}/cmd/storage_mode"
     command_retain: true
     subscribe_qos: 1
     qos: 1
@@ -369,6 +411,16 @@ text_sensor:
     qos: 1
     retain: true
 
+  - platform: template
+    id: storage_status
+    name: "${friendly_name} Storage Mode Status"
+    icon: "mdi:archive-check-outline"
+    entity_category: diagnostic
+    update_interval: never
+    state_topic: "${mqtt_topic_prefix}/status/storage_mode"
+    qos: 1
+    retain: true
+
 display:
   - platform: waveshare_epaper
     cs_pin: GPIO10
@@ -444,6 +496,18 @@ display:
                       "ENDS IN ${maintenance_timeout_minutes} MIN");
           }
 
+      - id: page_storage
+        lambda: |-
+          it.printf(148, 4, id(font_subtitle), TextAlign::TOP_CENTER, "${friendly_name}");
+          it.printf(148, 31, id(font_title), TextAlign::TOP_CENTER, "STORAGE MODE");
+          it.printf(148, 68, id(font_subtitle), TextAlign::TOP_CENTER, "DAILY CHECK");
+          if (id(batpercent).has_state() && !isnan(id(batpercent).state)) {
+            it.printf(148, 91, id(font_title), TextAlign::TOP_CENTER,
+                      "BATTERY %.0f%%", id(batpercent).state);
+          } else {
+            it.printf(148, 91, id(font_title), TextAlign::TOP_CENTER, "BATTERY --%%");
+          }
+
 deep_sleep:
   id: deep_sleep_control
   sleep_duration: 1h
@@ -500,7 +564,16 @@ script:
                   - text_sensor.template.publish:
                       id: maintenance_status
                       state: "REJECTED_LOW_BATTERY"
-                  - script.execute: enter_deep_sleep
+                  - if:
+                      condition:
+                        lambda: 'return id(storage_requested);'
+                      then:
+                        - script.execute: enter_storage
+                      else:
+                        - display.page.show: page1
+                        - component.update: my_display
+                        - delay: ${display_settle_time}
+                        - script.execute: enter_deep_sleep
           else:
             - script.stop: maintenance_watchdog
             - if:
@@ -509,16 +582,76 @@ script:
                 then:
                   - script.execute: exit_maintenance
                 else:
-                  - text_sensor.template.publish:
-                      id: maintenance_status
-                      state: "OFF"
-                  - script.execute: enter_deep_sleep
+                  - if:
+                      condition:
+                        lambda: 'return id(storage_requested);'
+                      then:
+                        - script.execute: enter_storage
+                      else:
+                        - if:
+                            condition:
+                              lambda: 'return id(storage_active);'
+                            then:
+                              - script.execute: exit_storage
+                            else:
+                              - text_sensor.template.publish:
+                                  id: maintenance_status
+                                  state: "OFF"
+                              - text_sensor.template.publish:
+                                  id: storage_status
+                                  state: "OFF"
+                              - display.page.show: page1
+                              - component.update: my_display
+                              - delay: ${display_settle_time}
+                              - script.execute: enter_deep_sleep
 
   - id: maintenance_watchdog
     mode: restart
     then:
       - delay: ${maintenance_timeout}
       - script.execute: exit_maintenance
+
+  - id: enter_storage
+    mode: single
+    then:
+      - if:
+          condition:
+            lambda: 'return !id(storage_active);'
+          then:
+            - lambda: 'id(storage_active) = true;'
+            - display.page.show: page_storage
+            - component.update: my_display
+            - delay: ${display_settle_time}
+      - switch.template.publish:
+          id: storage_control
+          state: ON
+      - text_sensor.template.publish:
+          id: storage_status
+          state: "ON"
+      - text_sensor.template.publish:
+          id: maintenance_status
+          state: "OFF"
+      - script.execute: enter_deep_sleep
+
+  - id: exit_storage
+    mode: single
+    then:
+      - lambda: 'id(storage_active) = false;'
+      - switch.template.publish:
+          id: storage_control
+          state: OFF
+      - mqtt.publish:
+          topic: "${mqtt_topic_prefix}/cmd/storage_mode"
+          payload: "OFF"
+          qos: 1
+          retain: true
+      - text_sensor.template.publish:
+          id: storage_status
+          state: "OFF"
+      - display.page.show: page1
+      - component.update: my_display
+      - delay: ${display_settle_time}
+      - script.execute: enter_deep_sleep
 
   # The e-paper keeps its last image without power. Replace the maintenance
   # page with the latest plant readings before an explicit OFF or watchdog
@@ -540,10 +673,22 @@ script:
       - text_sensor.template.publish:
           id: maintenance_status
           state: "OFF"
-      - display.page.show: page1
-      - component.update: my_display
-      - delay: ${display_settle_time}
-      - script.execute: enter_deep_sleep
+      - if:
+          condition:
+            lambda: 'return id(storage_requested);'
+          then:
+            - script.execute: enter_storage
+          else:
+            - if:
+                condition:
+                  lambda: 'return id(storage_active);'
+                then:
+                  - script.execute: exit_storage
+                else:
+                  - display.page.show: page1
+                  - component.update: my_display
+                  - delay: ${display_settle_time}
+                  - script.execute: enter_deep_sleep
 
   # Give retained status/command publications a short flush window before the
   # Wi-Fi and sensor rail disappear. Repeated calls are intentionally ignored.
@@ -558,4 +703,12 @@ script:
       - deep_sleep.allow: deep_sleep_control
       - switch.turn_off: exc
       - max17043.sleep_mode: max17043_id
-      - deep_sleep.enter: deep_sleep_control
+      - if:
+          condition:
+            lambda: 'return id(storage_active);'
+          then:
+            - deep_sleep.enter:
+                id: deep_sleep_control
+                sleep_duration: ${storage_sleep_duration}
+          else:
+            - deep_sleep.enter: deep_sleep_control
