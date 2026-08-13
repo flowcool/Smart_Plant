@@ -136,13 +136,6 @@ esphome:
     priority: 600
     then:
       - lambda: 'id(storage_requested) = id(storage_active);'
-      - if:
-          condition:
-            lambda: 'return id(storage_active);'
-          then:
-            # Persisted Storage Mode can disable the sensor excitation rail
-            # before waiting for retained MQTT commands.
-            - switch.turn_off: exc
       - wait_until:
           condition:
             mqtt.connected:
@@ -860,7 +853,6 @@ script:
             - text_sensor.template.publish:
                 id: maintenance_status
                 state: "OFF"
-      - lambda: 'id(preserve_maintenance_status) = false;'
       - if:
           condition:
             lambda: |-
