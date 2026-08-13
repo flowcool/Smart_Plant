@@ -594,14 +594,31 @@ script:
             - script.execute: enter_deep_sleep
           else:
             # No automatic lifecycle boundary is safe while the panel reports
-            # BUSY. Stay online for diagnosis and explicit operator recovery.
+            # BUSY. Stay online, report the fault, and keep observing the line;
+            # sleep resumes automatically as soon as the panel becomes idle.
             - deep_sleep.prevent: deep_sleep_control
             - text_sensor.template.publish:
                 id: maintenance_status
                 state: "DISPLAY_BUSY_TIMEOUT"
             - logger.log:
                 level: ERROR
-                format: "E-paper remains BUSY; refusing power cut and deep sleep"
+                format: "E-paper remains BUSY; waiting for safe automatic recovery"
+            - script.execute: recover_display_busy
+
+  - id: recover_display_busy
+    mode: restart
+    then:
+      - while:
+          condition:
+            lambda: 'return digitalRead(${display_busy_gpio}) == HIGH;'
+          then:
+            - delay: 1s
+      - delay: 500ms
+      - lambda: 'id(display_safe_to_sleep) = true;'
+      - logger.log:
+          level: WARN
+          format: "E-paper BUSY cleared after timeout; resuming safe sleep"
+      - script.execute: enter_deep_sleep
 
   # Choose the smallest acquisition path only after retained MQTT commands have
   # had a chance to override the persisted Storage Mode state.
@@ -717,13 +734,7 @@ script:
                         - text_sensor.template.publish:
                             id: maintenance_status
                             state: "DISPLAY_REFRESH_FAILED"
-                        - if:
-                            condition:
-                              lambda: 'return id(display_safe_to_sleep);'
-                            then:
-                              - script.execute: enter_deep_sleep
-                            else:
-                              - deep_sleep.prevent: deep_sleep_control
+                        - script.execute: sleep_after_display
                 else:
                   - lambda: |-
                       id(maintenance_requested) = false;

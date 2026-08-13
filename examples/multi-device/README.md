@@ -75,7 +75,9 @@ Maintenance Status becomes `DISPLAY_REFRESH_FAILED` when the firmware cannot
 confirm a complete BUSY HIGH-to-LOW refresh cycle, and OTA readiness is not
 published. If BUSY remains high, `DISPLAY_BUSY_TIMEOUT` is reported and the
 device refuses deep sleep or a power cut so the panel is not interrupted. A
-Storage page obtains a fresh battery value only when it must actually refresh
+lightweight recovery loop keeps observing BUSY and resumes safe sleep
+automatically 500 ms after the line eventually clears. A Storage page obtains a
+fresh battery value only when it must actually refresh
 (first entry, post-OTA restoration, or a later retry); ordinary daily Storage
 checks still perform no sensor acquisition.
 
