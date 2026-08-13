@@ -94,6 +94,13 @@ mosquitto_pub -q 1 -r -t "<mqtt-prefix>/cmd/storage_mode" -m "ON"
 mosquitto_pub -q 1 -r -t "<mqtt-prefix>/cmd/storage_mode" -m "OFF"
 ```
 
+The fleet helper keeps broker credentials on the NAS:
+
+```sh
+python3 scripts/esphome_fleet_update.py storage ON <device>
+python3 scripts/esphome_fleet_update.py storage OFF <device>
+```
+
 An accepted `ON` is persisted across deep sleep and broker outages, publishes
 retained `ON` to `<mqtt-prefix>/status/storage_mode`, shows the dedicated
 Storage Mode page once, and changes sleep duration from one hour to 24 hours.

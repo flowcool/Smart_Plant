@@ -192,6 +192,21 @@ class FleetUpdater:
             )
             print(f"{name}\tmaintenance={payload}")
 
+    def publish_storage(self, names: list[str], payload: str) -> None:
+        for name in names:
+            topic = f"{self.devices[name]['topic']}/cmd/storage_mode"
+            self.ssh(
+                [
+                    "sudo",
+                    "python3",
+                    "-c",
+                    encoded_python(MQTT_PUBLISHER),
+                    topic,
+                    payload,
+                ]
+            )
+            print(f"{name}\tstorage={payload}")
+
     def maintenance_statuses(self, names: list[str]) -> dict[str, str]:
         topics = {
             f"{self.devices[name]['topic']}/status/maintenance": name for name in names
@@ -429,6 +444,9 @@ def main() -> None:
     maintenance = subparsers.add_parser("maintenance")
     maintenance.add_argument("state", choices=["ON", "OFF"])
     maintenance.add_argument("devices", nargs="+", metavar="DEVICE")
+    storage = subparsers.add_parser("storage")
+    storage.add_argument("state", choices=["ON", "OFF"])
+    storage.add_argument("devices", nargs="+", metavar="DEVICE")
     install = subparsers.add_parser("install")
     install.add_argument("devices", nargs="+", metavar="DEVICE")
     install.add_argument("--retries", type=int, default=2)
@@ -452,6 +470,8 @@ def main() -> None:
         updater.status()
     elif args.command == "maintenance":
         updater.publish_maintenance(parse_names(updater, args.devices), args.state)
+    elif args.command == "storage":
+        updater.publish_storage(parse_names(updater, args.devices), args.state)
     elif args.command == "install":
         updater.install_many(parse_names(updater, args.devices), args.retries)
     elif args.command == "update":
