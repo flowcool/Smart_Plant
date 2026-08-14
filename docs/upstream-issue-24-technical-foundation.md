@@ -147,3 +147,93 @@ Defaults should remain conservative for existing users. The feature should be
 opt-in or preserve the current normal one-hour lifecycle unless a mode is
 explicitly requested. Each change needs a compile test, one physical canary,
 and a documented rollback path.
+
+## Issue 24 — continuation draft
+
+The first part of this proposal comes from a practical Home Assistant use case:
+I wanted a reliable way to patch a sleeping plant without repeatedly refreshing
+the e-paper display, and I wanted to put plants outside or in storage without
+creating false alarms in the plant-monitoring layer.
+
+The important discovery was that this is not primarily an automation problem.
+It is a small device-side state machine with an MQTT control plane. Home
+Assistant can request a mode, but only the device can decide whether it has
+actually accepted that request: it knows its battery level, its display BUSY
+line, and whether it is safe to remain awake.
+
+That led to two complementary modes.
+
+### Maintenance: request, acknowledge, operate, recover
+
+From Home Assistant, an operator publishes a retained Maintenance request. The
+device receives it on its next MQTT wake and immediately performs the minimum
+safe check: battery level. A device below the OTA threshold rejects the request
+and reports the rejection; it does not stay awake waiting for an update.
+
+When accepted, the device refreshes a dedicated Maintenance page, waits for a
+complete e-paper BUSY cycle, publishes effective `ON`, and keeps deep sleep
+prevented for a bounded watchdog window. Home Assistant can now start the OTA
+operation because it has an explicit acknowledgement from the device rather
+than relying on timing or an optimistic switch state.
+
+After a successful update, an explicit `OFF`, or watchdog expiry, the device
+clears the effective state and returns to its normal measurement/display/sleep
+lifecycle. The retained request is therefore a durable intent, while the
+reported status is the device's actual decision.
+
+### Storage: a quiet, reversible parked-plant mode
+
+Storage follows the same request/acknowledgement pattern, but its purpose is
+energy conservation and observability. A plant can be moved outside, detached
+from its probe, or left unused for a season. In that situation, continuing to
+publish old-looking environmental values is misleading, while allowing the
+Home Assistant plant integration to interpret silence as a fault creates false
+alarms.
+
+When Storage is accepted, the device displays its Storage page and sleeps for
+24 hours. A daily wake performs only a battery read and a single display
+refresh, then returns to sleep. It does not sample temperature, humidity, light,
+or soil moisture. The retained values in Home Assistant are intentionally the
+last known environmental values, not fabricated fresh measurements.
+
+Storage remains reversible without physical access. Publishing retained
+`OFF` causes the next wake to leave Storage, run the complete normal acquisition
+path, refresh the normal page, and restore the one-hour cycle.
+
+### What was validated in the community fork
+
+The implementation was developed against real ESPHome devices rather than a
+simulation. The following behaviours were observed on a Papyrus canary:
+
+- canonical MAC-suffixed MQTT command and status topics were consumed by the
+  firmware;
+- two accelerated Storage wakes refreshed the battery and Storage page while
+  leaving environmental telemetry unchanged;
+- the final 24-hour firmware was compiled through ESPHome Device Builder's
+  remote build pool and flashed over USB;
+- the first production wake published a fresh battery value while Storage
+  remained active;
+- all eight device configurations compiled successfully before any fleet
+  rollout.
+
+The implementation also exposed a useful integration boundary: MQTT discovery
+and retained state are enough for Home Assistant orchestration. The native API
+can remain available for diagnostics and Device Builder metadata, but the
+devices do not need to be added a second time through the ESPHome Home Assistant
+integration.
+
+### Suggested upstream review path
+
+I would be happy to provide a pull request once the design direction is agreed.
+To keep review and regression risk manageable, I suggest reviewing it in this
+order:
+
+1. agree on the retained command/effective-status contract;
+2. review the Maintenance state machine and OTA acknowledgement path;
+3. review Storage acquisition gating and the 24-hour wake policy;
+4. add Home Assistant automation examples;
+5. handle any remaining e-paper refresh issue independently.
+
+The goal is not to impose one Home Assistant dashboard or one plant-monitoring
+integration. The goal is to give Smart Plant a small, explicit, recoverable
+device-side protocol that other MQTT consumers can use safely.
