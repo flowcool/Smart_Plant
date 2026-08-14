@@ -6,7 +6,8 @@ safety, validation, and current-work guide shared by coding agents.
 # Claude-specific context
 
 Fork `flowcool/Smart_Plant` of `JGAguado/Smart_Plant`. Active branch: `V2R1`.
-Upstream PRs: #9,#12,#13,#17,#18,#19,#20 merged. PR #22 (multi-device packages) open.
+Upstream PRs: #9,#12,#13,#17,#18,#19,#20,#22 merged. PR #23 (ESPHome
+2027.1.0 image syntax) open.
 
 ## Architecture
 
@@ -14,7 +15,6 @@ Upstream PRs: #9,#12,#13,#17,#18,#19,#20 merged. PR #22 (multi-device packages) 
 - **Data path**: MQTT-only (retained values survive sleep, no "unavailable" in HA)
 - **Native API**: enabled for ESPHome dashboard metadata only (mDNS `_esphomelib._tcp`) — do NOT add to HA via ESPHome integration (duplicate entities)
 - **Package system**: `smart_plant_base.yaml` = all shared logic; device files = substitutions only + `packages: base: github://flowcool/Smart_Plant/...@V2R1`
-- `display_lambda.h` exists with extracted C++ helpers but is NOT yet wired in (inline lambda still in base YAML)
 - Sensors: AHT20 (temp/humidity), VEML7700 (lux), ADC soil moisture, MAX17043 (battery)
 - Display: Waveshare 2.9" e-paper (2.90inv2), full refresh every wake
 
@@ -38,6 +38,12 @@ Naming convention: `device_name` is the botanical slug (`genre-espece`).
 automatically, producing the unique hostname and MQTT topic prefix. Duplicate
 species (two Ceropegia woodii) share the same `device_name`; the MAC suffix
 guarantees uniqueness. Device YAML filenames match `device_name` (without MAC).
+
+The 2026-08-14 migration is complete across ESPHome filenames/configuration,
+MQTT retained topics, Home Assistant device/entity registries, automations,
+dashboard references, and all eight Plant integration bindings. Home Assistant
+epic `infra-b5q` is the authoritative migration evidence. Do not restore the
+legacy `woodii1`/`woodii2` prefixes or MAC-suffixed Home Assistant entity IDs.
 
 The shared `1.25V → 100%, 2.8V → 0%` soil values are defaults; they are not
 evidence of individual probe calibration.
@@ -69,3 +75,10 @@ evidence of individual probe calibration.
 
 All tasks tracked via `bd` (beads). Use `bd memories smartplant` for persistent knowledge.
 Roadmap epic: `infra-3rr` (HA wake action, partial e-paper, ESP32-C6 eval, soil sensor eval).
+
+Current operational work:
+
+- `infra-3rr.14`: residual induced-failure validation only; completed normal,
+  Storage, naming, rollout, and hourly-cycle tests must not be repeated.
+- `infra-c6i`: Prêle hardware diagnosis; keep it excluded from automated OTA.
+- `infra-b5q` (`project=homeassistant`): completed naming migration evidence.
