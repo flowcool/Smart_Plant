@@ -28,14 +28,19 @@ Upstream PRs: #9,#12,#13,#17,#18,#19,#20 merged. PR #22 (multi-device packages) 
 ## Device inventory
 
 `examples/multi-device/plants.yaml` is the keyed repository identity registry
-for the eight deployed plants. It records immutable device names and MQTT
-prefixes, French display names, botanical labels, IPs, label images, timezone,
-and calibration status. Live ESPHome files remain authoritative for credentials
-and runtime configuration.
+for the eight deployed plants. It records botanical device names, auto-derived
+MQTT topic prefixes, French display names, botanical labels, IPs, label images,
+timezone, and calibration status. Live ESPHome files remain authoritative for
+credentials and runtime configuration.
 
-MQTT prefixes include the historical MAC suffix and must never change. The
-shared `1.25V → 100%, 2.8V → 0%` soil values are defaults; they are not evidence
-of individual probe calibration.
+Naming convention: `device_name` is the botanical slug (`genre-espece`).
+`name_add_mac_suffix: true` in the base package appends the last 3 MAC bytes
+automatically, producing the unique hostname and MQTT topic prefix. Duplicate
+species (two Ceropegia woodii) share the same `device_name`; the MAC suffix
+guarantees uniqueness. Device YAML filenames match `device_name` (without MAC).
+
+The shared `1.25V → 100%, 2.8V → 0%` soil values are defaults; they are not
+evidence of individual probe calibration.
 
 ## Operations
 

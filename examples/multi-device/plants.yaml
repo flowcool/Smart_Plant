@@ -1,14 +1,24 @@
 # Repository identity registry for the eight deployed Smart Plant devices.
 # Live ESPHome YAML files remain authoritative for credentials and runtime config.
-# device_name and mqtt_topic_prefix are immutable integration identifiers.
+#
+# Naming convention: device_name is the botanical slug (genre-espece).
+# ESPHome name_add_mac_suffix: true appends the last 3 MAC bytes automatically,
+# producing the unique hostname and MQTT topic prefix. Duplicate species use the
+# same device_name — the MAC suffix guarantees uniqueness.
+#
+# mqtt_topic_prefix is the auto-derived <device_name>-<mac6> value. It is listed
+# here for reference but is not manually managed. Two Ceropegias migrated from
+# legacy sequential suffixes (woodii1/woodii2) to auto-derived MAC-only prefixes.
 
 plants:
-  ceropegia-woodii1:
+  ceropegia-woodii-54a8f2:
+    device_name: "ceropegia-woodii"
     display_name: "Guirlande de cœurs — Cuisine"
     botanical_name: "Ceropegia woodii"
     room: "Cuisine"
     ip_address: "192.168.2.232"
-    mqtt_topic_prefix: "ceropegia-woodii1-54a8f2"
+    mqtt_topic_prefix: "ceropegia-woodii-54a8f2"
+    legacy_mqtt_topic_prefix: "ceropegia-woodii1-54a8f2"
     label_image: "plant_labels/Ceropegia_woodii_label_page_1.png"
     timezone: "Europe/Paris"
     soil_calibration:
@@ -16,12 +26,14 @@ plants:
       dry_voltage: 2.8
       status: "shared-default-not-measured-per-probe"
 
-  ceropegia-woodii2:
+  ceropegia-woodii-54a99c:
+    device_name: "ceropegia-woodii"
     display_name: "Guirlande de cœurs — Séjour"
     botanical_name: "Ceropegia woodii"
     room: "Séjour"
     ip_address: "192.168.2.235"
-    mqtt_topic_prefix: "ceropegia-woodii2-54a99c"
+    mqtt_topic_prefix: "ceropegia-woodii-54a99c"
+    legacy_mqtt_topic_prefix: "ceropegia-woodii2-54a99c"
     label_image: "plant_labels/Ceropegia_woodii_label_page_1.png"
     timezone: "Europe/Paris"
     soil_calibration:
@@ -29,7 +41,8 @@ plants:
       dry_voltage: 2.8
       status: "shared-default-not-measured-per-probe"
 
-  cyperus-papyrus:
+  cyperus-papyrus-54a9b2:
+    device_name: "cyperus-papyrus"
     display_name: "Papyrus"
     botanical_name: "Cyperus papyrus"
     room: null
@@ -42,7 +55,8 @@ plants:
       dry_voltage: 2.8
       status: "shared-default-not-measured-per-probe"
 
-  equisetum-hyemale:
+  equisetum-hyemale-54a994:
+    device_name: "equisetum-hyemale"
     display_name: "Prêle du Japon"
     botanical_name: "Equisetum hyemale"
     room: null
@@ -55,7 +69,8 @@ plants:
       dry_voltage: 2.8
       status: "shared-default-not-measured-per-probe"
 
-  oxalis-triangularis:
+  oxalis-triangularis-5326ba:
+    device_name: "oxalis-triangularis"
     display_name: "Trèfle pourpre"
     botanical_name: "Oxalis triangularis"
     room: null
@@ -68,10 +83,11 @@ plants:
       dry_voltage: 2.8
       status: "shared-default-not-measured-per-probe"
 
-  peperomia-tetraphylla:
-    display_name: "Peperomia ‘Hope’"
+  peperomia-tetraphylla-54a940:
+    device_name: "peperomia-tetraphylla"
+    display_name: "Peperomia 'Hope'"
     botanical_name: null
-    horticultural_name: "Peperomia ‘Hope’"
+    horticultural_name: "Peperomia 'Hope'"
     identification_note: >-
       The immutable technical slug predates this registry. Trade sources use
       Peperomia tetraphylla 'Hope', while the cultivar patent describes a
@@ -90,7 +106,8 @@ plants:
       dry_voltage: 2.8
       status: "shared-default-not-measured-per-probe"
 
-  pilea-peperomioides:
+  pilea-peperomioides-54a8e4:
+    device_name: "pilea-peperomioides"
     display_name: "Plante à monnaie chinoise"
     botanical_name: "Pilea peperomioides"
     room: null
@@ -103,7 +120,8 @@ plants:
       dry_voltage: 2.8
       status: "shared-default-not-measured-per-probe"
 
-  rhipsalis-baccifera:
+  rhipsalis-baccifera-54a936:
+    device_name: "rhipsalis-baccifera"
     display_name: "Cactus-gui"
     botanical_name: "Rhipsalis baccifera"
     room: null

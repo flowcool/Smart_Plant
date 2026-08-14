@@ -21,9 +21,10 @@ substitutions:
   ap_pwd: "smartplant"
   timezone: "Europe/Paris"
 
-  # MQTT topic prefix — must match retained prefix already in Home Assistant.
-  # Format: <device_name>-<last 3 bytes of MAC>. Set once, never change
-  # (renaming orphans all entities in HA).
+  # MQTT topic prefix — auto-derived from ESPHome name + MAC suffix.
+  # With name_add_mac_suffix: true, ESPHome appends the last 3 MAC bytes to
+  # device_name for both the hostname and this default topic prefix.
+  # Override only when the auto-derived value does not match a legacy prefix.
   mqtt_topic_prefix: "${device_name}"
 
   # OTA password (leave empty string for no password)

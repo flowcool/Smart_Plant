@@ -14,9 +14,13 @@
   sleep. The native API exists for Device Builder metadata and awake-window
   runtime logs only. Do not add the devices to HA through the ESPHome
   integration because that duplicates MQTT entities.
-- MQTT prefixes contain the original MAC suffix and must never change. The
-  authoritative device inventory and OTA workflow are in
-  `examples/multi-device/README.md` and `CLAUDE.md`.
+- MQTT topic prefixes are auto-derived by ESPHome (`name_add_mac_suffix: true`)
+  from `device_name` + last 3 MAC bytes. Device YAML files set only the
+  botanical `device_name`; the MAC suffix is appended automatically. Two
+  Ceropegias migrated from legacy sequential prefixes (`woodii1`/`woodii2`) to
+  auto-derived MAC-only prefixes.
+- The authoritative device inventory is in `examples/multi-device/plants.yaml`;
+  OTA workflow is in `examples/multi-device/README.md` and `CLAUDE.md`.
 
 ## Live systems and safety
 
