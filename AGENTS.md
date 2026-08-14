@@ -69,6 +69,8 @@
 - Beads is authoritative for current work. Filter with
   `bd list --metadata-field project=Smart_Plant`.
 - Roadmap epic: `infra-3rr`.
+- Daily Storage battery/page refresh implementation and canary validation:
+  `infra-csd`.
 - Residual induced-failure validation only: `infra-3rr.14` (low-battery
   rejection, repeated-ON deadline restart, MQTT outage/recovery, and failed-OTA
   retry). Normal Maintenance, Storage entry/daily wake/exit, naming migration,

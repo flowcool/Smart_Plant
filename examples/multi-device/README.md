@@ -81,10 +81,9 @@ confirm a complete BUSY HIGH-to-LOW refresh cycle, and OTA readiness is not
 published. If BUSY remains high, `DISPLAY_BUSY_TIMEOUT` is reported and the
 device refuses deep sleep or a power cut so the panel is not interrupted. A
 lightweight recovery loop keeps observing BUSY and resumes safe sleep
-automatically 500 ms after the line eventually clears. A Storage page obtains a
-fresh battery value only when it must actually refresh
-(first entry, post-OTA restoration, or a later retry); ordinary daily Storage
-checks still perform no sensor acquisition.
+automatically 500 ms after the line eventually clears. Every daily Storage wake
+reads and publishes a fresh battery value, refreshes the Storage page once, and
+keeps temperature, humidity, light, and soil acquisition disabled.
 
 Always validate one device before a batch OTA. To roll back this package, revert
 the package commit, push the branch, purge ESPHome's package cache, and reflash
@@ -102,6 +101,29 @@ install without making slower devices block ready ones. The default readiness
 timeout is 75 minutes, covering one hourly sleep cycle with margin. Run its
 `--help` output before use; execute `reset`, then `update` for one canary before
 using `update all` for the validated fleet.
+
+## Boot-cycle arbitration
+
+After MQTT connects, the firmware allows retained command callbacks to run
+before it starts acquisition or refreshes the display. `prepare_cycle` then
+selects one target state with the fixed priority `Maintenance > Storage Mode >
+Normal`; only the acquisition and display path required by that state runs.
+
+| Target state | Acquisition | E-paper action | Sleep behavior |
+|---|---|---|---|
+| Maintenance | Battery and bounded time synchronization | Show Maintenance once; do not show the normal page first | Prevent deep sleep; 25-minute watchdog |
+| Storage Mode, first entry or pending restoration | Battery only | Show Storage once with the current battery level | Sleep for 24 hours |
+| Storage Mode, already active | Battery only | Refresh Storage once with the current battery level | Sleep for 24 hours |
+| Normal | Battery, temperature, humidity, light, and soil moisture | Show the plant page once | Sleep for one hour |
+
+A Maintenance request is evaluated before Storage Mode even when Storage is
+already active. If Maintenance cannot be accepted because the battery is low
+or unavailable, the firmware clears the retained request and falls back to the
+appropriate Storage or Normal path. When Maintenance ends, the same desired
+Storage state determines whether the device restores the Storage page or the
+normal plant page. This central arbitration prevents redundant normal-page
+refreshes and keeps retained MQTT state, physical display state, and sleep
+duration consistent.
 
 ## Storage Mode
 
@@ -122,13 +144,14 @@ python3 scripts/esphome_fleet_update.py storage OFF <device>
 
 An accepted `ON` is persisted across deep sleep and broker outages, publishes
 retained `ON` to `<mqtt-prefix>/status/storage_mode`, shows the dedicated
-Storage Mode page once, and changes sleep duration from one hour to 24 hours.
-Later daily checks preserve the e-paper image without refreshing it. Physical
-reset does not bypass the persisted state; retained `OFF` is consumed on the
-next daily wake and performs one complete normal display cycle before restoring
-the one-hour schedule. Maximum unattended remote exit latency is therefore 24
-hours. Maintenance takes precedence over Storage Mode at a daily wake and
-returns to the persistent Storage Mode page when maintenance ends.
+Storage Mode page, and changes sleep duration from one hour to 24 hours. Every
+daily check reads and publishes the current battery level and refreshes that
+page once; plant sensors remain gated. Physical reset does not bypass the
+persisted state; retained `OFF` is consumed on the next daily wake and performs
+one complete normal display cycle before restoring the one-hour schedule.
+Maximum unattended remote exit latency is therefore 24 hours. Maintenance takes
+precedence over Storage Mode at a daily wake and returns to the persistent
+Storage Mode page when maintenance ends.
 
 The firmware exposes native `Storage Mode` and diagnostic `Storage Mode Status`
 entities on the existing MQTT device. Do not change the immutable topic prefix

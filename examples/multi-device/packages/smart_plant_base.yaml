@@ -658,16 +658,10 @@ script:
                 condition:
                   lambda: 'return id(storage_requested);'
                 then:
-                  - if:
-                      condition:
-                        # The first Storage page needs a current battery value;
-                        # later daily checks acquire no sensor state at all.
-                        lambda: |-
-                          return !id(storage_active) ||
-                                 id(storage_display_refresh_pending);
-                      then:
-                        - script.execute: sample_battery
-                        - script.wait: sample_battery
+                  # Every daily Storage wake updates the only operational
+                  # sensor that matters while the plant sensors are gated.
+                  - script.execute: sample_battery
+                  - script.wait: sample_battery
                   - script.execute: decide_sleep
                 else:
                   - script.execute: acquire_normal
@@ -831,24 +825,18 @@ script:
   - id: enter_storage
     mode: single
     then:
+      - lambda: |-
+          id(storage_active) = true;
+          id(storage_display_refresh_pending) = true;
+      - display.page.show: page_storage
+      - component.update: my_display
+      - script.execute: settle_display
+      - script.wait: settle_display
       - if:
           condition:
-            lambda: |-
-              return !id(storage_active) ||
-                     id(storage_display_refresh_pending);
+            lambda: 'return id(display_settle_ok);'
           then:
-            - lambda: |-
-                id(storage_active) = true;
-                id(storage_display_refresh_pending) = true;
-            - display.page.show: page_storage
-            - component.update: my_display
-            - script.execute: settle_display
-            - script.wait: settle_display
-            - if:
-                condition:
-                  lambda: 'return id(display_settle_ok);'
-                then:
-                  - lambda: 'id(storage_display_refresh_pending) = false;'
+            - lambda: 'id(storage_display_refresh_pending) = false;'
       - switch.template.publish:
           id: storage_control
           state: ON

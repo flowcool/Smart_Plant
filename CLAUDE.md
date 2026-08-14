@@ -78,6 +78,8 @@ Roadmap epic: `infra-3rr` (HA wake action, partial e-paper, ESP32-C6 eval, soil 
 
 Current operational work:
 
+- `infra-csd`: refresh and publish battery plus the Storage page on every daily
+  Storage wake; source implementation is complete, canary validation remains.
 - `infra-3rr.14`: residual induced-failure validation only; completed normal,
   Storage, naming, rollout, and hourly-cycle tests must not be repeated.
 - `infra-b5q` (`project=homeassistant`): completed naming migration evidence.
