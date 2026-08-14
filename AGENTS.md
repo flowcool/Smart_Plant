@@ -73,6 +73,5 @@
   rejection, repeated-ON deadline restart, MQTT outage/recovery, and failed-OTA
   retry). Normal Maintenance, Storage entry/daily wake/exit, naming migration,
   fleet rollout, and hourly cycles are already validated; do not repeat them.
-- Hardware-only Prêle fault: `infra-c6i` (I2C SCL held LOW and e-paper timeout).
 - Home Assistant naming migration: `infra-b5q` with `project=homeassistant`
   (closed and validated across all eight active MQTT devices).

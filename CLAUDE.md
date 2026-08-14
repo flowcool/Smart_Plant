@@ -80,5 +80,4 @@ Current operational work:
 
 - `infra-3rr.14`: residual induced-failure validation only; completed normal,
   Storage, naming, rollout, and hourly-cycle tests must not be repeated.
-- `infra-c6i`: Prêle hardware diagnosis; keep it excluded from automated OTA.
 - `infra-b5q` (`project=homeassistant`): completed naming migration evidence.
