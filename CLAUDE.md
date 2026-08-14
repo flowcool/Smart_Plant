@@ -53,6 +53,10 @@ evidence of individual probe calibration.
 - **OTA detection**: `nc -z -w1 <ip> 3232` (ICMP ping unreliable on ESP32)
 - **Flash CLI**: `docker exec esphome esphome upload /config/<device>.yaml --device <ip>`
 - **Package cache clear**: `docker exec esphome rm -rf /config/.esphome/packages/` after GitHub push
+- **Compile entrypoint**: use the Device Builder firmware API through
+  `scripts/esphome_fleet_update.py`; Device Builder owns remote build-server
+  selection. Do not invoke `esphome compile` in the NAS container because it
+  bypasses the paired VPS builder and runs the cold build locally.
 - **Logs**: MQTT logging is disabled, but runtime logs are available through the
   native API while a device is awake. Device Builder container logs are not a
   substitute for device runtime logs when diagnosing OTA rollback.

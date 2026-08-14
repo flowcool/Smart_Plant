@@ -52,6 +52,10 @@
   --numstat` and the semantic diff before committing.
 - Compile a real canary with the production ESPHome version after purging the
   GitHub package cache. Compilation alone is not deployment evidence.
+- Start compiles through the Device Builder firmware API (normally via
+  `scripts/esphome_fleet_update.py`), which schedules work on its paired build
+  servers, including the VPS. Do not run `esphome compile` directly inside the
+  NAS container: that bypasses distributed scheduling and consumes NAS CPU.
 - After flash, verify: no OTA rollback log, expected running ESPHome version,
   one short online measurement window, deep sleep, and at least two subsequent
   hourly wake/sleep cycles.

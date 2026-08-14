@@ -11,7 +11,9 @@ Keep these identity layers separate:
 
 - `device_name` is the immutable lowercase technical slug used by ESPHome; it
   is usually derived from the original botanical identification.
-- `mqtt_topic_prefix` is the immutable slug plus the historical MAC suffix.
+- `mqtt_topic_prefix` is auto-derived by ESPHome from the effective application
+  name: the immutable botanical slug plus the last three MAC bytes. Custom
+  command and status topics derive from that same runtime prefix.
 - `display_name` is the correctly accented French label shown to people; add a
   room after an em dash only when two plants need disambiguation.
 - `botanical_name` uses a capitalized genus and lowercase species epithet.
@@ -102,6 +104,12 @@ timeout is 75 minutes, covering one hourly sleep cycle with margin. Run its
 `--help` output before use; execute `reset`, then `update` for one canary before
 using `update all` for the validated fleet.
 
+Device Builder is the compile scheduler: its firmware API selects a paired
+build server, including the VPS offloader. Never use `esphome compile` directly
+inside the NAS container for normal operations; that bypasses the distributed
+pool and performs the cold build on NAS CPU. Direct container use remains
+appropriate for OTA upload of an already-built artifact.
+
 ## Boot-cycle arbitration
 
 After MQTT connects, the firmware allows retained command callbacks to run
@@ -154,8 +162,8 @@ precedence over Storage Mode at a daily wake and returns to the persistent
 Storage Mode page when maintenance ends.
 
 The firmware exposes native `Storage Mode` and diagnostic `Storage Mode Status`
-entities on the existing MQTT device. Do not change the immutable topic prefix
-or add the device through Home Assistant's ESPHome integration.
+entities on the existing MQTT device. Do not override the auto-derived topic
+prefix or add the device through Home Assistant's ESPHome integration.
 
 ## Home Assistant control and assisted updates
 

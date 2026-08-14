@@ -17,10 +17,6 @@ substitutions:
   friendly_name: "${display_name}"
   device_comment: "${botanical_name} / ${display_name}"
 
-  # MQTT topic prefix — set once and never change (renaming orphans HA entities).
-  # Format: <device_name>-<last 3 bytes of MAC>, visible in ESPHome logs on first boot.
-  mqtt_topic_prefix: "lemon-tree-abcdef"
-
   # Use secret references for new installations. Existing live credentials do
   # not need to be migrated solely to follow this example.
   ota_password: !secret lemon_tree_ota_password

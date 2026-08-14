@@ -21,12 +21,6 @@ substitutions:
   ap_pwd: "smartplant"
   timezone: "Europe/Paris"
 
-  # MQTT topic prefix — auto-derived from ESPHome name + MAC suffix.
-  # With name_add_mac_suffix: true, ESPHome appends the last 3 MAC bytes to
-  # device_name for both the hostname and this default topic prefix.
-  # Override only when the auto-derived value does not match a legacy prefix.
-  mqtt_topic_prefix: "${device_name}"
-
   # OTA password (leave empty string for no password)
   ota_password: ""
 
@@ -173,6 +167,7 @@ logger:
 # Do NOT add these devices to Home Assistant via the ESPHome (API) integration,
 # or you get duplicate entities that go unavailable during sleep. Keep them on MQTT.
 mqtt:
+  id: mqtt_client
   broker: "${mqtt_broker}"
   username: "${mqtt_username}"
   password: "${mqtt_password}"
@@ -181,34 +176,6 @@ mqtt:
   birth_message:    # disabled — prevents HA marking device offline during sleep
   will_message:
   log_topic:        # disabled — saves bandwidth on wake
-  topic_prefix: "${mqtt_topic_prefix}"
-  on_message:
-    - topic: "${mqtt_topic_prefix}/cmd/maintenance"
-      qos: 1
-      then:
-        - lambda: 'id(maintenance_requested) = (x == "ON");'
-        - if:
-            condition:
-              lambda: |-
-                return id(boot_sequence_complete) &&
-                       (x == "ON" || (x == "OFF" && id(maintenance_active)));
-            then:
-              - if:
-                  condition:
-                    lambda: 'return x == "ON";'
-                  then:
-                    - script.execute: prepare_cycle
-                  else:
-                    - script.execute: decide_sleep
-    - topic: "${mqtt_topic_prefix}/cmd/storage_mode"
-      qos: 1
-      then:
-        - lambda: 'id(storage_requested) = (x == "ON");'
-        - if:
-            condition:
-              lambda: 'return id(boot_sequence_complete) && !id(maintenance_active);'
-            then:
-              - script.execute: prepare_cycle
 
 # Native API — dashboard metadata only (see note above). reboot_timeout: 0s so a
 # sleeping device with no API client connected doesn't reboot itself.
@@ -235,7 +202,7 @@ ota:
             id: maintenance_control
             state: OFF
         - mqtt.publish:
-            topic: "${mqtt_topic_prefix}/cmd/maintenance"
+            topic: !lambda 'return id(mqtt_client).get_topic_prefix() + "/cmd/maintenance";'
             payload: "OFF"
             qos: 1
             retain: true
@@ -333,22 +300,50 @@ switch:
     name: "${friendly_name} Maintenance"
     icon: "mdi:wrench-cog"
     optimistic: true
-    command_topic: "${mqtt_topic_prefix}/cmd/maintenance"
+    command_topic: !lambda 'return id(mqtt_client).get_topic_prefix() + "/cmd/maintenance";'
     command_retain: true
     subscribe_qos: 1
     qos: 1
     retain: true
+    turn_on_action:
+      - lambda: 'id(maintenance_requested) = true;'
+      - if:
+          condition:
+            lambda: 'return id(boot_sequence_complete);'
+          then:
+            - script.execute: prepare_cycle
+    turn_off_action:
+      - lambda: 'id(maintenance_requested) = false;'
+      - if:
+          condition:
+            lambda: 'return id(boot_sequence_complete) && id(maintenance_active);'
+          then:
+            - script.execute: decide_sleep
 
   - platform: template
     id: storage_control
     name: "${friendly_name} Storage Mode"
     icon: "mdi:archive-outline"
     optimistic: true
-    command_topic: "${mqtt_topic_prefix}/cmd/storage_mode"
+    command_topic: !lambda 'return id(mqtt_client).get_topic_prefix() + "/cmd/storage_mode";'
     command_retain: true
     subscribe_qos: 1
     qos: 1
     retain: true
+    turn_on_action:
+      - lambda: 'id(storage_requested) = true;'
+      - if:
+          condition:
+            lambda: 'return id(boot_sequence_complete) && !id(maintenance_active);'
+          then:
+            - script.execute: prepare_cycle
+    turn_off_action:
+      - lambda: 'id(storage_requested) = false;'
+      - if:
+          condition:
+            lambda: 'return id(boot_sequence_complete) && !id(maintenance_active);'
+          then:
+            - script.execute: prepare_cycle
 
 sensor:
   - platform: max17043
@@ -442,7 +437,7 @@ text_sensor:
     icon: "mdi:information-outline"
     entity_category: diagnostic
     update_interval: never
-    state_topic: "${mqtt_topic_prefix}/status/maintenance"
+    state_topic: !lambda 'return id(mqtt_client).get_topic_prefix() + "/status/maintenance";'
     qos: 1
     retain: true
 
@@ -452,7 +447,7 @@ text_sensor:
     icon: "mdi:archive-check-outline"
     entity_category: diagnostic
     update_interval: never
-    state_topic: "${mqtt_topic_prefix}/status/storage_mode"
+    state_topic: !lambda 'return id(mqtt_client).get_topic_prefix() + "/status/storage_mode";'
     qos: 1
     retain: true
 
@@ -756,7 +751,7 @@ script:
                       id: maintenance_control
                       state: OFF
                   - mqtt.publish:
-                      topic: "${mqtt_topic_prefix}/cmd/maintenance"
+                      topic: !lambda 'return id(mqtt_client).get_topic_prefix() + "/cmd/maintenance";'
                       payload: "OFF"
                       qos: 1
                       retain: true
@@ -868,7 +863,7 @@ script:
           id: storage_control
           state: OFF
       - mqtt.publish:
-          topic: "${mqtt_topic_prefix}/cmd/storage_mode"
+          topic: !lambda 'return id(mqtt_client).get_topic_prefix() + "/cmd/storage_mode";'
           payload: "OFF"
           qos: 1
           retain: true
@@ -894,7 +889,7 @@ script:
           id: maintenance_control
           state: OFF
       - mqtt.publish:
-          topic: "${mqtt_topic_prefix}/cmd/maintenance"
+          topic: !lambda 'return id(mqtt_client).get_topic_prefix() + "/cmd/maintenance";'
           payload: "OFF"
           qos: 1
           retain: true
