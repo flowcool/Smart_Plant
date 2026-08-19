@@ -989,11 +989,12 @@ script:
                 then:
                   - script.execute: exit_storage
                 else:
-                  - display.page.show: page1
-                  - component.update: my_display
-                  - script.execute: settle_display
-                  - script.wait: settle_display
-                  - script.execute: sleep_after_display
+                  # Plant sensors are never sampled during maintenance, so their
+                  # states are still NaN here. Run the full normal cycle so the
+                  # post-maintenance e-paper refresh shows real readings instead
+                  # of "nan%/nanlx/nan°C/nan%". acquire_normal ends with
+                  # decide_sleep, which now takes the plain-sleep branch.
+                  - script.execute: acquire_normal
 
   # Give retained status/command publications a short flush window before the
   # Wi-Fi and sensor rail disappear. Repeated calls are intentionally ignored.
