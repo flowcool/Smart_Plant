@@ -81,3 +81,7 @@
   fleet rollout, and hourly cycles are already validated; do not repeat them.
 - Home Assistant naming migration: `infra-b5q` with `project=homeassistant`
   (closed and validated across all eight active MQTT devices).
+- Pull-based OTA evaluation: `infra-3rr.22` (closed, decision doc
+  `docs/pull-ota-eval.md`). Pilot approved and sequenced as `infra-3rr.23`,
+  blocked by `infra-3rr.14`; opt-in via native HA switch `pull_ota_enabled`,
+  default OFF, coexists with the Device Builder push path.
