@@ -90,12 +90,14 @@ Roadmap epic: `infra-3rr` (HA wake action, partial e-paper, ESP32-C6 eval, soil 
 
 Current operational work:
 
-- `infra-csd`: refresh and publish battery plus the Storage page on every daily
-  Storage wake; source implementation is complete, canary validation remains.
 - `infra-3rr.14`: residual induced-failure validation only; completed normal,
   Storage, naming, rollout, and hourly-cycle tests must not be repeated.
-- `infra-3rr.23`: pull-OTA shipped in base package (V2R1@24fea64), fleet
-  rollout in progress; canary Papyrus verified running the new firmware.
-  Feature is inert until a device sets `pull_ota_manifest_url` and flips
-  the "Pull OTA" switch ON in HA.
-- `infra-b5q` (`project=homeassistant`): completed naming migration evidence.
+- `infra-3rr.21`: coordinate upstream API/MQTT profiles with Smart Plant
+  maintainer (open, P2).
+- `infra-3rr.23`: pull-OTA shipped in base package (V2R1@fc2cff6), fleet
+  mass rollout in progress at last handoff (canary Papyrus verified running
+  the new firmware, 7 devices pending flash). Feature is inert until a
+  device sets `pull_ota_manifest_url` and flips the "Pull OTA" switch ON
+  in HA. Retained `/cmd/maintenance=ON` still published on all 8 devices.
+- `infra-b5q` (`project=homeassistant`): closed cross-project naming
+  migration evidence, kept as historical pointer.
