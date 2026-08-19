@@ -12,6 +12,7 @@ import base64
 import json
 import shlex
 import subprocess
+import sys
 import time
 from pathlib import Path
 from typing import Any
@@ -430,6 +431,13 @@ def parse_names(updater: FleetUpdater, raw_names: list[str]) -> list[str]:
 
 
 def main() -> None:
+    # Line-buffer stdout/stderr so progress lines flush immediately when the
+    # script is piped (e.g. through tee). Python switches to block buffering
+    # by default on non-tty streams, which hides in-flight compile/upload
+    # progress for long runs.
+    sys.stdout.reconfigure(line_buffering=True)
+    sys.stderr.reconfigure(line_buffering=True)
+
     parser = argparse.ArgumentParser()
     parser.add_argument("--ssh-target", default="192.168.2.117")
     parser.add_argument("--ssh-user", default="flow")
