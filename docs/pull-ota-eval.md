@@ -6,6 +6,25 @@
 Device Builder push retained as fallback. Feature designed as **opt-in for the
 upstream community** via a single native HA switch.
 
+> **UPDATE 2026-08-19** — Feature shipped in `smart_plant_base.yaml` on
+> `V2R1@24fea64` under `infra-3rr.23`. Canary flash on `cyperus-papyrus-54a9b2`
+> passed (running == deployed hash `e16dbfe0`, orderly return to deep sleep,
+> `safe_mode.mark_successful` confirmed). Fleet rollout via
+> `scripts/esphome_fleet_update.py update all` in progress at time of writing.
+> Default is inert (`pull_ota_manifest_url` = RFC 5737 placeholder, switch OFF)
+> so no device pulls anything until an operator opts in. `infra-3rr.14` gating
+> was dropped by operator decision the same day.
+>
+> Doc-verified corrections applied vs the initial draft below:
+> - `http_request` config key on ESP32 is `buffer_size_rx` (not `buffer_size`).
+> - `update.check` / `update.perform` / `update.is_available` take `id:` in
+>   mapping form.
+> - `on_update_available` trigger on the update entity exists → the manifest
+>   handling is event-driven, no timer/delay hack.
+> - `update: platform: http_request` validates `source` at parse time; empty
+>   string is rejected, hence the RFC 5737 TEST-NET-1 placeholder default.
+>
+
 ## Context
 
 Current OTA path: Home Assistant flips retained `<prefix>/cmd/maintenance=ON` → the

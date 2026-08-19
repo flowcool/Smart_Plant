@@ -67,6 +67,14 @@ evidence of individual probe calibration.
   factory flash. OTA does not update the bootloader.
 - **Deep-sleep OTA validation**: keep `safe_mode.mark_successful` before every
   orderly `deep_sleep.enter` path.
+- **Pull-OTA (opt-in)**: base package ships `update: platform: http_request`
+  (`pull_ota_update`) + native switch `pull_ota_enabled` (default OFF). To
+  activate on one device: host an ESP-Web-Tools manifest (JSON with
+  `chipFamily/version/ota.md5/ota.path`), set `pull_ota_manifest_url:
+  http://<host>/manifest.json` in the device YAML, flip "Pull OTA" ON in HA.
+  Next maintenance window pulls the manifest and self-flashes if version
+  differs. Device Builder push path stays in parallel. Details in
+  `docs/pull-ota-eval.md`.
 
 ## Rules
 
@@ -86,4 +94,8 @@ Current operational work:
   Storage wake; source implementation is complete, canary validation remains.
 - `infra-3rr.14`: residual induced-failure validation only; completed normal,
   Storage, naming, rollout, and hourly-cycle tests must not be repeated.
+- `infra-3rr.23`: pull-OTA shipped in base package (V2R1@24fea64), fleet
+  rollout in progress; canary Papyrus verified running the new firmware.
+  Feature is inert until a device sets `pull_ota_manifest_url` and flips
+  the "Pull OTA" switch ON in HA.
 - `infra-b5q` (`project=homeassistant`): completed naming migration evidence.

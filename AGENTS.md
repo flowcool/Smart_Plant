@@ -81,7 +81,18 @@
   fleet rollout, and hourly cycles are already validated; do not repeat them.
 - Home Assistant naming migration: `infra-b5q` with `project=homeassistant`
   (closed and validated across all eight active MQTT devices).
-- Pull-based OTA evaluation: `infra-3rr.22` (closed, decision doc
-  `docs/pull-ota-eval.md`). Pilot approved and sequenced as `infra-3rr.23`,
-  blocked by `infra-3rr.14`; opt-in via native HA switch `pull_ota_enabled`,
-  default OFF, coexists with the Device Builder push path.
+- Pull-based OTA: shipped in `smart_plant_base.yaml` on V2R1@24fea64
+  (`infra-3rr.23`). Every device carries the `http_request`, `ota:
+  platform: http_request`, `update: platform: http_request`
+  (`pull_ota_update`), and native template switch `pull_ota_enabled`
+  (RESTORE_DEFAULT_OFF, entity_category config). Default is inert:
+  `pull_ota_manifest_url` = RFC 5737 `http://192.0.2.1/manifest.json`
+  placeholder and the switch defaults OFF, so `decide_sleep` never calls
+  `update.check`. To opt in on a device: publish an ESP-Web-Tools manifest,
+  override `pull_ota_manifest_url` in the device YAML, and turn the "Pull
+  OTA" switch ON in Home Assistant. During the next maintenance window
+  `decide_sleep` calls `update.check`; if the manifest advertises a newer
+  `esphome.project.version`, the `on_update_available` handler publishes
+  `OTA_PULL_STARTING` (text_sensor + retained MQTT) and invokes
+  `update.perform`. The Device Builder push path remains available in
+  parallel. Evaluation doc: `docs/pull-ota-eval.md` (`infra-3rr.22`).
