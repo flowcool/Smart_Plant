@@ -67,6 +67,13 @@ substitutions:
   maintenance_timeout_minutes: "25"
   maintenance_timeout: "${maintenance_timeout_minutes}min"
   storage_sleep_duration: "24h"
+  # Low-battery protection (SoC %, per-device overridable). WARN inverts the
+  # e-paper below warn_pct (no behaviour change); CRITIQUE hibernates at/below
+  # crit_pct and exits at/above exit_pct (hysteresis). See epic infra-3rr.25.
+  low_batt_crit_pct: "15"
+  low_batt_exit_pct: "22"
+  low_batt_warn_pct: "30"
+  low_batt_sleep_duration: "${storage_sleep_duration}"
   display_busy_gpio: "14"
   # The legacy driver returns immediately after MASTER ACTIVATION. Observe the
   # panel's active-high BUSY transition directly instead of guessing a delay.
@@ -106,6 +113,14 @@ globals:
     restore_value: false
     initial_value: 'false'
   - id: storage_display_refresh_pending
+    type: bool
+    restore_value: true
+    initial_value: 'false'
+  # Low-battery hysteresis latch. NVS-backed (restore_value): survives deep sleep
+  # AND power loss, so a battery swap does NOT reset it — evaluate_low_batt clears
+  # it on the first cycle at >= exit_pct (self-correction is the hysteresis exit,
+  # not a reset). NVS dirty-check skips no-op writes, so flash wear is negligible.
+  - id: low_batt_active
     type: bool
     restore_value: true
     initial_value: 'false'
@@ -533,9 +548,16 @@ display:
     pages:
       - id: page1
         lambda: |-
-          it.image(0, 0, id(page_1_background));
-
+          // WARN signalling: below warn_pct the whole page renders in negative
+          // (fill black, draw white). Same layout, glanceable state change. The
+          // label image is drawn inverted via its (on,off) colour args = (fg,bg).
           float battery_perc = id(batpercent).state;
+          bool low = battery_perc < ${low_batt_warn_pct};
+          auto fg = low ? COLOR_OFF : COLOR_ON;
+          auto bg = low ? COLOR_ON  : COLOR_OFF;
+          it.fill(bg);
+          it.image(0, 0, id(page_1_background), fg, bg);
+
           int battery_range = battery_perc / 16;
           battery_range = (battery_range > 6) ? 6 : battery_range;
           battery_range = (battery_range < 0)  ? 0 : battery_range;
@@ -544,16 +566,16 @@ display:
             "\U0000ebdc", "\U0000ebd9", "\U0000ebe0", "\U0000ebdd",
             "\U0000ebe2", "\U0000ebd4", "\U0000e1a4"
           };
-          it.printf(278, 1, id(font_icon), TextAlign::TOP_LEFT, battery_icon_map[battery_range]);
-          it.printf(278, 1, id(font_subtitle), TextAlign::TOP_RIGHT, "%3.0f%%", battery_perc);
+          it.printf(278, 1, id(font_icon), fg, TextAlign::TOP_LEFT, battery_icon_map[battery_range]);
+          it.printf(278, 1, id(font_subtitle), fg, TextAlign::TOP_RIGHT, "%3.0f%%", battery_perc);
 
           auto now = id(esptime).now();
           if (now.is_valid()) {
-            it.strftime(278, 18, id(font_subtitle), TextAlign::TOP_RIGHT, "%H:%M %d/%m", now);
+            it.strftime(278, 18, id(font_subtitle), fg, TextAlign::TOP_RIGHT, "%H:%M %d/%m", now);
           } else {
-            it.printf(278, 18, id(font_subtitle), TextAlign::TOP_RIGHT, "--:-- --/--");
+            it.printf(278, 18, id(font_subtitle), fg, TextAlign::TOP_RIGHT, "--:-- --/--");
           }
-          it.printf(278, 18, id(font_icon), TextAlign::TOP_LEFT, "\U0000e627");
+          it.printf(278, 18, id(font_icon), fg, TextAlign::TOP_LEFT, "\U0000e627");
 
           float pi = 3.141592653589793;
           float alpha = 4.71238898038469;
@@ -571,10 +593,10 @@ display:
             int y1 = static_cast<int>(yc + radius + (radius+thick) * sin(pi / 2 + beta / 2 + val + 0.1));
             int x2 = static_cast<int>(xc + radius + (radius+thick) * cos(pi / 2 + beta / 2 + val - 0.1));
             int y2 = static_cast<int>(yc + radius + (radius+thick) * sin(pi / 2 + beta / 2 + val - 0.1));
-            it.line(x0, y0, x1, y1);
-            it.line(x1, y1, x2, y2);
-            it.line(x2, y2, x0, y0);
-            it.printf(xc + radius, yc + 1.7*radius, id(font_parameters), TextAlign::TOP_CENTER, fmt, value);
+            it.line(x0, y0, x1, y1, fg);
+            it.line(x1, y1, x2, y2, fg);
+            it.line(x2, y2, x0, y0, fg);
+            it.printf(xc + radius, yc + 1.7*radius, id(font_parameters), fg, TextAlign::TOP_CENTER, fmt, value);
           };
 
           draw_gauge(id(soil).state,  0,            100,            80,  50, "%.0f%%");
@@ -604,6 +626,24 @@ display:
                       "BATTERY %.0f%%", id(batpercent).state);
           } else {
             it.printf(148, 91, id(font_title), TextAlign::TOP_CENTER, "BATTERY --%%");
+          }
+
+      # Critical low-battery page, rendered in negative (fill black, text white).
+      # Shows STORAGE MODE as a small secondary line when the plant is also in
+      # Storage, so the alarm is unmistakable without hiding the storage context.
+      - id: page_low_batt
+        lambda: |-
+          it.fill(COLOR_ON);
+          it.printf(148, 4,  id(font_subtitle), COLOR_OFF, TextAlign::TOP_CENTER, "${friendly_name}");
+          it.printf(148, 26, id(font_title),    COLOR_OFF, TextAlign::TOP_CENTER, "LOW BATT !");
+          if (id(storage_active)) {
+            it.printf(148, 60, id(font_subtitle), COLOR_OFF, TextAlign::TOP_CENTER, "STORAGE MODE");
+          }
+          if (id(batpercent).has_state() && !isnan(id(batpercent).state)) {
+            it.printf(148, 88, id(font_title), COLOR_OFF, TextAlign::TOP_CENTER,
+                      "BATTERY %.0f%%", id(batpercent).state);
+          } else {
+            it.printf(148, 88, id(font_title), COLOR_OFF, TextAlign::TOP_CENTER, "BATTERY --%%");
           }
 
 deep_sleep:
@@ -764,6 +804,32 @@ script:
           timeout: 10s
       - script.execute: decide_sleep
 
+  # Single source of truth for the measurement refresh: evaluate the low-battery
+  # hysteresis latch, then show low-batt > storage > normal, refresh, and settle.
+  # Every non-maintenance page.show routes through here so no path can display a
+  # stale page at a critical battery level. Callers must have sampled the battery.
+  - id: render_measurement_page
+    then:
+      # Inline (not a sub-script) so the latch update completes before page select.
+      # NVS-backed low_batt_active; a restored-true latch self-corrects at exit_pct.
+      - lambda: |-
+          bool bat_ok = id(batpercent).has_state() && !isnan(id(batpercent).state);
+          if (id(low_batt_active)) {
+            if (bat_ok && id(batpercent).state >= ${low_batt_exit_pct}) {
+              id(low_batt_active) = false;
+            }
+          } else {
+            if (bat_ok && id(batpercent).state <= ${low_batt_crit_pct}) {
+              id(low_batt_active) = true;
+            }
+          }
+      - display.page.show: !lambda |-
+          if (id(low_batt_active)) return id(page_low_batt);
+          return id(storage_active) ? id(page_storage) : id(page1);
+      - component.update: my_display
+      - script.execute: settle_display
+      - script.wait: settle_display
+
   - id: decide_sleep
     mode: restart
     then:
@@ -854,10 +920,8 @@ script:
                       then:
                         - script.execute: enter_storage
                       else:
-                        - display.page.show: page1
-                        - component.update: my_display
-                        - script.execute: settle_display
-                        - script.wait: settle_display
+                        - script.execute: render_measurement_page
+                        - script.wait: render_measurement_page
                         - script.execute: sleep_after_display
           else:
             - script.stop: maintenance_watchdog
@@ -885,10 +949,8 @@ script:
                               - text_sensor.template.publish:
                                   id: storage_status
                                   state: "OFF"
-                              - display.page.show: page1
-                              - component.update: my_display
-                              - script.execute: settle_display
-                              - script.wait: settle_display
+                              - script.execute: render_measurement_page
+                              - script.wait: render_measurement_page
                               - script.execute: sleep_after_display
 
   - id: maintenance_watchdog
@@ -903,10 +965,8 @@ script:
       - lambda: |-
           id(storage_active) = true;
           id(storage_display_refresh_pending) = true;
-      - display.page.show: page_storage
-      - component.update: my_display
-      - script.execute: settle_display
-      - script.wait: settle_display
+      - script.execute: render_measurement_page
+      - script.wait: render_measurement_page
       - if:
           condition:
             lambda: 'return id(display_settle_ok);'
@@ -950,10 +1010,8 @@ script:
       - text_sensor.template.publish:
           id: storage_status
           state: "OFF"
-      - display.page.show: page1
-      - component.update: my_display
-      - script.execute: settle_display
-      - script.wait: settle_display
+      - script.execute: render_measurement_page
+      - script.wait: render_measurement_page
       - script.execute: sleep_after_display
 
   # The e-paper keeps its last image without power. Replace the maintenance
@@ -1016,13 +1074,23 @@ script:
             - switch.turn_off: exc
             - if:
                 condition:
-                  lambda: 'return id(storage_active);'
+                  lambda: 'return id(low_batt_active);'
                 then:
+                  # Protective hibernation: extend the cycle so residual drain
+                  # cannot walk the cell toward deep-discharge damage while low.
                   - deep_sleep.enter:
                       id: deep_sleep_control
-                      sleep_duration: ${storage_sleep_duration}
+                      sleep_duration: ${low_batt_sleep_duration}
                 else:
-                  - deep_sleep.enter: deep_sleep_control
+                  - if:
+                      condition:
+                        lambda: 'return id(storage_active);'
+                      then:
+                        - deep_sleep.enter:
+                            id: deep_sleep_control
+                            sleep_duration: ${storage_sleep_duration}
+                      else:
+                        - deep_sleep.enter: deep_sleep_control
           else:
             - logger.log:
                 level: WARN
