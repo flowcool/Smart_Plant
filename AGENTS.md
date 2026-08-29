@@ -90,10 +90,12 @@
   per-feature commits, then one consolidated upstream PR once OTA + fleet validation
   are done. Upstream steps S0-S4 = `infra-3rr.28`-`.33` (deferred).
 - Transport decoupling (native API vs MQTT ⊥ multi-device, model B): MQTT coupling is
-  driven by deep-sleep UX, not device count. RTFM + feasibility plan in
-  `docs/transport-decoupling-plan.md` (`infra-3rr.34`) — flat sibling composition
-  `smart_plant_core` + one transport profile; gates provable by `esphome config`, no
-  device. Gate-prove `infra-3rr.35`.
+  driven by deep-sleep UX, not device count. Plan `docs/transport-decoupling-plan.md`
+  (`infra-3rr.34`, signed). Split DELIVERED: `smart_plant_core.yaml` +
+  `smart_plant_profile_mqtt.yaml` + `smart_plant_profile_api.yaml` added alongside the
+  still-live `smart_plant_base.yaml`; `core + profile_mqtt` proven expansion-identical to
+  base (`infra-3rr.36`). PENDING cutover = `infra-3rr.37` (repoint 8 devices, retire base,
+  doc sweep) — gated on the next-release fleet OTA window with `.25.9`/`.23`.
 - Residual induced-failure validation only: `infra-3rr.14` (low-battery
   rejection, repeated-ON deadline restart, MQTT outage/recovery, and failed-OTA
   retry). Normal Maintenance, Storage entry/daily wake/exit, naming migration,
