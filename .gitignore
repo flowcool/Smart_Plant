@@ -7,3 +7,7 @@
 /Enclosure/Solar top
 /Enclosure/Standard
 /Enclosure/Others
+
+# Agent/session scratch and Python caches
+/tmp/
+scripts/__pycache__/
