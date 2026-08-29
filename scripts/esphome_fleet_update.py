@@ -240,28 +240,43 @@ class FleetUpdater:
             for name, values in self.devices.items()
         }
 
-    def wait_online(
+    def is_ota_reachable(self, ip: str) -> bool:
+        """Ground-truth flashability: the ESP32 OTA port answers only while the
+        device is awake. Device Builder's runtime_state is unreliable for these
+        MQTT-primary devices — it reports offline even when the API (6053) and
+        OTA (3232) ports are open — so gate on the OTA port directly, per the
+        project's OTA-detection convention (nc -z -w1 <ip> 3232). Runs from the
+        NAS, which shares the device LAN."""
+        out = self.ssh(
+            ["sh", "-c", f"nc -z -w1 {shlex.quote(ip)} 3232 && echo OPEN || echo down"]
+        )
+        return out.strip().endswith("OPEN")
+
+    def wait_flashable(
         self, name: str, timeout_seconds: int, settle_seconds: int
     ) -> bool:
-        """Block until the device is discovered online and stays online for the
-        settle guard. firmware/install only creates a dependent upload job when
-        the target is online at install time; firing before then merely arms a
-        deferred queued_update and returns without flashing. Returns False on
-        timeout so the caller can fail loudly rather than no-op silently."""
+        """Block until the device's OTA port stays reachable for the settle
+        guard, so firmware/install runs against a demonstrably awake target and
+        produces an upload job instead of arming a deferred queued_update.
+        Returns False on timeout so the caller fails loudly, never no-ops
+        silently. NOTE: whether firmware/install still defers even against a
+        reachable target (Device Builder keying its upload on its own stale
+        discovery) is unverified — the bounded upload-adopt + loud raise in
+        install() cover that case regardless."""
         configuration = self.devices[name]["configuration"]
+        ip = self.devices[name]["ip"]
         deadline = time.monotonic() + timeout_seconds
-        settling_since: float | None = None
+        reachable_since: float | None = None
         while time.monotonic() < deadline:
-            state = self.runtime_states().get(name)
             now = time.monotonic()
-            if state == "online":
-                if settling_since is None:
-                    settling_since = now
-                    print(f"{configuration}: online; settling {settle_seconds}s")
-                elif now - settling_since >= settle_seconds:
+            if self.is_ota_reachable(ip):
+                if reachable_since is None:
+                    reachable_since = now
+                    print(f"{configuration}: OTA reachable; settling {settle_seconds}s")
+                elif now - reachable_since >= settle_seconds:
                     return True
             else:
-                settling_since = None
+                reachable_since = None
             time.sleep(self.poll_seconds)
         return False
 
@@ -269,21 +284,21 @@ class FleetUpdater:
         self,
         name: str,
         retries: int,
-        online_timeout: int,
+        reachable_timeout: int,
         settle_seconds: int,
     ) -> dict[str, Any]:
         configuration = self.devices[name]["configuration"]
-        # Gate on a settled online state BEFORE firing. An install against an
-        # offline/sleeping target compiles but produces no dependent upload job,
-        # silently returning a "deferred OTA armed" no-op the caller mistakes
-        # for a flash. Hold the device awake (maintenance ON) so it reaches
-        # online within the timeout.
-        if not self.wait_online(name, online_timeout, settle_seconds):
+        # Gate on settled OTA reachability BEFORE firing. An install against an
+        # unreachable/sleeping target compiles but produces no dependent upload
+        # job, silently returning a "deferred OTA armed" no-op the caller
+        # mistakes for a flash. Hold the device awake (maintenance ON) so its
+        # OTA port becomes reachable within the timeout.
+        if not self.wait_flashable(name, reachable_timeout, settle_seconds):
             raise RuntimeError(
-                f"{configuration}: not settled-online within {online_timeout}s; "
-                f"refusing to fire install (it would only arm a deferred OTA "
-                f"without flashing). Publish maintenance ON to hold it awake, "
-                f"then retry."
+                f"{configuration}: OTA port not settled-reachable within "
+                f"{reachable_timeout}s; refusing to fire install (it would only "
+                f"arm a deferred OTA without flashing). Publish maintenance ON to "
+                f"hold it awake, then retry."
             )
         for attempt in range(1, retries + 2):
             job = self.api(
@@ -337,11 +352,11 @@ class FleetUpdater:
         self,
         names: list[str],
         retries: int,
-        online_timeout: int,
+        reachable_timeout: int,
         settle_seconds: int,
     ) -> None:
         for name in names:
-            self.install(name, retries, online_timeout, settle_seconds)
+            self.install(name, retries, reachable_timeout, settle_seconds)
 
     def compile_many(self, names: list[str], retries: int) -> None:
         """Precompile every target before opening any maintenance window."""
@@ -521,7 +536,7 @@ def main() -> None:
     install = subparsers.add_parser("install")
     install.add_argument("devices", nargs="+", metavar="DEVICE")
     install.add_argument("--retries", type=int, default=2)
-    install.add_argument("--online-timeout", type=int, default=300)
+    install.add_argument("--reachable-timeout", type=int, default=300)
     install.add_argument("--settle-seconds", type=int, default=10)
     update = subparsers.add_parser("update")
     update.add_argument("devices", nargs="+", metavar="DEVICE")
@@ -549,7 +564,7 @@ def main() -> None:
         updater.install_many(
             parse_names(updater, args.devices),
             args.retries,
-            args.online_timeout,
+            args.reachable_timeout,
             args.settle_seconds,
         )
     elif args.command == "update":
