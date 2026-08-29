@@ -133,6 +133,9 @@ local/CI, hardware-free.
 2. **Gate-prove (scratch compose):** author throwaway `core.yaml`/`profile-*.yaml` skeletons +
    scratch device files; run `esphome config` to clear G1–G5. **No device.** Blocking before refactor.
 3. **Refactor (separate issue):** split the real package per §3–§4; keep clean per-feature commits.
+   Includes a **doc sweep**: the `smart_plant_base.yaml` references in `CLAUDE.md` (×1) and
+   `AGENTS.md` (×2) must be updated to `smart_plant_core` + the transport profiles once the file is
+   retired — accurate until then, so do NOT touch them before this step.
 4. **Compose-validate both profiles:** `esphome config` on a real device file for each profile;
    diff the profile-mqtt expansion against today's single-package expansion to prove behaviour
    preservation.
