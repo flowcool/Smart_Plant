@@ -240,28 +240,85 @@ class FleetUpdater:
             for name, values in self.devices.items()
         }
 
-    def install(self, name: str, retries: int) -> dict[str, Any]:
+    def wait_online(
+        self, name: str, timeout_seconds: int, settle_seconds: int
+    ) -> bool:
+        """Block until the device is discovered online and stays online for the
+        settle guard. firmware/install only creates a dependent upload job when
+        the target is online at install time; firing before then merely arms a
+        deferred queued_update and returns without flashing. Returns False on
+        timeout so the caller can fail loudly rather than no-op silently."""
         configuration = self.devices[name]["configuration"]
+        deadline = time.monotonic() + timeout_seconds
+        settling_since: float | None = None
+        while time.monotonic() < deadline:
+            state = self.runtime_states().get(name)
+            now = time.monotonic()
+            if state == "online":
+                if settling_since is None:
+                    settling_since = now
+                    print(f"{configuration}: online; settling {settle_seconds}s")
+                elif now - settling_since >= settle_seconds:
+                    return True
+            else:
+                settling_since = None
+            time.sleep(self.poll_seconds)
+        return False
+
+    def install(
+        self,
+        name: str,
+        retries: int,
+        online_timeout: int,
+        settle_seconds: int,
+    ) -> dict[str, Any]:
+        configuration = self.devices[name]["configuration"]
+        # Gate on a settled online state BEFORE firing. An install against an
+        # offline/sleeping target compiles but produces no dependent upload job,
+        # silently returning a "deferred OTA armed" no-op the caller mistakes
+        # for a flash. Hold the device awake (maintenance ON) so it reaches
+        # online within the timeout.
+        if not self.wait_online(name, online_timeout, settle_seconds):
+            raise RuntimeError(
+                f"{configuration}: not settled-online within {online_timeout}s; "
+                f"refusing to fire install (it would only arm a deferred OTA "
+                f"without flashing). Publish maintenance ON to hold it awake, "
+                f"then retry."
+            )
         for attempt in range(1, retries + 2):
             job = self.api(
                 "firmware/install", {"configuration": configuration, "port": "OTA"}
             )
             result = self.wait_job(job["job_id"])
             if result["status"] == "completed":
-                # An awake target gets a dependent upload immediately. A
-                # sleeping target keeps only the completed deferred compile
-                # and arms queued_update for its next discovery window.
-                jobs = self.api("firmware/get_jobs", {"configuration": configuration})
-                uploads = [
-                    candidate
-                    for candidate in jobs
-                    if candidate.get("job_type") == "upload"
-                    and candidate.get("depends_on") == job["job_id"]
-                ]
-                if not uploads:
-                    print(f"{configuration}: compiled; deferred OTA armed")
-                    return result
-                upload = self.wait_job(uploads[-1]["job_id"])
+                # The dependent upload can lag compile completion by a poll or
+                # two. Adopt it within a bounded window instead of declaring a
+                # deferred no-op on the first miss.
+                upload_job = None
+                for _ in range(3):
+                    jobs = self.api(
+                        "firmware/get_jobs", {"configuration": configuration}
+                    )
+                    uploads = [
+                        candidate
+                        for candidate in jobs
+                        if candidate.get("job_type") == "upload"
+                        and candidate.get("depends_on") == job["job_id"]
+                    ]
+                    if uploads:
+                        upload_job = uploads[-1]
+                        break
+                    time.sleep(self.poll_seconds)
+                if upload_job is None:
+                    # Online at install time yet still no upload: an anomaly,
+                    # not a routine deferral. Fail loudly — never a silent
+                    # "compiled" success the caller mistakes for a flash.
+                    raise RuntimeError(
+                        f"{configuration}: compiled while online but no upload "
+                        f"job materialized (a queued_update may be armed); not "
+                        f"reported as flashed. Inspect Device Builder discovery."
+                    )
+                upload = self.wait_job(upload_job["job_id"])
                 if upload["status"] != "completed":
                     raise RuntimeError(
                         f"{configuration} upload failed: "
@@ -276,9 +333,15 @@ class FleetUpdater:
             print(f"{configuration}: retrying failed cold build ({attempt}/{retries})")
         raise AssertionError("unreachable")
 
-    def install_many(self, names: list[str], retries: int) -> None:
+    def install_many(
+        self,
+        names: list[str],
+        retries: int,
+        online_timeout: int,
+        settle_seconds: int,
+    ) -> None:
         for name in names:
-            self.install(name, retries)
+            self.install(name, retries, online_timeout, settle_seconds)
 
     def compile_many(self, names: list[str], retries: int) -> None:
         """Precompile every target before opening any maintenance window."""
@@ -458,6 +521,8 @@ def main() -> None:
     install = subparsers.add_parser("install")
     install.add_argument("devices", nargs="+", metavar="DEVICE")
     install.add_argument("--retries", type=int, default=2)
+    install.add_argument("--online-timeout", type=int, default=300)
+    install.add_argument("--settle-seconds", type=int, default=10)
     update = subparsers.add_parser("update")
     update.add_argument("devices", nargs="+", metavar="DEVICE")
     update.add_argument("--retries", type=int, default=2)
@@ -481,7 +546,12 @@ def main() -> None:
     elif args.command == "storage":
         updater.publish_storage(parse_names(updater, args.devices), args.state)
     elif args.command == "install":
-        updater.install_many(parse_names(updater, args.devices), args.retries)
+        updater.install_many(
+            parse_names(updater, args.devices),
+            args.retries,
+            args.online_timeout,
+            args.settle_seconds,
+        )
     elif args.command == "update":
         updater.update_many(
             parse_names(updater, args.devices),
