@@ -84,8 +84,16 @@
   status lives in Beads `.25.9`. Adds WARN (<30%) full-screen
   e-paper inversion and CRITIQUE (<=15%) 24h protective hibernation with
   hysteresis exit (>=22%), thresholds per-device. Durable design on the epic.
-- Fork upstreaming strategy to `JGAguado/Smart_Plant` given the large
-  refactors: `infra-3rr.26` (P3, not started — record only, no urgency).
+- Fork upstreaming strategy to `JGAguado/Smart_Plant` given the large refactors:
+  strategy + per-feature coupling audit in `docs/upstreaming-strategy.md`
+  (`infra-3rr.26`). Execution is deferred fork-first: accumulate on V2R1 with clean
+  per-feature commits, then one consolidated upstream PR once OTA + fleet validation
+  are done. Upstream steps S0-S4 = `infra-3rr.28`-`.33` (deferred).
+- Transport decoupling (native API vs MQTT ⊥ multi-device, model B): MQTT coupling is
+  driven by deep-sleep UX, not device count. RTFM + feasibility plan in
+  `docs/transport-decoupling-plan.md` (`infra-3rr.34`) — flat sibling composition
+  `smart_plant_core` + one transport profile; gates provable by `esphome config`, no
+  device. Gate-prove `infra-3rr.35`.
 - Residual induced-failure validation only: `infra-3rr.14` (low-battery
   rejection, repeated-ON deadline restart, MQTT outage/recovery, and failed-OTA
   retry). Normal Maintenance, Storage entry/daily wake/exit, naming migration,
