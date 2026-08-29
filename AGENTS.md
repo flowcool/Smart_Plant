@@ -79,9 +79,9 @@
   `infra-3rr-25-lowbatt`, canary Papyrus, via threshold-override OTA flashes,
   then reverted to @V2R1. C7 (brownout at ~15% under TX) rescoped to
   accepted-risk / prod-monitored (no lab PSU will exist; the branch is
-  strictly safer than @V2R1). Only `.25.9` fleet rollout remains — HUMAN GATE,
-  needs Florent's explicit go; branch is NOT yet merged or deployed to the 7
-  other devices (all 8 currently on @V2R1). Adds WARN (<30%) full-screen
+  strictly safer than @V2R1). Code merged to V2R1 (PR #1). Only `.25.9` fleet
+  rollout remains — HUMAN GATE, needs Florent's explicit go; live merge/deploy
+  status lives in Beads `.25.9`. Adds WARN (<30%) full-screen
   e-paper inversion and CRITIQUE (<=15%) 24h protective hibernation with
   hysteresis exit (>=22%), thresholds per-device. Durable design on the epic.
 - Fork upstreaming strategy to `JGAguado/Smart_Plant` given the large
