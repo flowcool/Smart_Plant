@@ -73,13 +73,19 @@
 - Beads is authoritative for current work. Filter with
   `bd list --metadata-field project=Smart_Plant`.
 - Roadmap epic: `infra-3rr`.
-- Low-battery protective hibernation + e-paper signalling: epic `infra-3rr.25`
-  (gatekeeper molecule — RTFM `.25.1/.2/.3` block impl `.25.4`, then
-  config-validate `.25.5`, bench `.25.6/.7/.8`, human-gate rollout `.25.9`).
-  Ready frontier is the three RTFM tasks; nothing codes before they close.
-  Approved design is a session plan artifact; the durable design lives on the
-  epic. Adds WARN (<30%) full-screen e-paper inversion and CRITIQUE (<=15%) 24h
-  protective hibernation with hysteresis exit (>=22%), thresholds per-device.
+- Low-battery protective hibernation + e-paper signalling: epic `infra-3rr.25`.
+  RTFM `.25.1/.2/.3`, impl `.25.4`, config-validate `.25.5`, and bench
+  `.25.6/.7/.8` all CLOSED — validated 2026-08-29 on branch
+  `infra-3rr-25-lowbatt`, canary Papyrus, via threshold-override OTA flashes,
+  then reverted to @V2R1. C7 (brownout at ~15% under TX) rescoped to
+  accepted-risk / prod-monitored (no lab PSU will exist; the branch is
+  strictly safer than @V2R1). Only `.25.9` fleet rollout remains — HUMAN GATE,
+  needs Florent's explicit go; branch is NOT yet merged or deployed to the 7
+  other devices (all 8 currently on @V2R1). Adds WARN (<30%) full-screen
+  e-paper inversion and CRITIQUE (<=15%) 24h protective hibernation with
+  hysteresis exit (>=22%), thresholds per-device. Durable design on the epic.
+- Fork upstreaming strategy to `JGAguado/Smart_Plant` given the large
+  refactors: `infra-3rr.26` (P3, not started — record only, no urgency).
 - Residual induced-failure validation only: `infra-3rr.14` (low-battery
   rejection, repeated-ON deadline restart, MQTT outage/recovery, and failed-OTA
   retry). Normal Maintenance, Storage entry/daily wake/exit, naming migration,
