@@ -1,0 +1,588 @@
+# =============================================================================
+# Smart Plant — transport-agnostic CORE package
+# =============================================================================
+# Composition-only: never flashed standalone. A device composes this together
+# with exactly one transport profile:
+#
+#   packages:
+#     core:      github://flowcool/Smart_Plant/examples/multi-device/packages/smart_plant_core.yaml@V2R1
+#     transport: github://flowcool/Smart_Plant/examples/multi-device/packages/smart_plant_profile_mqtt.yaml@V2R1
+#       # or   smart_plant_profile_api.yaml for the simple native-API profile
+#
+# Holds hardware, sensors, display (all pages), the e-paper BUSY-settle +
+# deep-sleep lifecycle, and low-battery protection. NO mqtt:, NO on_boot, NO
+# maintenance/storage logic, NO mqtt.publish. Cross-references decide_sleep and
+# sleep_after_display are provided by the transport profile.
+# =============================================================================
+
+# Default values — override any of these in your device file.
+substitutions:
+  device_name: "smart-plant"
+  friendly_name: "Smart Plant"
+  device_comment: "${friendly_name}"
+  project_name: "smart.plant"
+  project_version: "2.2"
+  ap_ssid: "Smart-Plant"
+  ap_pwd: "smartplant"
+  timezone: "Europe/Paris"
+
+  # OTA password (leave empty string for no password)
+  ota_password: ""
+
+  # Pull-OTA manifest URL. Default is an RFC 5737 TEST-NET-1 placeholder that
+  # ESPHome validates as a well-formed URL at parse time but that is guaranteed
+  # non-routable — update.check is never invoked on it because the HA switch
+  # (pull_ota_enabled) defaults OFF and gates the maintenance-window trigger.
+  # Device YAML overrides this substitution with the URL of its own
+  # ESP-Web-Tools manifest to opt in.
+  pull_ota_manifest_url: "http://192.0.2.1/manifest.json"
+
+  # WiFi/MQTT credentials — overridden per-device via !secret in the local
+  # device file. Must stay plain substitutions here (no !secret): this file
+  # is fetched as a remote package, and the remote-build bundler refuses to
+  # ship secrets.yaml to packages pulled from a github:// source.
+  wifi_ssid: ""
+  wifi_password: ""
+  mqtt_broker: ""
+  mqtt_username: ""
+  mqtt_password: ""
+
+  # Address used by ESPHome CLI/dashboard for OTA and log connections.
+  # Default: device hostname via mDNS. Set to static IP for reliability.
+  use_address: "${device_name}"
+
+  # Background image for the e-paper display — local path or URL
+  label_image: "https://smart-plant.readthedocs.io/en/v2r1/_images/Lemon_tree_label_page_1.png"
+
+  # Soil moisture calibration (ADC voltage → %)
+  soil_v_wet: "1.25"   # voltage when sensor is fully submerged
+  soil_v_dry: "2.8"    # voltage in dry air
+
+  # Gauge display ranges
+  light_max: "3775"
+  temp_min: "-10"
+  temp_max: "50"
+  hum_min: "20"
+  hum_max: "80"
+
+  # OTA maintenance is accepted only above this battery level and always times
+  # out. A full battery permits maintenance; it never keeps the device awake by
+  # itself.
+  ota_min_battery: "50"
+  maintenance_timeout_minutes: "25"
+  maintenance_timeout: "${maintenance_timeout_minutes}min"
+  storage_sleep_duration: "24h"
+  # Low-battery protection (SoC %, per-device overridable). WARN inverts the
+  # e-paper below warn_pct (no behaviour change); CRITIQUE hibernates at/below
+  # crit_pct and exits at/above exit_pct (hysteresis). See epic infra-3rr.25.
+  low_batt_crit_pct: "15"
+  low_batt_exit_pct: "22"
+  low_batt_warn_pct: "30"
+  low_batt_sleep_duration: "${storage_sleep_duration}"
+  display_busy_gpio: "14"
+  # The legacy driver returns immediately after MASTER ACTIVATION. Observe the
+  # panel's active-high BUSY transition directly instead of guessing a delay.
+  display_busy_assert_timeout: "2s"
+  display_busy_clear_timeout: "30s"
+
+globals:
+  # storage_active: NVS-backed seasonal state; read by the core display and
+  # enter_deep_sleep, written only by the MQTT profile (enter/exit_storage).
+  - id: storage_active
+    type: bool
+    restore_value: true
+    initial_value: 'false'
+  # Low-battery hysteresis latch. NVS-backed (restore_value): survives deep sleep
+  # AND power loss, so a battery swap does NOT reset it — evaluate_low_batt clears
+  # it on the first cycle at >= exit_pct (self-correction is the hysteresis exit,
+  # not a reset). NVS dirty-check skips no-op writes, so flash wear is negligible.
+  - id: low_batt_active
+    type: bool
+    restore_value: true
+    initial_value: 'false'
+  # Read by the core page_maintenance display; written only by the MQTT profile
+  # (decide_sleep). Stay -1 in the API profile (page never shown there).
+  - id: maintenance_end_hour
+    type: int
+    restore_value: false
+    initial_value: '-1'
+  - id: maintenance_end_minute
+    type: int
+    restore_value: false
+    initial_value: '-1'
+  - id: display_settle_ok
+    type: bool
+    restore_value: false
+    initial_value: 'false'
+  - id: display_busy_seen
+    type: bool
+    restore_value: false
+    initial_value: 'false'
+  - id: display_safe_to_sleep
+    type: bool
+    restore_value: false
+    # No refresh is in flight at boot. settle_display resets this before every
+    # activation and only restores it after BUSY is observed low.
+    initial_value: 'true'
+
+esphome:
+  name: "${device_name}"
+  name_add_mac_suffix: true
+  comment: "${device_comment}"
+  project:
+    name: "${project_name}"
+    version: "${project_version}"
+
+esp32:
+  board: esp32-s2-saola-1
+  framework:
+    type: arduino
+  cpu_frequency: 160MHz
+
+logger:
+  level: WARN
+
+captive_portal:
+improv_serial:
+
+wifi:
+  ssid: "${wifi_ssid}"
+  password: "${wifi_password}"
+  fast_connect: true
+  # none (au lieu de LIGHT) : le modem wifi reste éveillé et répond aux requêtes
+  # mDNS multicast en continu → le dashboard garde mac/config_hash/version frais
+  # (sinon le device n'annonce le mDNS qu'à son boot). Coût = un peu plus de conso.
+  power_save_mode: none
+  use_address: "${use_address}"
+  ap:
+    ssid: "${ap_ssid}"
+    password: "${ap_pwd}"
+
+i2c:
+  scl: GPIO34
+  sda: GPIO33
+  scan: false
+  id: bus_a
+
+spi:
+  clk_pin:  GPIO12
+  mosi_pin: GPIO11
+
+image:
+  - platform: file
+    file: "${label_image}"
+    id: page_1_background
+    type: BINARY
+    invert_alpha: true
+
+font:
+  - file: "gfonts://Audiowide"
+    id: font_title
+    size: 20
+  - file: "gfonts://Audiowide"
+    id: font_subtitle
+    size: 15
+  - file: "gfonts://Audiowide"
+    id: font_parameters
+    size: 15
+  - file: 'gfonts://Material+Symbols+Outlined'
+    id: font_icon
+    size: 20
+    glyphs:
+      - "\U0000ebdc"
+      - "\U0000ebd9"
+      - "\U0000ebe0"
+      - "\U0000ebdd"
+      - "\U0000ebe2"
+      - "\U0000ebd4"
+      - "\U0000e1a4"
+      - "\U0000e627"
+
+time:
+  - platform: sntp
+    id: esptime
+    timezone: "${timezone}"
+    servers:
+      - "162.159.200.1"    # Cloudflare NTP (anycast, IP stable)
+      - "216.239.35.0"     # Google NTP
+      - "pool.ntp.org"
+
+switch:
+  - platform: gpio
+    pin: GPIO4
+    id: exc
+    icon: "mdi:power"
+    restore_mode: ALWAYS_ON
+    internal: true
+
+sensor:
+  - platform: max17043
+    id: max17043_id
+    update_interval: never
+    battery_voltage:
+      id: batvolt
+      name: "${friendly_name} Battery voltage"
+      internal: true
+      accuracy_decimals: 2
+    battery_level:
+      id: batpercent
+      device_class: "battery"
+      unit_of_measurement: "%"
+      name: "${friendly_name} Battery"
+      force_update: true
+      accuracy_decimals: 0
+
+  - platform: aht10
+    id: aht20_sensor
+    variant: AHT20
+    i2c_id: bus_a
+    temperature:
+      name: "${friendly_name} Temperature"
+      id: temp
+      icon: "mdi:thermometer"
+      device_class: temperature
+      force_update: true
+      accuracy_decimals: 1
+    humidity:
+      name: "${friendly_name} Air Humidity"
+      id: hum
+      icon: "mdi:water-percent"
+      device_class: humidity
+      force_update: true
+      accuracy_decimals: 0
+    update_interval: never
+
+  - platform: veml7700
+    id: veml7700_sensor
+    address: 0x10
+    update_interval: never
+    ambient_light:
+      name: "${friendly_name} Ambient light"
+      id: light
+      icon: "mdi:white-balance-sunny"
+      device_class: illuminance
+      force_update: true
+      accuracy_decimals: 0
+    actual_gain:
+      name: "${friendly_name} Actual gain"
+      internal: true
+
+  - platform: adc
+    pin: GPIO1
+    name: "${friendly_name} Soil Moisture"
+    id: soil
+    icon: "mdi:cup-water"
+    device_class: moisture
+    update_interval: never
+    unit_of_measurement: "%"
+    attenuation: 12db
+    force_update: true
+    filters:
+      - median:
+          window_size: 5
+          send_every: 5
+      - calibrate_linear:
+          - ${soil_v_wet} -> 100.00
+          - ${soil_v_dry} -> 0.00
+      - lambda: if (x < 1) return 0; else if (x > 100) return 100; return (x);
+    accuracy_decimals: 0
+
+# Running ESPHome core version. Follow the same visible naming convention as
+# the historical sensors; Home Assistant cleanup owns legacy collision removal.
+text_sensor:
+  - platform: version
+    name: "${friendly_name} ESPHome Version"
+    hide_timestamp: true
+    # Keep the native config hash: unlike a manually stamped Git revision, it
+    # identifies the effective per-device configuration compiled into the image.
+    hide_hash: false
+    entity_category: diagnostic
+
+display:
+  - platform: waveshare_epaper
+    cs_pin: GPIO10
+    dc_pin: GPIO13
+    busy_pin: GPIO${display_busy_gpio}
+    reset_pin: GPIO15
+    rotation: 270
+    model: 2.90inv2
+    id: my_display
+    update_interval: never
+    full_update_every: 1
+    pages:
+      - id: page1
+        lambda: |-
+          // WARN signalling: below warn_pct the whole page renders in negative
+          // (fill black, draw white). Same layout, glanceable state change. The
+          // label image is drawn inverted via its (on,off) colour args = (fg,bg).
+          float battery_perc = id(batpercent).state;
+          bool low = battery_perc < ${low_batt_warn_pct};
+          auto fg = low ? COLOR_OFF : COLOR_ON;
+          auto bg = low ? COLOR_ON  : COLOR_OFF;
+          it.fill(bg);
+          it.image(0, 0, id(page_1_background), fg, bg);
+
+          int battery_range = battery_perc / 16;
+          battery_range = (battery_range > 6) ? 6 : battery_range;
+          battery_range = (battery_range < 0)  ? 0 : battery_range;
+
+          const char* battery_icon_map[] = {
+            "\U0000ebdc", "\U0000ebd9", "\U0000ebe0", "\U0000ebdd",
+            "\U0000ebe2", "\U0000ebd4", "\U0000e1a4"
+          };
+          it.printf(278, 1, id(font_icon), fg, TextAlign::TOP_LEFT, battery_icon_map[battery_range]);
+          it.printf(278, 1, id(font_subtitle), fg, TextAlign::TOP_RIGHT, "%3.0f%%", battery_perc);
+
+          auto now = id(esptime).now();
+          if (now.is_valid()) {
+            it.strftime(278, 18, id(font_subtitle), fg, TextAlign::TOP_RIGHT, "%H:%M %d/%m", now);
+          } else {
+            it.printf(278, 18, id(font_subtitle), fg, TextAlign::TOP_RIGHT, "--:-- --/--");
+          }
+          it.printf(278, 18, id(font_icon), fg, TextAlign::TOP_LEFT, "\U0000e627");
+
+          float pi = 3.141592653589793;
+          float alpha = 4.71238898038469;
+          float beta = 2*pi - alpha;
+          int radius = 22;
+          int thick = 7;
+
+          auto draw_gauge = [&](float value, float vmin, float vmax, int xc, int yc, const char* fmt) {
+            if (value < vmin) value = vmin;
+            if (value > vmax) value = vmax;
+            float val = (value - vmin) / abs(vmax - vmin) * alpha;
+            int x0 = static_cast<int>(xc + radius + radius * cos(pi / 2 + beta / 2 + val));
+            int y0 = static_cast<int>(yc + radius + radius * sin(pi / 2 + beta / 2 + val));
+            int x1 = static_cast<int>(xc + radius + (radius+thick) * cos(pi / 2 + beta / 2 + val + 0.1));
+            int y1 = static_cast<int>(yc + radius + (radius+thick) * sin(pi / 2 + beta / 2 + val + 0.1));
+            int x2 = static_cast<int>(xc + radius + (radius+thick) * cos(pi / 2 + beta / 2 + val - 0.1));
+            int y2 = static_cast<int>(yc + radius + (radius+thick) * sin(pi / 2 + beta / 2 + val - 0.1));
+            it.line(x0, y0, x1, y1, fg);
+            it.line(x1, y1, x2, y2, fg);
+            it.line(x2, y2, x0, y0, fg);
+            it.printf(xc + radius, yc + 1.7*radius, id(font_parameters), fg, TextAlign::TOP_CENTER, fmt, value);
+          };
+
+          draw_gauge(id(soil).state,  0,            100,            80,  50, "%.0f%%");
+          draw_gauge(id(light).state, 0,            ${light_max},  134,  70, "%.0flx");
+          draw_gauge(id(temp).state,  ${temp_min},  ${temp_max},   188,  50, "%.0f°C");
+          draw_gauge(id(hum).state,   ${hum_min},   ${hum_max},    242,  70, "%.0f%%");
+
+      - id: page_maintenance
+        lambda: |-
+          it.printf(148, 8, id(font_subtitle), TextAlign::TOP_CENTER, "${friendly_name}");
+          it.printf(148, 38, id(font_title), TextAlign::TOP_CENTER, "MAINTENANCE");
+          if (id(maintenance_end_hour) >= 0) {
+            it.printf(148, 82, id(font_title), TextAlign::TOP_CENTER, "ENDS AT %02d:%02d",
+                      id(maintenance_end_hour), id(maintenance_end_minute));
+          } else {
+            it.printf(148, 82, id(font_title), TextAlign::TOP_CENTER,
+                      "ENDS IN ${maintenance_timeout_minutes} MIN");
+          }
+
+      - id: page_storage
+        lambda: |-
+          it.printf(148, 4, id(font_subtitle), TextAlign::TOP_CENTER, "${friendly_name}");
+          it.printf(148, 31, id(font_title), TextAlign::TOP_CENTER, "STORAGE MODE");
+          it.printf(148, 68, id(font_subtitle), TextAlign::TOP_CENTER, "DAILY CHECK");
+          if (id(batpercent).has_state() && !isnan(id(batpercent).state)) {
+            it.printf(148, 91, id(font_title), TextAlign::TOP_CENTER,
+                      "BATTERY %.0f%%", id(batpercent).state);
+          } else {
+            it.printf(148, 91, id(font_title), TextAlign::TOP_CENTER, "BATTERY --%%");
+          }
+
+      # Critical low-battery page, rendered in negative (fill black, text white).
+      # Shows STORAGE MODE as a small secondary line when the plant is also in
+      # Storage, so the alarm is unmistakable without hiding the storage context.
+      - id: page_low_batt
+        lambda: |-
+          it.fill(COLOR_ON);
+          it.printf(148, 4,  id(font_subtitle), COLOR_OFF, TextAlign::TOP_CENTER, "${friendly_name}");
+          it.printf(148, 26, id(font_title),    COLOR_OFF, TextAlign::TOP_CENTER, "LOW BATT !");
+          if (id(storage_active)) {
+            it.printf(148, 60, id(font_subtitle), COLOR_OFF, TextAlign::TOP_CENTER, "STORAGE MODE");
+          }
+          if (id(batpercent).has_state() && !isnan(id(batpercent).state)) {
+            it.printf(148, 88, id(font_title), COLOR_OFF, TextAlign::TOP_CENTER,
+                      "BATTERY %.0f%%", id(batpercent).state);
+          } else {
+            it.printf(148, 88, id(font_title), COLOR_OFF, TextAlign::TOP_CENTER, "BATTERY --%%");
+          }
+
+deep_sleep:
+  id: deep_sleep_control
+  sleep_duration: 1h
+
+script:
+  # Waveshare 2.9 V2 BUSY is active high. ESPHome 2026.7.4 waits for idle
+  # before writing but returns immediately after MASTER ACTIVATION, so every
+  # caller must observe the subsequent HIGH -> LOW transition before sleep or
+  # another lifecycle boundary.
+  - id: settle_display
+    mode: restart
+    then:
+      # A new refresh invalidates any delayed recovery from an older one.
+      - script.stop: recover_display_busy
+      - script.stop: enter_deep_sleep
+      - lambda: |-
+          id(display_settle_ok) = false;
+          id(display_busy_seen) = false;
+          id(display_safe_to_sleep) = false;
+      - delay: 100ms
+      - wait_until:
+          condition:
+            lambda: 'return digitalRead(${display_busy_gpio}) == HIGH;'
+          timeout: ${display_busy_assert_timeout}
+      - if:
+          condition:
+            lambda: 'return digitalRead(${display_busy_gpio}) == HIGH;'
+          then:
+            - lambda: 'id(display_busy_seen) = true;'
+            - wait_until:
+                condition:
+                  lambda: 'return digitalRead(${display_busy_gpio}) == LOW;'
+                timeout: ${display_busy_clear_timeout}
+      - lambda: |-
+          const bool busy_low = digitalRead(${display_busy_gpio}) == LOW;
+          id(display_safe_to_sleep) = busy_low;
+          id(display_settle_ok) = id(display_busy_seen) && busy_low;
+      - if:
+          condition:
+            lambda: 'return id(display_settle_ok);'
+          then:
+            - delay: 500ms
+          else:
+            - logger.log:
+                level: ERROR
+                format: "E-paper refresh not confirmed (asserted=%s, safe_low=%s)"
+                args:
+                  - 'id(display_busy_seen) ? "true" : "false"'
+                  - 'id(display_safe_to_sleep) ? "true" : "false"'
+
+  - id: recover_display_busy
+    mode: restart
+    then:
+      - while:
+          condition:
+            lambda: 'return digitalRead(${display_busy_gpio}) == HIGH;'
+          then:
+            - delay: 1s
+      - delay: 500ms
+      - if:
+          condition:
+            lambda: 'return digitalRead(${display_busy_gpio}) == LOW;'
+          then:
+            - lambda: 'id(display_safe_to_sleep) = true;'
+            - logger.log:
+                level: WARN
+                format: "E-paper BUSY cleared after timeout; resuming safe sleep"
+            - script.execute: enter_deep_sleep
+          else:
+            # BUSY asserted again during the stability margin. Treat it as a
+            # new in-flight refresh and resume bounded observation.
+            - script.execute: recover_display_busy
+
+  - id: sample_battery
+    mode: restart
+    then:
+      - switch.turn_on: exc
+      - delay: 250ms
+      - component.update: max17043_id
+      - wait_until:
+          condition:
+            lambda: |-
+              return id(batpercent).has_state() &&
+                     !isnan(id(batpercent).state);
+          timeout: 3s
+
+  # Six explicit samples preserve the soil filter's existing first publication
+  # followed by its five-sample median cadence, without background polling.
+  - id: acquire_normal
+    mode: restart
+    then:
+      - switch.turn_on: exc
+      - component.update: max17043_id
+      - repeat:
+          count: 6
+          then:
+            - component.update: aht20_sensor
+            - component.update: veml7700_sensor
+            - component.update: soil
+            - delay: 3s
+      # Keep the normal e-paper refresh single-shot, but give SNTP a bounded
+      # window so a slow first sync does not leave stale time for one hour.
+      - wait_until:
+          condition:
+            lambda: 'return id(esptime).now().is_valid();'
+          timeout: 10s
+      - script.execute: decide_sleep
+
+  # Single source of truth for the measurement refresh: evaluate the low-battery
+  # hysteresis latch, then show low-batt > storage > normal, refresh, and settle.
+  # Every non-maintenance page.show routes through here so no path can display a
+  # stale page at a critical battery level. Callers must have sampled the battery.
+  - id: render_measurement_page
+    then:
+      # Inline (not a sub-script) so the latch update completes before page select.
+      # NVS-backed low_batt_active; a restored-true latch self-corrects at exit_pct.
+      - lambda: |-
+          bool bat_ok = id(batpercent).has_state() && !isnan(id(batpercent).state);
+          if (id(low_batt_active)) {
+            if (bat_ok && id(batpercent).state >= ${low_batt_exit_pct}) {
+              id(low_batt_active) = false;
+            }
+          } else {
+            if (bat_ok && id(batpercent).state <= ${low_batt_crit_pct}) {
+              id(low_batt_active) = true;
+            }
+          }
+      - display.page.show: !lambda |-
+          if (id(low_batt_active)) return id(page_low_batt);
+          return id(storage_active) ? id(page_storage) : id(page1);
+      - component.update: my_display
+      - script.execute: settle_display
+      - script.wait: settle_display
+
+  # Give retained status/command publications a short flush window before the
+  # Wi-Fi and sensor rail disappear. Repeated calls are intentionally ignored.
+  - id: enter_deep_sleep
+    mode: restart
+    then:
+      - delay: 1s
+      - if:
+          condition:
+            lambda: |-
+              return id(display_safe_to_sleep) &&
+                     digitalRead(${display_busy_gpio}) == LOW;
+          then:
+            # Normal wake cycles finish in less than ESPHome's default
+            # 60-second validation window. Mark the image valid only after the
+            # final post-flush BUSY check and immediately before safe shutdown.
+            - safe_mode.mark_successful
+            - deep_sleep.allow: deep_sleep_control
+            - switch.turn_off: exc
+            - if:
+                condition:
+                  lambda: 'return id(low_batt_active);'
+                then:
+                  # Protective hibernation: extend the cycle so residual drain
+                  # cannot walk the cell toward deep-discharge damage while low.
+                  - deep_sleep.enter:
+                      id: deep_sleep_control
+                      sleep_duration: ${low_batt_sleep_duration}
+                else:
+                  - if:
+                      condition:
+                        lambda: 'return id(storage_active);'
+                      then:
+                        - deep_sleep.enter:
+                            id: deep_sleep_control
+                            sleep_duration: ${storage_sleep_duration}
+                      else:
+                        - deep_sleep.enter: deep_sleep_control
+          else:
+            - logger.log:
+                level: WARN
+                format: "E-paper became BUSY before sleep; cancelling shutdown"
+            - script.execute: sleep_after_display

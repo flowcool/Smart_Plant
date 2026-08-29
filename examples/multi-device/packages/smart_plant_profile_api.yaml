@@ -1,0 +1,63 @@
+# =============================================================================
+# Smart Plant — native-API transport profile (simple)
+# =============================================================================
+# Compose with smart_plant_core.yaml. Uses the ESPHome native API (add the
+# device to Home Assistant via the ESPHome integration). No MQTT, no
+# Maintenance/Storage remote control — those need retained transport for a
+# sleeping device. Deep sleep + low-battery hibernation still work (core).
+#
+#   packages:
+#     core:      github://flowcool/Smart_Plant/examples/multi-device/packages/smart_plant_core.yaml@V2R1
+#     transport: github://flowcool/Smart_Plant/examples/multi-device/packages/smart_plant_profile_api.yaml@V2R1
+#
+# TRADEOFF: under deep sleep the device is "unavailable" in Home Assistant
+# between wakes (the native API drops on sleep). If that matters, use the MQTT
+# profile, whose retained values survive sleep.
+# =============================================================================
+
+api:
+  encryption:
+    key: "${api_encryption_key}"
+
+ota:
+  - platform: esphome
+    password: "${ota_password}"
+
+esphome:
+  on_boot:
+    # Stabilise the switched I2C rail before the MAX17043 wake/config setup
+    # (same 250 ms hardware settle as the MQTT profile).
+    - priority: 700
+      then:
+        - lambda: 'delay(250);'
+    - priority: 600
+      then:
+        - script.execute: acquire_normal   # samples, then chains decide_sleep
+
+script:
+  # Simple sleep decision: no maintenance/storage. acquire_normal (core) ends by
+  # calling this; render the measurement page and sleep.
+  - id: decide_sleep
+    mode: restart
+    then:
+      - script.execute: render_measurement_page
+      - script.wait: render_measurement_page
+      - script.execute: sleep_after_display
+
+  # API variant of sleep_after_display: same BUSY-safety logic as the MQTT
+  # profile, but the fault status is logged instead of published to an MQTT
+  # diagnostic entity (which does not exist in this profile).
+  - id: sleep_after_display
+    mode: restart
+    then:
+      - if:
+          condition:
+            lambda: 'return id(display_safe_to_sleep);'
+          then:
+            - script.execute: enter_deep_sleep
+          else:
+            - deep_sleep.prevent: deep_sleep_control
+            - logger.log:
+                level: ERROR
+                format: "E-paper remains BUSY; waiting for safe automatic recovery"
+            - script.execute: recover_display_busy
