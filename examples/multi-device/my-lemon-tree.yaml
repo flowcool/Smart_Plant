@@ -9,6 +9,9 @@ substitutions:
   # Immutable technical identity. Never rename an installed device or its MQTT
   # prefix merely to improve a visible label.
   device_name: "lemon-tree"
+  # Must be unique when several physical devices share device_name. It isolates
+  # their local/remote build artifacts without changing runtime identity.
+  build_identity: "lemon-tree"
 
   # Human and botanical identity. Existing installations should migrate visible
   # names only after checking MQTT discovery unique IDs on one canary.

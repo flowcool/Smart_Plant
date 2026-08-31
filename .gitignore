@@ -10,4 +10,4 @@
 
 # Agent/session scratch and Python caches
 /tmp/
-scripts/__pycache__/
+__pycache__/

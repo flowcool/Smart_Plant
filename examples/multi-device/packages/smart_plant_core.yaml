@@ -18,6 +18,11 @@
 # Default values — override any of these in your device file.
 substitutions:
   device_name: "smart-plant"
+  # Compile-time artifact identity. Keep this equal to device_name for a single
+  # device, but override it with a unique stable value when multiple physical
+  # devices share device_name. This changes only .esphome/build isolation; it
+  # does not change hostname, MQTT topics, discovery IDs, or firmware identity.
+  build_identity: "${device_name}"
   friendly_name: "Smart Plant"
   device_comment: "${friendly_name}"
   project_name: "smart.plant"
@@ -127,6 +132,7 @@ globals:
 
 esphome:
   name: "${device_name}"
+  build_path: "build/${build_identity}"
   name_add_mac_suffix: true
   comment: "${device_comment}"
   project:

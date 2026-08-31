@@ -36,6 +36,15 @@ images are inventoried there and intentionally retained.
 The shared package performs one measurement/display cycle and then enters deep
 sleep for one hour. Battery charge alone never keeps a device awake.
 
+Each device also has a compile-time `build_identity`. It defaults to
+`device_name`, but must be unique when several physical devices intentionally
+share the same runtime name. The core package uses it only for
+`esphome.build_path`; changing it does not change hostname, MQTT topics,
+discovery IDs, or firmware identity. Never batch-build two configurations with
+the same `build_identity`: their artifacts would share one directory and the
+wrong firmware could be uploaded. The fleet helper rejects such a batch before
+starting compilation or Maintenance.
+
 OTA maintenance uses a retained MQTT desired-state command so a sleeping device
 can receive it on its next hourly wake:
 

@@ -14,6 +14,7 @@ import shlex
 import subprocess
 import sys
 import time
+from collections import defaultdict
 from pathlib import Path
 from typing import Any
 
@@ -130,11 +131,47 @@ class FleetUpdater:
         self.devices = {
             name: {
                 "configuration": f"{name}.yaml",
+                # The shared package sets esphome.name from device_name. ESPHome
+                # keys .esphome/build/<name> by that effective name, so two
+                # configurations with the same botanical slug share an artifact
+                # directory even though their filenames, MACs and IPs differ.
+                "build_identity": values.get("build_identity", values["device_name"]),
+                "runtime_identity": values["device_name"],
                 "topic": values["mqtt_topic_prefix"],
                 "ip": values["ip_address"],
             }
             for name, values in inventory.items()
         }
+
+    def build_identity_collisions(
+        self, names: list[str]
+    ) -> dict[str, list[str]]:
+        """Return selected configurations sharing one ESPHome build identity."""
+        groups: dict[str, list[str]] = defaultdict(list)
+        for name in names:
+            groups[str(self.devices[name]["build_identity"])].append(name)
+        return {
+            identity: members
+            for identity, members in groups.items()
+            if len(members) > 1
+        }
+
+    def refuse_unsafe_batch_build(self, names: list[str]) -> None:
+        """Fail before compilation when artifacts would overwrite each other."""
+        collisions = self.build_identity_collisions(names)
+        if not collisions:
+            return
+        details = "; ".join(
+            f"{identity}: {', '.join(members)}"
+            for identity, members in sorted(collisions.items())
+        )
+        raise RuntimeError(
+            "unsafe batch build: selected configurations share ESPHome build "
+            f"identity ({details}). ESPHome would reuse one .esphome/build "
+            "directory and may flash the wrong device firmware. Build/install "
+            "each colliding configuration separately and verify its per-device "
+            "Home Assistant ESPHome Version hash."
+        )
 
     def ssh(self, remote_args: list[str], *, capture: bool = True) -> str:
         command = [
@@ -360,6 +397,7 @@ class FleetUpdater:
 
     def compile_many(self, names: list[str], retries: int) -> None:
         """Precompile every target before opening any maintenance window."""
+        self.refuse_unsafe_batch_build(names)
         pending = list(names)
         failures: dict[str, dict[str, Any]] = {}
         for attempt in range(1, retries + 2):
@@ -482,18 +520,35 @@ class FleetUpdater:
     def status(self) -> None:
         devices = self.api("devices/list")["configured"]
         selected = {row["configuration"]: row for row in devices}
+        runtime_groups: dict[str, list[str]] = defaultdict(list)
+        for name, values in self.devices.items():
+            runtime_groups[str(values["runtime_identity"])].append(name)
+        ambiguous_identities = {
+            identity for identity, members in runtime_groups.items() if len(members) > 1
+        }
         for name, values in self.devices.items():
             row = selected.get(values["configuration"], {})
             runtime = row.get("runtime_state", {})
+            identity = str(values["runtime_identity"])
+            if identity in ambiguous_identities:
+                state = f"ambiguous(shared-runtime:{identity})"
+                deployed_hash = "AMBIGUOUS"
+                deployed_version = "AMBIGUOUS"
+                queued_update = "AMBIGUOUS"
+            else:
+                state = str(runtime.get("state", "unknown"))
+                deployed_hash = str(runtime.get("deployed_config_hash", "-"))
+                deployed_version = str(runtime.get("deployed_version", "-"))
+                queued_update = str(runtime.get("queued_update", False))
             print(
                 "\t".join(
                     [
                         name,
-                        str(runtime.get("state", "unknown")),
+                        state,
                         str(row.get("expected_config_hash", "-")),
-                        str(runtime.get("deployed_config_hash", "-")),
-                        str(runtime.get("deployed_version", "-")),
-                        str(runtime.get("queued_update", False)),
+                        deployed_hash,
+                        deployed_version,
+                        queued_update,
                     ]
                 )
             )
