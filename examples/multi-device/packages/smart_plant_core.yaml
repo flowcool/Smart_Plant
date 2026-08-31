@@ -18,11 +18,13 @@
 # Default values — override any of these in your device file.
 substitutions:
   device_name: "smart-plant"
-  # Compile-time artifact identity. Keep this equal to device_name for a single
-  # device, but override it with a unique stable value when multiple physical
-  # devices share device_name. This changes only .esphome/build isolation; it
-  # does not change hostname, MQTT topics, discovery IDs, or firmware identity.
-  build_identity: "${device_name}"
+  # Configured ESPHome name. Normally identical to device_name with the MAC
+  # suffix appended at runtime. For duplicate botanical names, override this
+  # with the already-effective <device_name>-<mac6> name and set
+  # name_add_mac_suffix to false. The effective hostname/MQTT prefix remains
+  # unchanged while Device Builder and build artifacts become unambiguous.
+  configured_name: "${device_name}"
+  name_add_mac_suffix: "true"
   friendly_name: "Smart Plant"
   device_comment: "${friendly_name}"
   project_name: "smart.plant"
@@ -131,9 +133,8 @@ globals:
     initial_value: 'true'
 
 esphome:
-  name: "${device_name}"
-  build_path: "build/${build_identity}"
-  name_add_mac_suffix: true
+  name: "${configured_name}"
+  name_add_mac_suffix: "${name_add_mac_suffix}"
   comment: "${device_comment}"
   project:
     name: "${project_name}"

@@ -36,13 +36,13 @@ images are inventoried there and intentionally retained.
 The shared package performs one measurement/display cycle and then enters deep
 sleep for one hour. Battery charge alone never keeps a device awake.
 
-Each device also has a compile-time `build_identity`. It defaults to
-`device_name`, but must be unique when several physical devices intentionally
-share the same runtime name. The core package uses it only for
-`esphome.build_path`; changing it does not change hostname, MQTT topics,
-discovery IDs, or firmware identity. Never batch-build two configurations with
-the same `build_identity`: their artifacts would share one directory and the
-wrong firmware could be uploaded. The fleet helper rejects such a batch before
+Each device also has a configured ESPHome name. It normally equals
+`device_name`, with ESPHome appending the MAC suffix at runtime. When several
+physical devices share one botanical `device_name`, set `configured_name`
+directly to the already-effective `<device_name>-<mac6>` value and disable
+`name_add_mac_suffix`. The effective hostname, MQTT prefix, and discovery
+identity stay unchanged, while Device Builder and build directories see unique
+names. The fleet helper rejects any remaining duplicate configured name before
 starting compilation or Maintenance.
 
 OTA maintenance uses a retained MQTT desired-state command so a sleeping device

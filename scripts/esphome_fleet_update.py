@@ -131,12 +131,8 @@ class FleetUpdater:
         self.devices = {
             name: {
                 "configuration": f"{name}.yaml",
-                # The shared package sets esphome.name from device_name. ESPHome
-                # keys .esphome/build/<name> by that effective name, so two
-                # configurations with the same botanical slug share an artifact
-                # directory even though their filenames, MACs and IPs differ.
-                "build_identity": values.get("build_identity", values["device_name"]),
-                "runtime_identity": values["device_name"],
+                "build_identity": values.get("configured_name", values["device_name"]),
+                "runtime_identity": values.get("configured_name", values["device_name"]),
                 "topic": values["mqtt_topic_prefix"],
                 "ip": values["ip_address"],
             }

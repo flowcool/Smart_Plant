@@ -13,7 +13,8 @@
 plants:
   ceropegia-woodii-54a8f2:
     device_name: "ceropegia-woodii"
-    build_identity: "ceropegia-woodii-54a8f2"
+    configured_name: "ceropegia-woodii-54a8f2"
+    name_add_mac_suffix: false
     display_name: "Guirlande de cœurs — Cuisine"
     botanical_name: "Ceropegia woodii"
     room: "Cuisine"
@@ -29,7 +30,8 @@ plants:
 
   ceropegia-woodii-54a99c:
     device_name: "ceropegia-woodii"
-    build_identity: "ceropegia-woodii-54a99c"
+    configured_name: "ceropegia-woodii-54a99c"
+    name_add_mac_suffix: false
     display_name: "Guirlande de cœurs — Séjour"
     botanical_name: "Ceropegia woodii"
     room: "Séjour"

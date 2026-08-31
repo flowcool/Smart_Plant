@@ -21,7 +21,7 @@ class FleetUpdaterBuildIdentityTests(unittest.TestCase):
             poll_seconds=0,
         )
 
-    def test_inventory_isolates_ceropegia_build_identities(self) -> None:
+    def test_inventory_isolates_ceropegia_configured_names(self) -> None:
         collisions = self.updater.build_identity_collisions(
             ["ceropegia-woodii-54a8f2", "ceropegia-woodii-54a99c"]
         )
@@ -54,6 +54,11 @@ class FleetUpdaterBuildIdentityTests(unittest.TestCase):
         self.updater.refuse_unsafe_batch_build(["ceropegia-woodii-54a8f2"])
 
     def test_status_hides_ambiguous_device_builder_runtime_hashes(self) -> None:
+        for name in (
+            "ceropegia-woodii-54a8f2",
+            "ceropegia-woodii-54a99c",
+        ):
+            self.updater.devices[name]["runtime_identity"] = "ceropegia-woodii"
         self.updater.api = lambda *_args, **_kwargs: {
             "configured": [
                 {

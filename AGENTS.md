@@ -23,10 +23,10 @@
   ESPHome, MQTT, Home Assistant entity references, dashboards, and Plant
   integration bindings; evidence is recorded in Home Assistant epic
   `infra-b5q`.
-- Compile artifacts use the separate `build_identity` substitution through
-  `esphome.build_path`. It defaults to `device_name`; duplicate runtime names
-  such as the two Ceropegias must use distinct inventory/MAC-derived values so
-  Device Builder cannot overwrite one device's artifact with the other's.
+- Duplicate botanical names such as the two Ceropegias use their already-
+  effective `<device_name>-<mac6>` value as `configured_name` with
+  `name_add_mac_suffix: false`. This preserves hostname/MQTT identity while
+  giving Device Builder and build artifacts an unambiguous configured name.
 - The authoritative device inventory is in `examples/multi-device/plants.yaml`;
   OTA workflow is in `examples/multi-device/README.md` and `CLAUDE.md`.
 
