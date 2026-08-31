@@ -63,22 +63,26 @@ class FleetUpdaterBuildIdentityTests(unittest.TestCase):
             "configured": [
                 {
                     "configuration": "ceropegia-woodii-54a8f2.yaml",
+                    "mac_address": "48:27:E2:54:A8:F2",
                     "expected_config_hash": "64ed0af7",
                     "runtime_state": {
                         "state": "offline",
                         "deployed_config_hash": "a45b01fd",
                         "deployed_version": "2026.7.4",
                         "queued_update": False,
+                        "ip_addresses": ["192.168.2.235"],
                     },
                 },
                 {
                     "configuration": "ceropegia-woodii-54a99c.yaml",
+                    "mac_address": "48:27:E2:54:A8:F2",
                     "expected_config_hash": "a45b01fd",
                     "runtime_state": {
                         "state": "offline",
                         "deployed_config_hash": "a45b01fd",
                         "deployed_version": "2026.7.4",
                         "queued_update": False,
+                        "ip_addresses": ["192.168.2.235"],
                     },
                 },
             ]
@@ -89,7 +93,7 @@ class FleetUpdaterBuildIdentityTests(unittest.TestCase):
 
         cuisine = output.call_args_list[0].args[0].split("\t")
         sejour = output.call_args_list[1].args[0].split("\t")
-        self.assertEqual(cuisine[1], "ambiguous(shared-runtime:ceropegia-woodii)")
+        self.assertEqual(cuisine[1], "ambiguous(discovery:ceropegia-woodii)")
         self.assertEqual(cuisine[2], "64ed0af7")
         self.assertEqual(cuisine[3:], ["AMBIGUOUS"] * 3)
         self.assertEqual(sejour[2], "a45b01fd")

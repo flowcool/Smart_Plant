@@ -522,12 +522,29 @@ class FleetUpdater:
         ambiguous_identities = {
             identity for identity, members in runtime_groups.items() if len(members) > 1
         }
+        discovery_groups: dict[tuple[str, str], list[str]] = defaultdict(list)
+        for row in devices:
+            configuration = str(row.get("configuration", ""))
+            mac = str(row.get("mac_address", ""))
+            runtime_ips = row.get("runtime_state", {}).get("ip_addresses", [])
+            if mac:
+                discovery_groups[("mac", mac)].append(configuration)
+            for ip in runtime_ips:
+                if ip:
+                    discovery_groups[("ip", str(ip))].append(configuration)
+        ambiguous_configurations = {
+            configuration
+            for members in discovery_groups.values()
+            if len(set(members)) > 1
+            for configuration in members
+        }
         for name, values in self.devices.items():
             row = selected.get(values["configuration"], {})
             runtime = row.get("runtime_state", {})
             identity = str(values["runtime_identity"])
-            if identity in ambiguous_identities:
-                state = f"ambiguous(shared-runtime:{identity})"
+            configuration = str(values["configuration"])
+            if identity in ambiguous_identities or configuration in ambiguous_configurations:
+                state = f"ambiguous(discovery:{identity})"
                 deployed_hash = "AMBIGUOUS"
                 deployed_version = "AMBIGUOUS"
                 queued_update = "AMBIGUOUS"
