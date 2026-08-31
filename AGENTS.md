@@ -4,9 +4,10 @@
 
 - This is `flowcool/Smart_Plant`, a fork of `JGAguado/Smart_Plant`; active work
   targets branch `V2R1`.
-- Eight ESP32-S2 devices use the shared
-  `examples/multi-device/packages/smart_plant_base.yaml` package. Device files
-  contain substitutions only and fetch the package from GitHub `@V2R1`.
+- Eight ESP32-S2 devices compose the shared
+  `examples/multi-device/packages/smart_plant_core.yaml` package with
+  `smart_plant_profile_mqtt.yaml`. Device files contain substitutions only and
+  fetch both packages from GitHub `@V2R1`.
 - Devices measure AHT20 temperature/humidity, VEML7700 light, capacitive soil
   moisture, and MAX17043 battery state, update a Waveshare 2.9-inch e-paper
   display once, then deep-sleep for one hour.
@@ -91,18 +92,17 @@
   are done. Upstream steps S0-S4 = `infra-3rr.28`-`.33` (deferred).
 - Transport decoupling (native API vs MQTT ⊥ multi-device, model B): MQTT coupling is
   driven by deep-sleep UX, not device count. Plan `docs/transport-decoupling-plan.md`
-  (`infra-3rr.34`, signed). Split DELIVERED: `smart_plant_core.yaml` +
-  `smart_plant_profile_mqtt.yaml` + `smart_plant_profile_api.yaml` added alongside the
-  still-live `smart_plant_base.yaml`; `core + profile_mqtt` proven expansion-identical to
-  base (`infra-3rr.36`). PENDING cutover = `infra-3rr.37` (repoint 8 devices, retire base,
-  doc sweep) — gated on the next-release fleet OTA window with `.25.9`/`.23`.
+  (`infra-3rr.34`, signed). Production composes `smart_plant_core.yaml` with
+  `smart_plant_profile_mqtt.yaml`; `smart_plant_profile_api.yaml` provides the
+  native-API alternative. The split was proven expansion-identical before the
+  fleet cutover (`infra-3rr.36`/`.37`).
 - Residual induced-failure validation only: `infra-3rr.14` (low-battery
   rejection, repeated-ON deadline restart, MQTT outage/recovery, and failed-OTA
   retry). Normal Maintenance, Storage entry/daily wake/exit, naming migration,
   fleet rollout, and hourly cycles are already validated; do not repeat them.
 - Home Assistant naming migration: `infra-b5q` with `project=homeassistant`
   (closed and validated across all eight active MQTT devices).
-- Pull-based OTA: shipped in `smart_plant_base.yaml` on V2R1@24fea64
+- Pull-based OTA: shipped in the core + MQTT profile composition on V2R1
   (`infra-3rr.23`). Every device carries the `http_request`, `ota:
   platform: http_request`, `update: platform: http_request`
   (`pull_ota_update`), and native template switch `pull_ota_enabled`

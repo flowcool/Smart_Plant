@@ -2,7 +2,7 @@
 # My Lemon Tree — device-specific config
 # =============================================================================
 # Only define what's specific to this device. Everything else comes from the
-# base package (sensors, display, deep sleep, MQTT, fonts...).
+# core package and MQTT profile (sensors, display, deep sleep, fonts, transport).
 # =============================================================================
 
 substitutions:
@@ -35,9 +35,10 @@ substitutions:
   light_max: "8000"
 
 packages:
-  base: github://flowcool/Smart_Plant/examples/multi-device/packages/smart_plant_base.yaml@V2R1
+  core:      github://flowcool/Smart_Plant/examples/multi-device/packages/smart_plant_core.yaml@V2R1
+  transport: github://flowcool/Smart_Plant/examples/multi-device/packages/smart_plant_profile_mqtt.yaml@V2R1
 
-# Static IP — merges on top of base wifi block. Remove this block for DHCP.
+# Static IP — merges on top of the core wifi block. Remove this block for DHCP.
 wifi:
   manual_ip:
     static_ip: 192.168.1.100

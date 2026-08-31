@@ -17,7 +17,7 @@ ESPHome 2027.1.0 image `platform:` syntax; we made the same fix independently
 - 8 ESP32-S2 devices in production, deep sleep 1h cycle
 - **Data path**: MQTT-only (retained values survive sleep, no "unavailable" in HA)
 - **Native API**: enabled for ESPHome dashboard metadata only (mDNS `_esphomelib._tcp`) — do NOT add to HA via ESPHome integration (duplicate entities)
-- **Package system**: `smart_plant_base.yaml` = all shared logic; device files = substitutions only + `packages: base: github://flowcool/Smart_Plant/...@V2R1`
+- **Package system**: `smart_plant_core.yaml` contains transport-agnostic shared logic; production device files compose it with `smart_plant_profile_mqtt.yaml` and otherwise contain substitutions only
 - Sensors: AHT20 (temp/humidity), VEML7700 (lux), ADC soil moisture, MAX17043 (battery)
 - Display: Waveshare 2.9" e-paper (2.90inv2), full refresh every wake
 
@@ -37,7 +37,7 @@ timezone, and calibration status. Live ESPHome files remain authoritative for
 credentials and runtime configuration.
 
 Naming convention: `device_name` is the botanical slug (`genre-espece`).
-`name_add_mac_suffix: true` in the base package appends the last 3 MAC bytes
+`name_add_mac_suffix: true` in the core package appends the last 3 MAC bytes
 automatically, producing the unique hostname and MQTT topic prefix. Duplicate
 species (two Ceropegia woodii) share the same `device_name`; the MAC suffix
 guarantees uniqueness. Device YAML filenames match `device_name` (without MAC).
