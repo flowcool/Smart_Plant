@@ -79,6 +79,10 @@ mqtt:
   discovery: true
   discovery_retain: true
   discovery_unique_id_generator: mac
+  # Derive the discovery object_id (hence a fresh install's entity_id) from the
+  # unique, MAC-bearing node name instead of the entity display name, so new
+  # installs get clean <node>_<function> entity_ids with no HA-side action.
+  discovery_object_id_generator: device_name
   birth_message:    # disabled — prevents HA marking device offline during sleep
   will_message:
   log_topic:        # disabled — saves bandwidth on wake
@@ -141,7 +145,7 @@ ota:
 update:
   - platform: http_request
     id: pull_ota_update
-    name: "${friendly_name} Firmware pull update"
+    name: "Firmware pull update"
     source: "${pull_ota_manifest_url}"
     update_interval: never
     # Fires when an explicit update.check (from decide_sleep) returns a version
@@ -176,7 +180,7 @@ switch:
   # existing operators and automations remain compatible.
   - platform: template
     id: maintenance_control
-    name: "${friendly_name} Maintenance"
+    name: "Maintenance"
     icon: "mdi:wrench-cog"
     optimistic: true
     command_topic: !lambda 'return id(mqtt_client).get_topic_prefix() + "/cmd/maintenance";'
@@ -201,7 +205,7 @@ switch:
 
   - platform: template
     id: storage_control
-    name: "${friendly_name} Storage Mode"
+    name: "Storage Mode"
     icon: "mdi:archive-outline"
     optimistic: true
     command_topic: !lambda 'return id(mqtt_client).get_topic_prefix() + "/cmd/storage_mode";'
@@ -232,7 +236,7 @@ switch:
   # deployments (this fleet) still get one via ESPHome MQTT auto-discovery.
   - platform: template
     id: pull_ota_enabled
-    name: "${friendly_name} Pull OTA"
+    name: "Pull OTA"
     icon: "mdi:cloud-download-outline"
     optimistic: true
     restore_mode: RESTORE_DEFAULT_OFF
@@ -244,7 +248,7 @@ text_sensor:
   # intentionally distinct from the requested ON/OFF control state.
   - platform: template
     id: maintenance_status
-    name: "${friendly_name} Maintenance Status"
+    name: "Maintenance Status"
     icon: "mdi:information-outline"
     entity_category: diagnostic
     update_interval: never
@@ -254,7 +258,7 @@ text_sensor:
 
   - platform: template
     id: storage_status
-    name: "${friendly_name} Storage Mode Status"
+    name: "Storage Mode Status"
     icon: "mdi:archive-check-outline"
     entity_category: diagnostic
     update_interval: never

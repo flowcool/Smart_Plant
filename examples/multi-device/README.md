@@ -14,18 +14,27 @@ Keep these identity layers separate:
 - `mqtt_topic_prefix` is auto-derived by ESPHome from the effective application
   name: the immutable botanical slug plus the last three MAC bytes. Custom
   command and status topics derive from that same runtime prefix.
-- `display_name` is the correctly accented French label shown to people; add a
-  room after an em dash only when two plants need disambiguation.
-- `botanical_name` uses a capitalized genus and lowercase species epithet.
-- `device_comment` combines botanical and French labels for diagnostics.
+- `display_name` is the correctly accented French label shown to people and the
+  single human-name source; add a room after an em dash only when two plants
+  need disambiguation.
+- `botanical_name` (or `horticultural_name` for a cultivar) uses a capitalized
+  genus and lowercase species epithet; it becomes `secondary_name`.
+- `device_comment` is built by the core package as `${secondary_name} /
+  ${display_name}` for diagnostics.
 
-The current live files use three distinct values: `esphome.friendly_name` is the
-human MQTT device label, `display_name` is interpolated into `device_comment`,
-and the legacy `friendly_name` substitution prefixes entity names and special
-e-paper pages. Do not point that legacy substitution at `display_name`: entity
-names participate in the MAC-generated MQTT `unique_id`. The locked migration
-in [`naming-architecture.md`](../../docs/naming-architecture.md) replaces those
-coupled names and migrates the 96 registry identities in place, canary-first.
+The repository packages decouple the three name layers: `display_name` is the
+single human source (the core package feeds it to `esphome.friendly_name`,
+`device_comment`, and every e-paper text page), and the 12 exposed entities have
+function-only names (`Temperature`, `Air Humidity`, …), so no display or
+identity field enters an entity's MAC-generated MQTT `unique_id`. Per-device
+identity/display/tuning metadata is generated from `plants.yaml` into
+[`packages/generated/`](packages/generated/) by
+[`scripts/generate_device_metadata.py`](../../scripts/generate_device_metadata.py);
+a live device YAML imports its matching package and keeps only secrets and the
+wifi/`use_address` block. The deployed firmware still runs the older coupled
+names until the locked, canary-first migration in
+[`naming-architecture.md`](../../docs/naming-architecture.md) flashes each device
+and migrates its 96 registry identities in place.
 
 Do not rename existing device names, MQTT prefixes, entity names, entity IDs,
 or discovery unique IDs outside that coordinated migration. It requires
@@ -40,13 +49,15 @@ images are inventoried there and intentionally retained.
 The shared package performs one measurement/display cycle and then enters deep
 sleep for one hour. Battery charge alone never keeps a device awake.
 
-Each device also has a configured ESPHome name. It normally equals
-`device_name`, with ESPHome appending the MAC suffix at runtime. When several
-physical devices share one botanical `device_name`, set `configured_name`
-directly to the already-effective `<device_name>-<mac6>` value and disable
-`name_add_mac_suffix`. The effective hostname, MQTT prefix, and discovery
-identity stay unchanged, while Device Builder and build directories see unique
-names. The fleet helper rejects any remaining duplicate configured name before
+Each device also has a configured ESPHome name. For a fresh manual install (the
+`my-lemon-tree.yaml` example) it equals `device_name`, with ESPHome appending the
+MAC suffix at runtime. The production fleet instead takes it from the generated
+metadata, which sets `configured_name` to the already-effective
+`<device_name>-<mac6>` value with `name_add_mac_suffix: false` on every device.
+That keeps the hostname, MQTT prefix, and discovery identity byte-identical
+(identity-preserving, not an identity change) while the MAC is no longer appended
+to the human `friendly_name`, and it makes Device Builder and build directories
+unique. The fleet helper rejects any remaining duplicate configured name before
 starting compilation or Maintenance.
 
 OTA maintenance uses a retained MQTT desired-state command so a sleeping device
@@ -60,7 +71,7 @@ The request is accepted only when the measured battery level is at least
 `${ota_min_battery}` (50% by default). An accepted device publishes retained
 `ON` to `<mqtt-prefix>/status/maintenance` and stays awake for at most
 `${maintenance_timeout}` (25 minutes by default). Publishing `ON` again restarts
-that timeout. The device shows its friendly name on a minimal maintenance page
+that timeout. The device shows its display name on a minimal maintenance page
 with the expected end time; publishing `ON` again refreshes that deadline. If
 SNTP time is unavailable, the page shows the remaining duration instead. No
 periodic display updates run while the device stays awake.

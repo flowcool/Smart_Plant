@@ -25,8 +25,14 @@ substitutions:
   # unchanged while Device Builder and build artifacts become unambiguous.
   configured_name: "${device_name}"
   name_add_mac_suffix: "true"
-  friendly_name: "Smart Plant"
-  device_comment: "${friendly_name}"
+  # display_name = human label (single source, overridden per device by the
+  # generated metadata package). secondary_name = botanical/cultivar label.
+  # friendly_name substitution is intentionally removed: entities are now
+  # function-only, so no field couples the display name into the entity name
+  # or the MQTT unique_id.
+  display_name: "Smart Plant"
+  secondary_name: "Smart Plant"
+  device_comment: "${secondary_name} / ${display_name}"
   project_name: "smart.plant"
   project_version: "2.2"
   ap_ssid: "Smart-Plant"
@@ -135,6 +141,10 @@ globals:
 esphome:
   name: "${configured_name}"
   name_add_mac_suffix: "${name_add_mac_suffix}"
+  # HA device name. Single human source = display_name. With the fleet's
+  # name_add_mac_suffix: false the MAC is NOT appended here, so the HA device
+  # name stays clean (no "Papyrus 54a9b2").
+  friendly_name: "${display_name}"
   comment: "${device_comment}"
   project:
     name: "${project_name}"
@@ -228,14 +238,14 @@ sensor:
     update_interval: never
     battery_voltage:
       id: batvolt
-      name: "${friendly_name} Battery voltage"
+      name: "Battery voltage"
       internal: true
       accuracy_decimals: 2
     battery_level:
       id: batpercent
       device_class: "battery"
       unit_of_measurement: "%"
-      name: "${friendly_name} Battery"
+      name: "Battery"
       force_update: true
       accuracy_decimals: 0
 
@@ -244,14 +254,14 @@ sensor:
     variant: AHT20
     i2c_id: bus_a
     temperature:
-      name: "${friendly_name} Temperature"
+      name: "Temperature"
       id: temp
       icon: "mdi:thermometer"
       device_class: temperature
       force_update: true
       accuracy_decimals: 1
     humidity:
-      name: "${friendly_name} Air Humidity"
+      name: "Air Humidity"
       id: hum
       icon: "mdi:water-percent"
       device_class: humidity
@@ -264,19 +274,19 @@ sensor:
     address: 0x10
     update_interval: never
     ambient_light:
-      name: "${friendly_name} Ambient light"
+      name: "Ambient light"
       id: light
       icon: "mdi:white-balance-sunny"
       device_class: illuminance
       force_update: true
       accuracy_decimals: 0
     actual_gain:
-      name: "${friendly_name} Actual gain"
+      name: "Actual gain"
       internal: true
 
   - platform: adc
     pin: GPIO1
-    name: "${friendly_name} Soil Moisture"
+    name: "Soil Moisture"
     id: soil
     icon: "mdi:cup-water"
     device_class: moisture
@@ -294,11 +304,11 @@ sensor:
       - lambda: if (x < 1) return 0; else if (x > 100) return 100; return (x);
     accuracy_decimals: 0
 
-# Running ESPHome core version. Follow the same visible naming convention as
-# the historical sensors; Home Assistant cleanup owns legacy collision removal.
+# Running ESPHome core version. Function-only entity name like every other
+# exposed entity; Home Assistant cleanup owns legacy collision removal.
 text_sensor:
   - platform: version
-    name: "${friendly_name} ESPHome Version"
+    name: "ESPHome Version"
     hide_timestamp: true
     # Keep the native config hash: unlike a manually stamped Git revision, it
     # identifies the effective per-device configuration compiled into the image.
@@ -377,7 +387,7 @@ display:
 
       - id: page_maintenance
         lambda: |-
-          it.printf(148, 8, id(font_subtitle), TextAlign::TOP_CENTER, "${friendly_name}");
+          it.printf(148, 8, id(font_subtitle), TextAlign::TOP_CENTER, "${display_name}");
           it.printf(148, 38, id(font_title), TextAlign::TOP_CENTER, "MAINTENANCE");
           if (id(maintenance_end_hour) >= 0) {
             it.printf(148, 82, id(font_title), TextAlign::TOP_CENTER, "ENDS AT %02d:%02d",
@@ -389,7 +399,7 @@ display:
 
       - id: page_storage
         lambda: |-
-          it.printf(148, 4, id(font_subtitle), TextAlign::TOP_CENTER, "${friendly_name}");
+          it.printf(148, 4, id(font_subtitle), TextAlign::TOP_CENTER, "${display_name}");
           it.printf(148, 31, id(font_title), TextAlign::TOP_CENTER, "STORAGE MODE");
           it.printf(148, 68, id(font_subtitle), TextAlign::TOP_CENTER, "DAILY CHECK");
           if (id(batpercent).has_state() && !isnan(id(batpercent).state)) {
@@ -405,7 +415,7 @@ display:
       - id: page_low_batt
         lambda: |-
           it.fill(COLOR_ON);
-          it.printf(148, 4,  id(font_subtitle), COLOR_OFF, TextAlign::TOP_CENTER, "${friendly_name}");
+          it.printf(148, 4,  id(font_subtitle), COLOR_OFF, TextAlign::TOP_CENTER, "${display_name}");
           it.printf(148, 26, id(font_title),    COLOR_OFF, TextAlign::TOP_CENTER, "LOW BATT !");
           if (id(storage_active)) {
             it.printf(148, 60, id(font_subtitle), COLOR_OFF, TextAlign::TOP_CENTER, "STORAGE MODE");

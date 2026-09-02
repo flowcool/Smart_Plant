@@ -1,0 +1,23 @@
+# =============================================================================
+# GENERATED FILE - DO NOT EDIT.
+# Source: examples/multi-device/plants.yaml (key: rhipsalis-baccifera-54a936)
+# Regenerate: python3 scripts/generate_device_metadata.py
+# Drift check (CI): python3 scripts/generate_device_metadata.py --check
+# -----------------------------------------------------------------------------
+# Identity-preserving metadata. configured_name equals the already-effective
+# <device_name>-<mac6> runtime name and name_add_mac_suffix is false, so the
+# hostname / MQTT topic prefix stay byte-identical to the deployed device while
+# the MAC is no longer appended to esphome.friendly_name (${display_name}).
+# Secrets and the wifi/use_address block stay in the live device YAML.
+# =============================================================================
+
+substitutions:
+  device_name: "rhipsalis-baccifera"
+  configured_name: "rhipsalis-baccifera-54a936"
+  name_add_mac_suffix: "false"
+  display_name: "Cactus-gui"
+  secondary_name: "Rhipsalis baccifera"
+  label_image: "plant_labels/Rhipsalis_baccifera_label_page_1.png"
+  timezone: "Europe/Paris"
+  soil_v_wet: "1.25"
+  soil_v_dry: "2.8"
