@@ -34,9 +34,10 @@ the wifi/`use_address` block. For example:
 
 ```yaml
 packages:
-  metadata: github://flowcool/Smart_Plant/examples/multi-device/packages/generated/cyperus-papyrus-54a9b2.yaml@V2R1
   core: github://flowcool/Smart_Plant/examples/multi-device/packages/smart_plant_core.yaml@V2R1
   transport: github://flowcool/Smart_Plant/examples/multi-device/packages/smart_plant_profile_mqtt.yaml@V2R1
+  # Last on purpose: device metadata overrides the core defaults.
+  metadata: github://flowcool/Smart_Plant/examples/multi-device/packages/generated/cyperus-papyrus-54a9b2.yaml@V2R1
 ```
 
 The deployed firmware still runs the older coupled

@@ -123,11 +123,13 @@ def transform(text: str, key: str) -> str:
             end = _block_end(lines, index)
             saw_packages = True
             output.append(line)
-            output.append(f"  metadata: {metadata_url(key)}")
             output.extend(
                 child for child in lines[index + 1:end]
                 if not re.match(r"^  metadata:(?:\s|$)", child)
             )
+            # ESPHome merges packages in declaration order; the generated
+            # device-specific values must come after the core defaults.
+            output.append(f"  metadata: {metadata_url(key)}")
             index = end
             continue
 
@@ -161,6 +163,8 @@ def validate(text: str, key: str) -> list[str]:
         errors.append("missing or incorrect generated metadata package")
     if "core" not in packages or "transport" not in packages:
         errors.append("core and transport packages are required")
+    if packages and list(packages)[-1] != "metadata":
+        errors.append("metadata package must be last so it overrides core defaults")
     return errors
 
 

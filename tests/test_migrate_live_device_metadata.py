@@ -49,6 +49,7 @@ class LiveMetadataMigrationTests(unittest.TestCase):
         self.assertIn(
             f"  metadata: {live_metadata.metadata_url(self.key)}", new
         )
+        self.assertGreater(new.index("  metadata:"), new.index("  transport:"))
 
     def test_is_idempotent(self):
         once = live_metadata.transform(OLD, self.key)
@@ -63,6 +64,15 @@ class LiveMetadataMigrationTests(unittest.TestCase):
         errors = live_metadata.validate(OLD, self.key)
         self.assertTrue(any("duplicated" in error for error in errors))
         self.assertTrue(any("metadata package" in error for error in errors))
+
+    def test_check_rejects_metadata_before_core_defaults(self):
+        wrong = live_metadata.transform(OLD, self.key)
+        metadata = next(line for line in wrong.splitlines() if line.startswith("  metadata:"))
+        lines = [line for line in wrong.splitlines() if line != metadata]
+        package_index = lines.index("packages:")
+        lines.insert(package_index + 1, metadata)
+        errors = live_metadata.validate("\n".join(lines) + "\n", self.key)
+        self.assertTrue(any("must be last" in error for error in errors))
 
 
 if __name__ == "__main__":
