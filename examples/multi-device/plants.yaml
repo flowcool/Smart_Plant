@@ -1,19 +1,17 @@
 # Repository identity registry for the eight deployed Smart Plant devices.
 # Live ESPHome YAML files remain authoritative for credentials and runtime config.
 #
-# Naming convention: device_name is the botanical slug (genre-espece).
-# Unique species keep the core default name_add_mac_suffix: true, which appends
-# the last 3 MAC bytes to produce a unique hostname and MQTT topic prefix.
-# Duplicate species (the two Ceropegia woodii) share one device_name, so they
-# instead set an explicit unique configured_name (<device_name>-<mac6>) with
-# name_add_mac_suffix: false; the ESPHome node name, hostname and MQTT prefix are
-# then taken verbatim from configured_name, avoiding a Device Builder collision
-# on identical node names.
+# Naming convention: device_name is the botanical slug (genre-espece). All eight
+# devices set an explicit configured_name = <device_name>-<mac6> with
+# name_add_mac_suffix: false (identity-preserving, naming-architecture.md §3.1):
+# it freezes the already-effective node name, so hostname and MQTT topic prefix
+# stay byte-for-byte while no MAC suffix leaks into the human device name. The two
+# Ceropegia woodii (duplicate species) additionally rely on this to avoid a Device
+# Builder collision on identical node names.
 #
-# mqtt_topic_prefix is the effective <device_name>-<mac6> value (auto-derived for
-# unique species, explicit via configured_name for the duplicates). It is listed
-# here for reference, not manually managed. Two Ceropegias migrated from legacy
-# sequential suffixes (woodii1/woodii2) to MAC-based prefixes.
+# mqtt_topic_prefix is the effective <device_name>-<mac6> value (= configured_name).
+# It is listed here for reference, not manually managed. Two Ceropegias migrated
+# from legacy sequential suffixes (woodii1/woodii2) to MAC-based prefixes.
 
 plants:
   ceropegia-woodii-54a8f2:
@@ -52,6 +50,8 @@ plants:
 
   cyperus-papyrus-54a9b2:
     device_name: "cyperus-papyrus"
+    configured_name: "cyperus-papyrus-54a9b2"
+    name_add_mac_suffix: false
     display_name: "Papyrus"
     botanical_name: "Cyperus papyrus"
     room: null
@@ -66,6 +66,8 @@ plants:
 
   equisetum-hyemale-54a994:
     device_name: "equisetum-hyemale"
+    configured_name: "equisetum-hyemale-54a994"
+    name_add_mac_suffix: false
     display_name: "Prêle du Japon"
     botanical_name: "Equisetum hyemale"
     room: null
@@ -80,6 +82,8 @@ plants:
 
   oxalis-triangularis-5326ba:
     device_name: "oxalis-triangularis"
+    configured_name: "oxalis-triangularis-5326ba"
+    name_add_mac_suffix: false
     display_name: "Trèfle pourpre"
     botanical_name: "Oxalis triangularis"
     room: null
@@ -94,6 +98,8 @@ plants:
 
   peperomia-tetraphylla-54a940:
     device_name: "peperomia-tetraphylla"
+    configured_name: "peperomia-tetraphylla-54a940"
+    name_add_mac_suffix: false
     display_name: "Peperomia 'Hope'"
     botanical_name: "Peperomia tetraphylla"
     horticultural_name: "Peperomia 'Hope'"
@@ -117,6 +123,8 @@ plants:
 
   pilea-peperomioides-54a8e4:
     device_name: "pilea-peperomioides"
+    configured_name: "pilea-peperomioides-54a8e4"
+    name_add_mac_suffix: false
     display_name: "Plante à monnaie chinoise"
     botanical_name: "Pilea peperomioides"
     room: null
@@ -131,6 +139,8 @@ plants:
 
   rhipsalis-baccifera-54a936:
     device_name: "rhipsalis-baccifera"
+    configured_name: "rhipsalis-baccifera-54a936"
+    name_add_mac_suffix: false
     display_name: "Cactus-gui"
     botanical_name: "Rhipsalis baccifera"
     room: null
