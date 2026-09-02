@@ -36,21 +36,29 @@ MQTT topic prefixes, French display names, botanical labels, IPs, label images,
 timezone, and calibration status. Live ESPHome files remain authoritative for
 credentials and runtime configuration.
 
-Naming convention: `device_name` is the botanical slug (`genre-espece`).
+Current naming convention: `device_name` is the historical botanical-looking
+slug (`genre-espece`). Treat it as an opaque immutable identity key, not as
+botanical authority.
 Unique species keep the core default `name_add_mac_suffix: true`, which appends
 the last 3 MAC bytes to produce a unique hostname and MQTT topic prefix.
 Duplicate species (the two Ceropegia woodii) share one `device_name`, so they
 instead set an explicit unique `configured_name` (`<device_name>-<mac6>`) with
 `name_add_mac_suffix: false`; the ESPHome node name, hostname and MQTT prefix
 are then taken verbatim from `configured_name`, avoiding a Device Builder
-collision on identical node names. Device YAML filenames match `device_name`
-(without MAC).
+collision on identical node names. The locked target generalizes each already-
+effective `<device_name>-<mac6>` configured name with
+`name_add_mac_suffix: false` to all eight, preserving every hostname and MQTT
+prefix byte-for-byte while preventing MAC suffixes in human device names. See
+`docs/naming.md` for current production and `docs/naming-architecture.md` for
+the coordinated target/migration contract.
 
 The 2026-08-14 migration is complete across ESPHome filenames/configuration,
 MQTT retained topics, Home Assistant device/entity registries, automations,
 dashboard references, and all eight Plant integration bindings. Home Assistant
 epic `infra-b5q` is the authoritative migration evidence. Do not restore the
-legacy `woodii1`/`woodii2` prefixes or MAC-suffixed Home Assistant entity IDs.
+legacy `woodii1`/`woodii2` prefixes. A separate pending naming cleanup
+(`infra-zdxz` + HA `infra-kl21`) intentionally targets clean, uniform
+MAC-bearing entity IDs while preserving registry rows, history, and statistics.
 
 The shared `1.25V → 100%, 2.8V → 0%` soil values are defaults; they are not
 evidence of individual probe calibration.
@@ -100,9 +108,10 @@ Structural pointers (epics, plan docs, cross-project handoffs):
 
 - Roadmap epic: `infra-3rr` (post-baseline: durability, validation, OTA, upstream).
 - Naming epic: `infra-zdxz` — decouple technical identity / human display name /
-  MQTT entity naming. Cross-project HA registry migration (in-place unique_id):
-  `infra-kl21` (`project=homeassistant`). Current-state field map:
-  `docs/naming.md`.
+  MQTT entity naming. Cross-project HA registry migration (in-place `unique_id`
+  plus clean `entity_id`): `infra-kl21` (`project=homeassistant`). Current-state
+  field map: `docs/naming.md`; locked target/runbook contract:
+  `docs/naming-architecture.md`.
 - Package cutover (`infra-3rr.36`/`.37`) and low-battery hibernation
   (`infra-3rr.25`) shipped fleet-wide (8/8 on `core`+`profile_mqtt`);
   `smart_plant_base.yaml` retired.

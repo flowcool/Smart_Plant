@@ -27,11 +27,15 @@
   effective `<device_name>-<mac6>` value as `configured_name` with
   `name_add_mac_suffix: false`. This preserves hostname/MQTT identity while
   giving Device Builder and build artifacts an unambiguous configured name.
+- The locked naming target generalizes that explicit effective identity to all
+  eight devices, still preserving every hostname and MQTT prefix byte-for-byte.
+  This is pending work under `infra-zdxz`, not current fleet state.
 - The authoritative device inventory is in `examples/multi-device/plants.yaml`;
   OTA workflow is in `examples/multi-device/README.md` and `CLAUDE.md`.
-- Display-name model (the six name fields, the `entity_id`-frozen and
-  `name_by_user`-override traps, one-point-of-edit rule): `docs/naming.md`. Read
-  it before renaming anything; identity fields above are separate from display.
+- Current display-name fields and traps: `docs/naming.md`. Locked target and
+  coordinated 96-entity migration contract: `docs/naming-architecture.md`.
+  Read both before renaming anything; identity fields above are separate from
+  display.
 
 ## Live systems and safety
 
@@ -98,10 +102,13 @@
   native-API alternative. Fleet cutover COMPLETE 2026-09-01: all 8 devices on
   `smart_plant_core`+`smart_plant_profile_mqtt`, `smart_plant_base.yaml` retired
   (`infra-3rr.36`/`.37` closed).
-- Naming model: epic `infra-zdxz`. `docs/naming.md` documents the six name
-  fields and the `entity_id`-frozen / `name_by_user`-override traps; `.zdxz.2`
-  aligns the 8 devices' display fields (gate: `substitutions.friendly_name`
-  French vs botanical). Supersedes `infra-4u5`.
+- Naming model: epic `infra-zdxz`. `docs/naming.md` documents current production;
+  `docs/naming-architecture.md` locks the target: preserve all effective runtime
+  identities, generalize explicit `<device_name>-<mac6>` configured names to all
+  eight, make `display_name` the single human source, use 12 function-only MQTT
+  entity names, and migrate 96 HA `unique_id` + `entity_id` pairs in place through
+  `infra-kl21`. E-paper arcs use a versioned one-off snapshot of HA-authoritative
+  plant thresholds, with no runtime synchronization. Supersedes `infra-4u5`.
 - Residual induced-failure validation only: `infra-3rr.14` (low-battery
   rejection, repeated-ON deadline restart, MQTT outage/recovery, and failed-OTA
   retry). Normal Maintenance, Storage entry/daily wake/exit, naming migration,

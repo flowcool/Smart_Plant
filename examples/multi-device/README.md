@@ -19,15 +19,19 @@ Keep these identity layers separate:
 - `botanical_name` uses a capitalized genus and lowercase species epithet.
 - `device_comment` combines botanical and French labels for diagnostics.
 
-The current live files still use the legacy `friendly_name` substitution for
-entity names. `display_name` defines the desired human label in the registry;
-do not apply it to existing entities until the canary migration proves that
-their MQTT discovery identities remain stable.
+The current live files use three distinct values: `esphome.friendly_name` is the
+human MQTT device label, `display_name` is interpolated into `device_comment`,
+and the legacy `friendly_name` substitution prefixes entity names and special
+e-paper pages. Do not point that legacy substitution at `display_name`: entity
+names participate in the MAC-generated MQTT `unique_id`. The locked migration
+in [`naming-architecture.md`](../../docs/naming-architecture.md) replaces those
+coupled names and migrates the 96 registry identities in place, canary-first.
 
 Do not rename existing device names, MQTT prefixes, entity names, entity IDs,
-or discovery unique IDs as part of a cosmetic cleanup. Such a migration needs
-captured MQTT discovery payloads and a single-device canary first. The current
-installation timezone is intentionally `Europe/Paris`.
+or discovery unique IDs outside that coordinated migration. It requires
+captured MQTT discovery payloads, a generated 96-row old/new map, runtime HA
+registry updates, migrated references, and a single-device canary first. The
+current installation timezone is intentionally `Europe/Paris`.
 
 The shared soil calibration values are defaults, not evidence that every probe
 was individually measured. `plants.yaml` records this explicitly. Unused label
