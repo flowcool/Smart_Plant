@@ -193,12 +193,24 @@ image:
     invert_alpha: true
 
 font:
+  # display_name/secondary_name are rendered as dynamic text (normal page here,
+  # plus maintenance/storage/low-battery). French names carry accents and the
+  # oe ligature (e.g. "coeurs"); GF_Latin_Core pulls the needed Latin glyphs so
+  # gfonts does not ship only the default ASCII subset.
   - file: "gfonts://Audiowide"
     id: font_title
     size: 20
+    glyphsets: [GF_Latin_Core]
   - file: "gfonts://Audiowide"
     id: font_subtitle
     size: 15
+    glyphsets: [GF_Latin_Core]
+  # Compact face for the plant name on the dense normal page (gauges occupy the
+  # right two thirds); smaller than the title to fit longer names above the arcs.
+  - file: "gfonts://Audiowide"
+    id: font_name
+    size: 12
+    glyphsets: [GF_Latin_Core]
   - file: "gfonts://Audiowide"
     id: font_parameters
     size: 15
@@ -338,6 +350,12 @@ display:
           auto bg = low ? COLOR_ON  : COLOR_OFF;
           it.fill(bg);
           it.image(0, 0, id(page_1_background), fg, bg);
+
+          // Plant name, rendered dynamically (the background PNG is name-free).
+          // Top-left, above the illustration and clear of the gauges; a rename
+          // touches only these substitutions, no image regeneration.
+          it.printf(2, 0,  id(font_name), fg, TextAlign::TOP_LEFT, "${display_name}");
+          it.printf(2, 14, id(font_name), fg, TextAlign::TOP_LEFT, "${secondary_name}");
 
           int battery_range = battery_perc / 16;
           battery_range = (battery_range > 6) ? 6 : battery_range;

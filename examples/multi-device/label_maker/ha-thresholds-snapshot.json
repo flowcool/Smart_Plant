@@ -1,0 +1,755 @@
+{
+  "manifest": {
+    "artifact": "kl21.4 SmartPlant e-paper threshold snapshot (HA Plant integration)",
+    "extracted_at_utc": "2026-09-02T14:01:07.738697+00:00",
+    "ha_version": "2026.8.1",
+    "integration": "custom_components/plant (Olen) + openplantbook",
+    "config_entries_sha256": "b29aca1efc03b33910367a59507d17d1a178cadecf83dd12c3f276bf41889048",
+    "source": "config_entry.data.plant_info.limits (authoritative current values; agree with plant number entities)",
+    "epaper_metrics": [
+      "moisture",
+      "illuminance",
+      "temperature",
+      "humidity"
+    ],
+    "plant_count": 8,
+    "read_only": true,
+    "florent_validation": "thresholds validated 2026-09-02; cactus-gui (54a936) corrected from research (was openplantbook defaults)"
+  },
+  "by_device_mac6": {
+    "54a936": {
+      "plant_title": "Cactus Gui",
+      "species": "rhipsalis baccifera",
+      "display_pid": "Rhipsalis baccifera",
+      "config_entry_id": "01KHG2QAJ92V8NFK0Y5JYX9YQ7",
+      "limits_temperature_unit": "°C",
+      "moisture_sensor_old_eid": "sensor.sejour_cactus_gui_rhipsalis_baccifera_soil_moisture",
+      "thresholds": {
+        "moisture": {
+          "min": 20,
+          "max": 55
+        },
+        "illuminance": {
+          "min": 2000,
+          "max": 20000
+        },
+        "temperature": {
+          "min": 15,
+          "max": 27
+        },
+        "humidity": {
+          "min": 45,
+          "max": 70
+        },
+        "dli": {
+          "min": 2.0,
+          "max": 30.0
+        },
+        "conductivity": {
+          "min": 500,
+          "max": 3000
+        },
+        "soil_temperature": {
+          "min": 10,
+          "max": 40
+        },
+        "co2": {
+          "min": 400,
+          "max": 2000
+        }
+      },
+      "thresholds_corrected": {
+        "reason": "HA values were untuned openplantbook defaults (lux 0/100000 aberrant)",
+        "before": {
+          "moisture": [
+            20,
+            60
+          ],
+          "illuminance": [
+            0,
+            100000
+          ],
+          "temperature": [
+            10,
+            25
+          ],
+          "humidity": [
+            20,
+            60
+          ]
+        },
+        "after": {
+          "moisture": [
+            20,
+            55
+          ],
+          "illuminance": [
+            2000,
+            20000
+          ],
+          "temperature": [
+            15,
+            27
+          ],
+          "humidity": [
+            45,
+            70
+          ]
+        },
+        "basis": "Rhipsalis baccifera = shade epiphyte: medium indirect light no direct sun; 16-27C ideal, no frost <10C; humidity 50-70%; water when top cm dries",
+        "sources": [
+          "easyplant.com/care/mistletoe-cactus",
+          "smartgardenguide.com/rhipsalis-care-mistletoe-cactus",
+          "healthyhouseplants.com mistletoe-cactus"
+        ],
+        "corrected_at": "2026-09-02T14:18:39.707455+00:00",
+        "corrected_by": "research (Florent-delegated)",
+        "validated_by_florent": "7/8 as-is; cactus-gui delegated to research"
+      }
+    },
+    "54a940": {
+      "plant_title": "Peperomia Hope",
+      "species": "peperomia tetraphylla",
+      "display_pid": "Peperomia tetraphylla",
+      "config_entry_id": "01KHG2QCNJ9A8WXYYE1SK5G1YJ",
+      "limits_temperature_unit": null,
+      "moisture_sensor_old_eid": "sensor.sejour_peperomia_hope_peperomia_tetraphylla_soil_moisture",
+      "thresholds": {
+        "moisture": {
+          "min": 15,
+          "max": 60
+        },
+        "illuminance": {
+          "min": 1500,
+          "max": 6000
+        },
+        "temperature": {
+          "min": 10,
+          "max": 32
+        },
+        "humidity": {
+          "min": 30,
+          "max": 85
+        },
+        "dli": {
+          "min": 4.3,
+          "max": 9.0
+        },
+        "conductivity": {
+          "min": 350,
+          "max": 2000
+        },
+        "soil_temperature": {
+          "min": 10,
+          "max": 40
+        },
+        "co2": {
+          "min": 400,
+          "max": 2000
+        }
+      }
+    },
+    "54a8e4": {
+      "plant_title": "Plante a Monnaie Chinoise",
+      "species": "pilea peperomioides",
+      "display_pid": "Pilea peperomioides",
+      "config_entry_id": "01KHG2QDM3914PYMYHHE77R1C6",
+      "limits_temperature_unit": null,
+      "moisture_sensor_old_eid": "sensor.sejour_plante_a_monnaie_chinoise_pilea_peperomioides_soil_moisture",
+      "thresholds": {
+        "moisture": {
+          "min": 15,
+          "max": 65
+        },
+        "illuminance": {
+          "min": 600,
+          "max": 8000
+        },
+        "temperature": {
+          "min": 10,
+          "max": 32
+        },
+        "humidity": {
+          "min": 30,
+          "max": 85
+        },
+        "dli": {
+          "min": 4.3,
+          "max": 7.2
+        },
+        "conductivity": {
+          "min": 350,
+          "max": 2000
+        },
+        "soil_temperature": {
+          "min": 10,
+          "max": 40
+        },
+        "co2": {
+          "min": 400,
+          "max": 2000
+        }
+      }
+    },
+    "54a994": {
+      "plant_title": "Prele Du Japon",
+      "species": "equisetum hyemale",
+      "display_pid": "Equisetum hyemale",
+      "config_entry_id": "01KHG2QEQ8454B31TREBTFWHSM",
+      "limits_temperature_unit": null,
+      "moisture_sensor_old_eid": "sensor.sejour_prele_du_japon_equisetum_hyemale_soil_moisture",
+      "thresholds": {
+        "moisture": {
+          "min": 15,
+          "max": 60
+        },
+        "illuminance": {
+          "min": 1500,
+          "max": 6000
+        },
+        "temperature": {
+          "min": 8,
+          "max": 32
+        },
+        "humidity": {
+          "min": 30,
+          "max": 85
+        },
+        "dli": {
+          "min": 4.3,
+          "max": 9.0
+        },
+        "conductivity": {
+          "min": 350,
+          "max": 2000
+        },
+        "soil_temperature": {
+          "min": 10,
+          "max": 40
+        },
+        "co2": {
+          "min": 400,
+          "max": 2000
+        }
+      }
+    },
+    "54a9b2": {
+      "plant_title": "Papyrus",
+      "species": "cyperus papyrus",
+      "display_pid": "Cyperus papyrus",
+      "config_entry_id": "01KHG2QFSK5Y7M9AGVKSX30S3V",
+      "limits_temperature_unit": null,
+      "moisture_sensor_old_eid": "sensor.sejour_papyrus_cyperus_papyrus_soil_moisture",
+      "thresholds": {
+        "moisture": {
+          "min": 15,
+          "max": 60
+        },
+        "illuminance": {
+          "min": 2000,
+          "max": 7000
+        },
+        "temperature": {
+          "min": 10,
+          "max": 35
+        },
+        "humidity": {
+          "min": 30,
+          "max": 100
+        },
+        "dli": {
+          "min": 5.4,
+          "max": 12.6
+        },
+        "conductivity": {
+          "min": 350,
+          "max": 2000
+        },
+        "soil_temperature": {
+          "min": 10,
+          "max": 40
+        },
+        "co2": {
+          "min": 400,
+          "max": 2000
+        }
+      }
+    },
+    "5326ba": {
+      "plant_title": "Trefle Pourpre",
+      "species": "oxalis triangularis",
+      "display_pid": "Oxalis triangularis",
+      "config_entry_id": "01KHG2QJ4MJFJ47C93SWG2188S",
+      "limits_temperature_unit": null,
+      "moisture_sensor_old_eid": "sensor.sejour_oxalis_triangularis_oxalis_triangularis_soil_moisture",
+      "thresholds": {
+        "moisture": {
+          "min": 18,
+          "max": 60
+        },
+        "illuminance": {
+          "min": 2000,
+          "max": 40000
+        },
+        "temperature": {
+          "min": 3,
+          "max": 35
+        },
+        "humidity": {
+          "min": 30,
+          "max": 80
+        },
+        "dli": {
+          "min": 8.3,
+          "max": 24.1
+        },
+        "conductivity": {
+          "min": 300,
+          "max": 1600
+        },
+        "soil_temperature": {
+          "min": 10,
+          "max": 40
+        },
+        "co2": {
+          "min": 400,
+          "max": 2000
+        }
+      }
+    },
+    "54a8f2": {
+      "plant_title": "Guirlande de Coeurs Cuisine",
+      "species": "ceropegia woodii",
+      "display_pid": "Ceropegia woodii",
+      "config_entry_id": "01KJCX8D27PYZHWEJ7SYBBE6P3",
+      "limits_temperature_unit": null,
+      "moisture_sensor_old_eid": "sensor.cuisine_guirlande_de_coeurs_cuisine_ceropegia_woodii_soil_moisture",
+      "thresholds": {
+        "moisture": {
+          "min": 7,
+          "max": 50
+        },
+        "illuminance": {
+          "min": 2500,
+          "max": 35000
+        },
+        "temperature": {
+          "min": 8,
+          "max": 35
+        },
+        "humidity": {
+          "min": 15,
+          "max": 80
+        },
+        "dli": {
+          "min": 7.2,
+          "max": 14.4
+        },
+        "conductivity": {
+          "min": 300,
+          "max": 1000
+        },
+        "soil_temperature": {
+          "min": 10,
+          "max": 40
+        },
+        "co2": {
+          "min": 400,
+          "max": 2000
+        }
+      }
+    },
+    "54a99c": {
+      "plant_title": "Guirlande de cœurs Séjour",
+      "species": "ceropegia woodii",
+      "display_pid": "Ceropegia woodii",
+      "config_entry_id": "01KZWWDZS410HRVJZ25E3AGJBD",
+      "limits_temperature_unit": "°C",
+      "moisture_sensor_old_eid": "sensor.sejour_guirlande_de_coeurs_sejour_ceropegia_woodii_soil_moisture",
+      "thresholds": {
+        "moisture": {
+          "min": 7,
+          "max": 50
+        },
+        "illuminance": {
+          "min": 2500,
+          "max": 35000
+        },
+        "temperature": {
+          "min": 8,
+          "max": 35
+        },
+        "humidity": {
+          "min": 15,
+          "max": 80
+        },
+        "dli": {
+          "min": 7.2,
+          "max": 14.4
+        },
+        "conductivity": {
+          "min": 500,
+          "max": 3000
+        },
+        "soil_temperature": {
+          "min": 10,
+          "max": 40
+        }
+      }
+    }
+  },
+  "entity_id_consumers": [
+    {
+      "plant": "Cactus Gui",
+      "role": "humidity_sensor",
+      "old_entity_id": "sensor.sejour_cactus_gui_rhipsalis_baccifera_air_humidity",
+      "mac6": "54a936"
+    },
+    {
+      "plant": "Cactus Gui",
+      "role": "illuminance_sensor",
+      "old_entity_id": "sensor.sejour_cactus_gui_rhipsalis_baccifera_ambient_light",
+      "mac6": "54a936"
+    },
+    {
+      "plant": "Cactus Gui",
+      "role": "moisture_sensor",
+      "old_entity_id": "sensor.sejour_cactus_gui_rhipsalis_baccifera_soil_moisture",
+      "mac6": "54a936"
+    },
+    {
+      "plant": "Cactus Gui",
+      "role": "soil_temperature_sensor",
+      "old_entity_id": "sensor.sejour_cactus_gui_rhipsalis_baccifera_temperature",
+      "mac6": "54a936"
+    },
+    {
+      "plant": "Cactus Gui",
+      "role": "temperature_sensor",
+      "old_entity_id": "sensor.sejour_cactus_gui_rhipsalis_baccifera_temperature",
+      "mac6": "54a936"
+    },
+    {
+      "plant": "Peperomia Hope",
+      "role": "humidity_sensor",
+      "old_entity_id": "sensor.sejour_peperomia_hope_peperomia_tetraphylla_air_humidity",
+      "mac6": "54a940"
+    },
+    {
+      "plant": "Peperomia Hope",
+      "role": "illuminance_sensor",
+      "old_entity_id": "sensor.sejour_peperomia_hope_peperomia_tetraphylla_ambient_light",
+      "mac6": "54a940"
+    },
+    {
+      "plant": "Peperomia Hope",
+      "role": "moisture_sensor",
+      "old_entity_id": "sensor.sejour_peperomia_hope_peperomia_tetraphylla_soil_moisture",
+      "mac6": "54a940"
+    },
+    {
+      "plant": "Peperomia Hope",
+      "role": "soil_temperature_sensor",
+      "old_entity_id": "sensor.sejour_peperomia_hope_peperomia_tetraphylla_temperature",
+      "mac6": "54a940"
+    },
+    {
+      "plant": "Peperomia Hope",
+      "role": "temperature_sensor",
+      "old_entity_id": "sensor.sejour_peperomia_hope_peperomia_tetraphylla_temperature",
+      "mac6": "54a940"
+    },
+    {
+      "plant": "Plante a Monnaie Chinoise",
+      "role": "humidity_sensor",
+      "old_entity_id": "sensor.sejour_plante_a_monnaie_chinoise_pilea_peperomioides_air_humidity",
+      "mac6": "54a8e4"
+    },
+    {
+      "plant": "Plante a Monnaie Chinoise",
+      "role": "illuminance_sensor",
+      "old_entity_id": "sensor.sejour_plante_a_monnaie_chinoise_pilea_peperomioides_ambient_light",
+      "mac6": "54a8e4"
+    },
+    {
+      "plant": "Plante a Monnaie Chinoise",
+      "role": "moisture_sensor",
+      "old_entity_id": "sensor.sejour_plante_a_monnaie_chinoise_pilea_peperomioides_soil_moisture",
+      "mac6": "54a8e4"
+    },
+    {
+      "plant": "Plante a Monnaie Chinoise",
+      "role": "soil_temperature_sensor",
+      "old_entity_id": "sensor.sejour_plante_a_monnaie_chinoise_pilea_peperomioides_temperature",
+      "mac6": "54a8e4"
+    },
+    {
+      "plant": "Plante a Monnaie Chinoise",
+      "role": "temperature_sensor",
+      "old_entity_id": "sensor.sejour_plante_a_monnaie_chinoise_pilea_peperomioides_temperature",
+      "mac6": "54a8e4"
+    },
+    {
+      "plant": "Prele Du Japon",
+      "role": "humidity_sensor",
+      "old_entity_id": "sensor.sejour_prele_du_japon_equisetum_hyemale_air_humidity",
+      "mac6": "54a994"
+    },
+    {
+      "plant": "Prele Du Japon",
+      "role": "illuminance_sensor",
+      "old_entity_id": "sensor.sejour_prele_du_japon_equisetum_hyemale_ambient_light",
+      "mac6": "54a994"
+    },
+    {
+      "plant": "Prele Du Japon",
+      "role": "moisture_sensor",
+      "old_entity_id": "sensor.sejour_prele_du_japon_equisetum_hyemale_soil_moisture",
+      "mac6": "54a994"
+    },
+    {
+      "plant": "Prele Du Japon",
+      "role": "soil_temperature_sensor",
+      "old_entity_id": "sensor.sejour_prele_du_japon_equisetum_hyemale_temperature",
+      "mac6": "54a994"
+    },
+    {
+      "plant": "Prele Du Japon",
+      "role": "temperature_sensor",
+      "old_entity_id": "sensor.sejour_prele_du_japon_equisetum_hyemale_temperature",
+      "mac6": "54a994"
+    },
+    {
+      "plant": "Papyrus",
+      "role": "humidity_sensor",
+      "old_entity_id": "sensor.sejour_papyrus_cyperus_papyrus_air_humidity",
+      "mac6": "54a9b2"
+    },
+    {
+      "plant": "Papyrus",
+      "role": "illuminance_sensor",
+      "old_entity_id": "sensor.sejour_papyrus_cyperus_papyrus_ambient_light",
+      "mac6": "54a9b2"
+    },
+    {
+      "plant": "Papyrus",
+      "role": "moisture_sensor",
+      "old_entity_id": "sensor.sejour_papyrus_cyperus_papyrus_soil_moisture",
+      "mac6": "54a9b2"
+    },
+    {
+      "plant": "Papyrus",
+      "role": "soil_temperature_sensor",
+      "old_entity_id": "sensor.sejour_papyrus_cyperus_papyrus_temperature",
+      "mac6": "54a9b2"
+    },
+    {
+      "plant": "Papyrus",
+      "role": "temperature_sensor",
+      "old_entity_id": "sensor.sejour_papyrus_cyperus_papyrus_temperature",
+      "mac6": "54a9b2"
+    },
+    {
+      "plant": "Trefle Pourpre",
+      "role": "humidity_sensor",
+      "old_entity_id": "sensor.sejour_oxalis_triangularis_oxalis_triangularis_air_humidity",
+      "mac6": "5326ba"
+    },
+    {
+      "plant": "Trefle Pourpre",
+      "role": "illuminance_sensor",
+      "old_entity_id": "sensor.sejour_oxalis_triangularis_oxalis_triangularis_ambient_light",
+      "mac6": "5326ba"
+    },
+    {
+      "plant": "Trefle Pourpre",
+      "role": "moisture_sensor",
+      "old_entity_id": "sensor.sejour_oxalis_triangularis_oxalis_triangularis_soil_moisture",
+      "mac6": "5326ba"
+    },
+    {
+      "plant": "Trefle Pourpre",
+      "role": "soil_temperature_sensor",
+      "old_entity_id": "sensor.sejour_oxalis_triangularis_oxalis_triangularis_temperature",
+      "mac6": "5326ba"
+    },
+    {
+      "plant": "Trefle Pourpre",
+      "role": "temperature_sensor",
+      "old_entity_id": "sensor.sejour_oxalis_triangularis_oxalis_triangularis_temperature",
+      "mac6": "5326ba"
+    },
+    {
+      "plant": "Guirlande de Coeurs Cuisine",
+      "role": "humidity_sensor",
+      "old_entity_id": "sensor.cuisine_guirlande_de_coeurs_cuisine_ceropegia_woodii_air_humidity",
+      "mac6": "54a8f2"
+    },
+    {
+      "plant": "Guirlande de Coeurs Cuisine",
+      "role": "illuminance_sensor",
+      "old_entity_id": "sensor.cuisine_guirlande_de_coeurs_cuisine_ceropegia_woodii_ambient_light",
+      "mac6": "54a8f2"
+    },
+    {
+      "plant": "Guirlande de Coeurs Cuisine",
+      "role": "moisture_sensor",
+      "old_entity_id": "sensor.cuisine_guirlande_de_coeurs_cuisine_ceropegia_woodii_soil_moisture",
+      "mac6": "54a8f2"
+    },
+    {
+      "plant": "Guirlande de Coeurs Cuisine",
+      "role": "soil_temperature_sensor",
+      "old_entity_id": "sensor.cuisine_guirlande_de_coeurs_cuisine_ceropegia_woodii_temperature",
+      "mac6": "54a8f2"
+    },
+    {
+      "plant": "Guirlande de Coeurs Cuisine",
+      "role": "temperature_sensor",
+      "old_entity_id": "sensor.cuisine_guirlande_de_coeurs_cuisine_ceropegia_woodii_temperature",
+      "mac6": "54a8f2"
+    },
+    {
+      "plant": "Guirlande de cœurs Séjour",
+      "role": "humidity_sensor",
+      "old_entity_id": "sensor.sejour_guirlande_de_coeurs_sejour_ceropegia_woodii_air_humidity",
+      "mac6": "54a99c"
+    },
+    {
+      "plant": "Guirlande de cœurs Séjour",
+      "role": "illuminance_sensor",
+      "old_entity_id": "sensor.sejour_guirlande_de_coeurs_sejour_ceropegia_woodii_ambient_light",
+      "mac6": "54a99c"
+    },
+    {
+      "plant": "Guirlande de cœurs Séjour",
+      "role": "moisture_sensor",
+      "old_entity_id": "sensor.sejour_guirlande_de_coeurs_sejour_ceropegia_woodii_soil_moisture",
+      "mac6": "54a99c"
+    },
+    {
+      "plant": "Guirlande de cœurs Séjour",
+      "role": "soil_temperature_sensor",
+      "old_entity_id": "sensor.sejour_guirlande_de_coeurs_sejour_ceropegia_woodii_temperature",
+      "mac6": "54a99c"
+    },
+    {
+      "plant": "Guirlande de cœurs Séjour",
+      "role": "temperature_sensor",
+      "old_entity_id": "sensor.sejour_guirlande_de_coeurs_sejour_ceropegia_woodii_temperature",
+      "mac6": "54a99c"
+    }
+  ],
+  "number_entity_states_raw": {
+    "number.cactus_gui_max_soil_moisture": "60.0",
+    "number.cactus_gui_min_soil_moisture": "20.0",
+    "number.cactus_gui_max_temperature": "25.0",
+    "number.cactus_gui_min_temperature": "10.0",
+    "number.cactus_gui_max_illuminance": "100000.0",
+    "number.cactus_gui_min_illuminance": "0.0",
+    "number.cactus_gui_max_conductivity": "3000.0",
+    "number.cactus_gui_min_conductivity": "500.0",
+    "number.cactus_gui_max_air_humidity": "60.0",
+    "number.cactus_gui_min_air_humidity": "20.0",
+    "number.cactus_gui_max_soil_temperature": "40.0",
+    "number.cactus_gui_min_soil_temperature": "10.0",
+    "number.cactus_gui_max_dli": "30.0",
+    "number.cactus_gui_min_dli": "2.0",
+    "number.cactus_gui_max_vpd": "1.3",
+    "number.cactus_gui_min_vpd": "0.7",
+    "number.peperomia_hope_max_soil_moisture": "60.0",
+    "number.peperomia_hope_min_soil_moisture": "15.0",
+    "number.peperomia_hope_max_temperature": "32.0",
+    "number.peperomia_hope_min_temperature": "10.0",
+    "number.peperomia_hope_max_illuminance": "6000.0",
+    "number.peperomia_hope_min_illuminance": "1500.0",
+    "number.peperomia_hope_max_air_humidity": "85.0",
+    "number.peperomia_hope_min_air_humidity": "30.0",
+    "number.peperomia_hope_max_soil_temperature": "40.0",
+    "number.peperomia_hope_min_soil_temperature": "10.0",
+    "number.peperomia_hope_max_dli": "9.0",
+    "number.peperomia_hope_min_dli": "4.3",
+    "number.peperomia_hope_max_vpd": "1.3",
+    "number.peperomia_hope_min_vpd": "0.7",
+    "number.plante_a_monnaie_chinoise_max_soil_moisture": "55.0",
+    "number.plante_a_monnaie_chinoise_min_soil_moisture": "30.0",
+    "number.plante_a_monnaie_chinoise_max_temperature": "27.0",
+    "number.plante_a_monnaie_chinoise_min_temperature": "18.0",
+    "number.plante_a_monnaie_chinoise_max_illuminance": "8000.0",
+    "number.plante_a_monnaie_chinoise_min_illuminance": "2000.0",
+    "number.plante_a_monnaie_chinoise_max_air_humidity": "65.0",
+    "number.plante_a_monnaie_chinoise_min_air_humidity": "40.0",
+    "number.plante_a_monnaie_chinoise_max_soil_temperature": "40.0",
+    "number.plante_a_monnaie_chinoise_min_soil_temperature": "10.0",
+    "number.plante_a_monnaie_chinoise_max_dli": "12.0",
+    "number.plante_a_monnaie_chinoise_min_dli": "5.0",
+    "number.plante_a_monnaie_chinoise_max_vpd": "1.4",
+    "number.plante_a_monnaie_chinoise_min_vpd": "0.7",
+    "number.prele_du_japon_max_soil_moisture": "95.0",
+    "number.prele_du_japon_min_soil_moisture": "70.0",
+    "number.prele_du_japon_max_temperature": "28.0",
+    "number.prele_du_japon_min_temperature": "18.0",
+    "number.prele_du_japon_max_illuminance": "15000.0",
+    "number.prele_du_japon_min_illuminance": "3000.0",
+    "number.prele_du_japon_max_air_humidity": "80.0",
+    "number.prele_du_japon_min_air_humidity": "40.0",
+    "number.prele_du_japon_max_soil_temperature": "40.0",
+    "number.prele_du_japon_min_soil_temperature": "10.0",
+    "number.prele_du_japon_max_dli": "18.0",
+    "number.prele_du_japon_min_dli": "6.0",
+    "number.prele_du_japon_max_vpd": "1.4",
+    "number.prele_du_japon_min_vpd": "0.5",
+    "number.papyrus_max_soil_moisture": "100.0",
+    "number.papyrus_min_soil_moisture": "80.0",
+    "number.papyrus_max_temperature": "32.0",
+    "number.papyrus_min_temperature": "18.0",
+    "number.papyrus_max_illuminance": "20000.0",
+    "number.papyrus_min_illuminance": "5000.0",
+    "number.papyrus_max_air_humidity": "100.0",
+    "number.papyrus_min_air_humidity": "30.0",
+    "number.papyrus_max_soil_temperature": "40.0",
+    "number.papyrus_min_soil_temperature": "10.0",
+    "number.papyrus_max_dli": "25.0",
+    "number.papyrus_min_dli": "10.0",
+    "number.trefle_pourpre_max_soil_moisture": "60.0",
+    "number.trefle_pourpre_min_soil_moisture": "35.0",
+    "number.trefle_pourpre_max_temperature": "28.0",
+    "number.trefle_pourpre_min_temperature": "18.0",
+    "number.trefle_pourpre_max_illuminance": "10000.0",
+    "number.trefle_pourpre_min_illuminance": "3000.0",
+    "number.trefle_pourpre_max_air_humidity": "70.0",
+    "number.trefle_pourpre_min_air_humidity": "40.0",
+    "number.trefle_pourpre_max_soil_temperature": "40.0",
+    "number.trefle_pourpre_min_soil_temperature": "10.0",
+    "number.trefle_pourpre_max_dli": "15.0",
+    "number.trefle_pourpre_min_dli": "6.0",
+    "number.trefle_pourpre_max_vpd": "1.4",
+    "number.trefle_pourpre_min_vpd": "0.7",
+    "number.guirlande_de_coeurs_cuisine_max_soil_moisture": "35.0",
+    "number.guirlande_de_coeurs_cuisine_min_soil_moisture": "12.0",
+    "number.guirlande_de_coeurs_cuisine_max_temperature": "30.0",
+    "number.guirlande_de_coeurs_cuisine_min_temperature": "18.0",
+    "number.guirlande_de_coeurs_cuisine_max_illuminance": "12000.0",
+    "number.guirlande_de_coeurs_cuisine_min_illuminance": "3000.0",
+    "number.guirlande_de_coeurs_cuisine_max_air_humidity": "80.0",
+    "number.guirlande_de_coeurs_cuisine_min_air_humidity": "15.0",
+    "number.guirlande_de_coeurs_cuisine_max_soil_temperature": "40.0",
+    "number.guirlande_de_coeurs_cuisine_min_soil_temperature": "10.0",
+    "number.guirlande_de_coeurs_cuisine_max_dli": "15.0",
+    "number.guirlande_de_coeurs_cuisine_min_dli": "5.0",
+    "number.guirlande_de_coeurs_sejour_max_soil_moisture": "50.0",
+    "number.guirlande_de_coeurs_sejour_min_soil_moisture": "7.0",
+    "number.guirlande_de_coeurs_sejour_max_temperature": "35.0",
+    "number.guirlande_de_coeurs_sejour_min_temperature": "8.0",
+    "number.guirlande_de_coeurs_sejour_max_illuminance": "35000.0",
+    "number.guirlande_de_coeurs_sejour_min_illuminance": "2500.0",
+    "number.guirlande_de_coeurs_sejour_max_air_humidity": "80.0",
+    "number.guirlande_de_coeurs_sejour_min_air_humidity": "15.0",
+    "number.guirlande_de_coeurs_sejour_max_soil_temperature": "40.0",
+    "number.guirlande_de_coeurs_sejour_min_soil_temperature": "10.0",
+    "number.guirlande_de_coeurs_sejour_max_dli": "14.4",
+    "number.guirlande_de_coeurs_sejour_min_dli": "7.2",
+    "number.guirlande_de_coeurs_sejour_max_vpd": "1.6",
+    "number.guirlande_de_coeurs_sejour_min_vpd": "0.4"
+  }
+}
