@@ -31,7 +31,11 @@ substitutions:
   # function-only, so no field couples the display name into the entity name
   # or the MQTT unique_id.
   display_name: "Smart Plant"
-  secondary_name: "Smart Plant"
+  # Botanical/cultivar label. Live device files set botanical_name (not
+  # secondary_name), so secondary_name defaults to it; a generated metadata
+  # package may still override secondary_name explicitly (e.g. a cultivar).
+  botanical_name: "Smart Plant"
+  secondary_name: "${botanical_name}"
   device_comment: "${secondary_name} / ${display_name}"
   project_name: "smart.plant"
   project_version: "2.2"
