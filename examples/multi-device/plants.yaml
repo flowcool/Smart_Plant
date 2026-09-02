@@ -20,7 +20,7 @@ plants:
     device_name: "ceropegia-woodii"
     configured_name: "ceropegia-woodii-54a8f2"
     name_add_mac_suffix: false
-    display_name: "Guirlande de cœurs — Cuisine"
+    display_name: "Guirlande de cœurs - Cuisine"
     botanical_name: "Ceropegia woodii"
     room: "Cuisine"
     ip_address: "192.168.2.232"
@@ -37,7 +37,7 @@ plants:
     device_name: "ceropegia-woodii"
     configured_name: "ceropegia-woodii-54a99c"
     name_add_mac_suffix: false
-    display_name: "Guirlande de cœurs — Séjour"
+    display_name: "Guirlande de cœurs - Séjour"
     botanical_name: "Ceropegia woodii"
     room: "Séjour"
     ip_address: "192.168.2.235"
@@ -95,7 +95,7 @@ plants:
   peperomia-tetraphylla-54a940:
     device_name: "peperomia-tetraphylla"
     display_name: "Peperomia 'Hope'"
-    botanical_name: null
+    botanical_name: "Peperomia tetraphylla"
     horticultural_name: "Peperomia 'Hope'"
     identification_note: >-
       The immutable technical slug predates this registry. Trade sources use
