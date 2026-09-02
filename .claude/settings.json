@@ -1,0 +1,21 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(python3 *)",
+      "Bash(gh *)",
+      "Bash(git *)",
+      "Bash(rtk *)",
+      "Bash(docker exec *)",
+      "Bash(ntpdate *)",
+      "Bash(pkill -f flash_all.sh)",
+      "WebSearch",
+      "WebFetch(domain:api-docs.esphome.io)",
+      "WebFetch(domain:smart-plant.readthedocs.io)",
+      "WebFetch(domain:github.com)",
+      "WebFetch(domain:esphome.io)"
+    ]
+  },
+  "enabledPlugins": {
+    "beads@beads-marketplace": true
+  }
+}
