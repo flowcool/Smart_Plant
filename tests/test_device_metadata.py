@@ -139,10 +139,15 @@ class GeneratorTests(unittest.TestCase):
             sub = load_pkg(GENERATED / f"{key}.yaml")["substitutions"]
             self.assertEqual(sub["name_add_mac_suffix"], "false")
 
-    def test_secondary_name_falls_back_to_horticultural(self):
+    def test_secondary_name_prefers_botanical_name(self):
         pep = self.plants["peperomia-tetraphylla-54a940"]
-        self.assertIsNone(pep["botanical_name"])
         sub = load_pkg(GENERATED / "peperomia-tetraphylla-54a940.yaml")["substitutions"]
+        self.assertEqual(sub["secondary_name"], pep["botanical_name"])
+
+    def test_secondary_name_falls_back_to_horticultural(self):
+        pep = dict(self.plants["peperomia-tetraphylla-54a940"])
+        pep["botanical_name"] = None
+        sub = load_text(gen.render("peperomia-tetraphylla-54a940", pep))["substitutions"]
         self.assertEqual(sub["secondary_name"], pep["horticultural_name"])
 
     def test_display_rename_changes_only_human_outputs(self):
@@ -165,6 +170,14 @@ class PackageNamingTests(unittest.TestCase):
 
     def test_esphome_friendly_name_derives_from_display_name(self):
         self.assertEqual(load_pkg(CORE)["esphome"]["friendly_name"], "${display_name}")
+
+    def test_normal_page_uses_generated_secondary_name(self):
+        text = CORE.read_text(encoding="utf-8")
+        self.assertIn('"${secondary_name}"', text)
+        self.assertNotIn("${botanical_name}", text)
+        for key in gen.load_inventory():
+            sub = load_pkg(GENERATED / f"{key}.yaml")["substitutions"]
+            self.assertTrue(sub["secondary_name"], key)
 
     def test_object_id_generator_set(self):
         mqtt = load_pkg(PROFILE_MQTT)["mqtt"]

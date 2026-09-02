@@ -15,7 +15,7 @@ substitutions:
   device_name: "ceropegia-woodii"
   configured_name: "ceropegia-woodii-54a99c"
   name_add_mac_suffix: "false"
-  display_name: "Guirlande de cœurs — Séjour"
+  display_name: "Guirlande de cœurs - Séjour"
   secondary_name: "Ceropegia woodii"
   label_image: "plant_labels/Ceropegia_woodii_label_page_1.png"
   timezone: "Europe/Paris"

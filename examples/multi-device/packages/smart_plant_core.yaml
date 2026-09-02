@@ -31,9 +31,9 @@ substitutions:
   # function-only, so no field couples the display name into the entity name
   # or the MQTT unique_id.
   display_name: "Smart Plant"
-  # Botanical name = e-paper subtitle source (naming-architecture.md rows 278/281).
-  # Default lets the core lambda resolve ${botanical_name} for devices that omit it.
-  botanical_name: "Smart Plant"
+  # Botanical/cultivar description rendered below display_name. Production
+  # metadata generates it from botanical_name, falling back to
+  # horticultural_name when the botanical identification is absent.
   secondary_name: "Smart Plant"
   device_comment: "${secondary_name} / ${display_name}"
   project_name: "smart.plant"
@@ -352,7 +352,7 @@ display:
           // Top-left, above the illustration and clear of the gauges; a rename
           // touches only these substitutions, no image regeneration.
           it.printf(2, 0,  id(font_title),    fg, TextAlign::TOP_LEFT, "${display_name}");
-          it.printf(2, 22, id(font_subtitle), fg, TextAlign::TOP_LEFT, "${botanical_name}");
+          it.printf(2, 22, id(font_subtitle), fg, TextAlign::TOP_LEFT, "${secondary_name}");
 
           int battery_range = battery_perc / 16;
           battery_range = (battery_range > 6) ? 6 : battery_range;

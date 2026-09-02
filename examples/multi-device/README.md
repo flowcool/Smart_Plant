@@ -14,9 +14,8 @@ Keep these identity layers separate:
 - `mqtt_topic_prefix` is auto-derived by ESPHome from the effective application
   name: the immutable botanical slug plus the last three MAC bytes. Custom
   command and status topics derive from that same runtime prefix.
-- `display_name` is the correctly accented French label shown to people and the
-  single human-name source; add a room after an em dash only when two plants
-  need disambiguation.
+- `display_name` is the correctly accented human label and the single
+  human-name source; add a room discriminator only when two plants need it.
 - `botanical_name` (or `horticultural_name` for a cultivar) uses a capitalized
   genus and lowercase species epithet; it becomes `secondary_name`.
 - `device_comment` is built by the core package as `${secondary_name} /
@@ -30,8 +29,17 @@ identity field enters an entity's MAC-generated MQTT `unique_id`. Per-device
 identity/display/tuning metadata is generated from `plants.yaml` into
 [`packages/generated/`](packages/generated/) by
 [`scripts/generate_device_metadata.py`](../../scripts/generate_device_metadata.py);
-a live device YAML imports its matching package and keeps only secrets and the
-wifi/`use_address` block. The deployed firmware still runs the older coupled
+a live device YAML must import its matching package and keep only secrets and
+the wifi/`use_address` block. For example:
+
+```yaml
+packages:
+  metadata: github://flowcool/Smart_Plant/examples/multi-device/packages/generated/cyperus-papyrus-54a9b2.yaml@V2R1
+  core: github://flowcool/Smart_Plant/examples/multi-device/packages/smart_plant_core.yaml@V2R1
+  transport: github://flowcool/Smart_Plant/examples/multi-device/packages/smart_plant_profile_mqtt.yaml@V2R1
+```
+
+The deployed firmware still runs the older coupled
 names until the locked, canary-first migration in
 [`naming-architecture.md`](../../docs/naming-architecture.md) flashes each device
 and migrates its 96 registry identities in place.
