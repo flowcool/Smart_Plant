@@ -15,6 +15,10 @@ paths:
 - MQTT topic prefixes are auto-derived by ESPHome (`name_add_mac_suffix: true`):
   `device_name` + last 3 MAC bytes. Device YAML files set only the botanical
   `device_name`; do not manually include the MAC suffix in `device_name`.
+  Exception — duplicate species (same `device_name`) set an explicit unique
+  `configured_name` (`<device_name>-<mac6>`) with `name_add_mac_suffix: false`,
+  so their node name / hostname / MQTT prefix come verbatim from
+  `configured_name` and Device Builder does not collide on identical node names.
 - Maintenance commands must be retained and published/subscribed at QoS 1.
 - Packages are fetched from GitHub — after pushing changes, clear the package cache on NAS before flashing.
 - Every orderly deep-sleep path must call `safe_mode.mark_successful` before

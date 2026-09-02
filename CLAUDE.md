@@ -37,10 +37,14 @@ timezone, and calibration status. Live ESPHome files remain authoritative for
 credentials and runtime configuration.
 
 Naming convention: `device_name` is the botanical slug (`genre-espece`).
-`name_add_mac_suffix: true` in the core package appends the last 3 MAC bytes
-automatically, producing the unique hostname and MQTT topic prefix. Duplicate
-species (two Ceropegia woodii) share the same `device_name`; the MAC suffix
-guarantees uniqueness. Device YAML filenames match `device_name` (without MAC).
+Unique species keep the core default `name_add_mac_suffix: true`, which appends
+the last 3 MAC bytes to produce a unique hostname and MQTT topic prefix.
+Duplicate species (the two Ceropegia woodii) share one `device_name`, so they
+instead set an explicit unique `configured_name` (`<device_name>-<mac6>`) with
+`name_add_mac_suffix: false`; the ESPHome node name, hostname and MQTT prefix
+are then taken verbatim from `configured_name`, avoiding a Device Builder
+collision on identical node names. Device YAML filenames match `device_name`
+(without MAC).
 
 The 2026-08-14 migration is complete across ESPHome filenames/configuration,
 MQTT retained topics, Home Assistant device/entity registries, automations,
@@ -86,21 +90,25 @@ evidence of individual probe calibration.
 | `esphome-yaml` | `*.yaml` | ESPHome YAML conventions, native capability check before adding entities |
 | `nas-operations` | always | NAS RO default, OTA safety, rollback-before-continue |
 
-## Task tracking
+## Durable work state
 
-All tasks tracked via `bd` (beads). Use `bd memories smartplant` for persistent knowledge.
-Roadmap epic: `infra-3rr` (HA wake action, partial e-paper, ESP32-C6 eval, soil sensor eval).
+All tasks tracked via `bd` (beads). Use `bd memories smartplant` for persistent
+knowledge. Ready/in-progress issue status is injected dynamically by the
+SessionStart hook — do not duplicate tactical status here.
 
-Current operational work:
+Structural pointers (epics, plan docs, cross-project handoffs):
 
-- `infra-3rr.14`: residual induced-failure validation only; completed normal,
-  Storage, naming, rollout, and hourly-cycle tests must not be repeated.
-- `infra-3rr.21`: coordinate upstream API/MQTT profiles with Smart Plant
-  maintainer (open, P2).
-- `infra-3rr.23`: pull-OTA shipped in base package (V2R1@fc2cff6), fleet
-  mass rollout in progress at last handoff (canary Papyrus verified running
-  the new firmware, 7 devices pending flash). Feature is inert until a
-  device sets `pull_ota_manifest_url` and flips the "Pull OTA" switch ON
-  in HA. Retained `/cmd/maintenance=ON` still published on all 8 devices.
-- `infra-b5q` (`project=homeassistant`): closed cross-project naming
-  migration evidence, kept as historical pointer.
+- Roadmap epic: `infra-3rr` (post-baseline: durability, validation, OTA, upstream).
+- Naming epic: `infra-zdxz` — decouple technical identity / human display name /
+  MQTT entity naming. Cross-project HA registry migration (in-place unique_id):
+  `infra-kl21` (`project=homeassistant`). Current-state field map:
+  `docs/naming.md`.
+- Package cutover (`infra-3rr.36`/`.37`) and low-battery hibernation
+  (`infra-3rr.25`) shipped fleet-wide (8/8 on `core`+`profile_mqtt`);
+  `smart_plant_base.yaml` retired.
+- Pull-OTA opt-in (`infra-3rr.23`): shipped in base package, inert until a
+  device sets `pull_ota_manifest_url` and flips "Pull OTA" ON in HA.
+- Historical naming migration woodii→botanical: `infra-b5q`
+  (`project=homeassistant`, closed) — do not restore legacy prefixes.
+- Upstreaming strategy + coupling audit: `docs/upstreaming-strategy.md`
+  (`infra-3rr.26`).

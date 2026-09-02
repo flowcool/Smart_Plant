@@ -2,13 +2,18 @@
 # Live ESPHome YAML files remain authoritative for credentials and runtime config.
 #
 # Naming convention: device_name is the botanical slug (genre-espece).
-# ESPHome name_add_mac_suffix: true appends the last 3 MAC bytes automatically,
-# producing the unique hostname and MQTT topic prefix. Duplicate species use the
-# same device_name — the MAC suffix guarantees uniqueness.
+# Unique species keep the core default name_add_mac_suffix: true, which appends
+# the last 3 MAC bytes to produce a unique hostname and MQTT topic prefix.
+# Duplicate species (the two Ceropegia woodii) share one device_name, so they
+# instead set an explicit unique configured_name (<device_name>-<mac6>) with
+# name_add_mac_suffix: false; the ESPHome node name, hostname and MQTT prefix are
+# then taken verbatim from configured_name, avoiding a Device Builder collision
+# on identical node names.
 #
-# mqtt_topic_prefix is the auto-derived <device_name>-<mac6> value. It is listed
-# here for reference but is not manually managed. Two Ceropegias migrated from
-# legacy sequential suffixes (woodii1/woodii2) to auto-derived MAC-only prefixes.
+# mqtt_topic_prefix is the effective <device_name>-<mac6> value (auto-derived for
+# unique species, explicit via configured_name for the duplicates). It is listed
+# here for reference, not manually managed. Two Ceropegias migrated from legacy
+# sequential suffixes (woodii1/woodii2) to MAC-based prefixes.
 
 plants:
   ceropegia-woodii-54a8f2:

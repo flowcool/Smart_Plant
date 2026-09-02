@@ -29,6 +29,9 @@
   giving Device Builder and build artifacts an unambiguous configured name.
 - The authoritative device inventory is in `examples/multi-device/plants.yaml`;
   OTA workflow is in `examples/multi-device/README.md` and `CLAUDE.md`.
+- Display-name model (the six name fields, the `entity_id`-frozen and
+  `name_by_user`-override traps, one-point-of-edit rule): `docs/naming.md`. Read
+  it before renaming anything; identity fields above are separate from display.
 
 ## Live systems and safety
 
@@ -78,17 +81,11 @@
 - Beads is authoritative for current work. Filter with
   `bd list --metadata-field project=Smart_Plant`.
 - Roadmap epic: `infra-3rr`.
-- Low-battery protective hibernation + e-paper signalling: epic `infra-3rr.25`.
-  RTFM `.25.1/.2/.3`, impl `.25.4`, config-validate `.25.5`, and bench
-  `.25.6/.7/.8` all CLOSED — validated 2026-08-29 on branch
-  `infra-3rr-25-lowbatt`, canary Papyrus, via threshold-override OTA flashes,
-  then reverted to @V2R1. C7 (brownout at ~15% under TX) rescoped to
-  accepted-risk / prod-monitored (no lab PSU will exist; the branch is
-  strictly safer than @V2R1). Code merged to V2R1 (PR #1). Only `.25.9` fleet
-  rollout remains — HUMAN GATE, needs Florent's explicit go; live merge/deploy
-  status lives in Beads `.25.9`. Adds WARN (<30%) full-screen
-  e-paper inversion and CRITIQUE (<=15%) 24h protective hibernation with
-  hysteresis exit (>=22%), thresholds per-device. Durable design on the epic.
+- Low-battery protective hibernation + e-paper signalling: epic `infra-3rr.25`
+  CLOSED 2026-09-01 — shipped fleet-wide (all 8 on V2R1 core+profile_mqtt,
+  rollout `.25.9`). WARN (<30%) full-screen e-paper inversion + CRITIQUE
+  (<=15%) 24h protective hibernation with hysteresis exit (>=22%), thresholds
+  per-device. Durable design on the epic; C7 brownout accepted-risk/prod-monitored.
 - Fork upstreaming strategy to `JGAguado/Smart_Plant` given the large refactors:
   strategy + per-feature coupling audit in `docs/upstreaming-strategy.md`
   (`infra-3rr.26`). Execution is deferred fork-first: accumulate on V2R1 with clean
@@ -98,8 +95,13 @@
   driven by deep-sleep UX, not device count. Plan `docs/transport-decoupling-plan.md`
   (`infra-3rr.34`, signed). Production composes `smart_plant_core.yaml` with
   `smart_plant_profile_mqtt.yaml`; `smart_plant_profile_api.yaml` provides the
-  native-API alternative. The split was proven expansion-identical before the
-  fleet cutover (`infra-3rr.36`/`.37`).
+  native-API alternative. Fleet cutover COMPLETE 2026-09-01: all 8 devices on
+  `smart_plant_core`+`smart_plant_profile_mqtt`, `smart_plant_base.yaml` retired
+  (`infra-3rr.36`/`.37` closed).
+- Naming model: epic `infra-zdxz`. `docs/naming.md` documents the six name
+  fields and the `entity_id`-frozen / `name_by_user`-override traps; `.zdxz.2`
+  aligns the 8 devices' display fields (gate: `substitutions.friendly_name`
+  French vs botanical). Supersedes `infra-4u5`.
 - Residual induced-failure validation only: `infra-3rr.14` (low-battery
   rejection, repeated-ON deadline restart, MQTT outage/recovery, and failed-OTA
   retry). Normal Maintenance, Storage entry/daily wake/exit, naming migration,
