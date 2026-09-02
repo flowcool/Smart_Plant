@@ -44,6 +44,11 @@ names until the locked, canary-first migration in
 [`naming-architecture.md`](../../docs/naming-architecture.md) flashes each device
 and migrates its 96 registry identities in place.
 
+Use `scripts/migrate_live_device_metadata.py` to migrate and validate the eight
+production YAMLs deterministically. Always run it on an offline copy first. Its
+`--write` mode deliberately does not create a backup; live use requires the
+separately verified backup and rollback gate owned by the cutover issue.
+
 Do not rename existing device names, MQTT prefixes, entity names, entity IDs,
 or discovery unique IDs outside that coordinated migration. It requires
 captured MQTT discovery payloads, a generated 96-row old/new map, runtime HA
