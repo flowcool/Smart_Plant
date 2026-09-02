@@ -15,9 +15,9 @@ Outputs (gitignored):
 
 TO-BE rules (source-verified against esphome 2026.7.4):
   new_unique_id      = <fullmac>-<component>-<%08x fnv1(function label)>
-  new object_id      = <node_underscored>_<function_snake>   (object_id_generator=device_name)
-  new_entity_id      = <domain>.<new object_id>
-  new_discovery_topic= homeassistant/<component>/<node>/<new object_id>/config
+  new payload obj_id = <node-dashed>_<function_snake>        (object_id_generator=device_name)
+  new_entity_id      = <domain>.<node_underscored>_<function_snake>
+  new_discovery_topic= homeassistant/<component>/<node>/<function_snake>/config
 
 Hard validation: exactly 96 rows; 96 unique values for each of old/new
 entity_id and unique_id; every entity paired to exactly one discovery topic;
@@ -81,6 +81,35 @@ def longest_suffix_match(text: str, candidates, sep: str) -> str | None:
     return best
 
 
+def target_fields(
+    fullmac: str,
+    component: str,
+    node: str,
+    function_label: str,
+    function_snake: str,
+    domain: str,
+) -> dict[str, str]:
+    """Compute the distinct MQTT discovery and Home Assistant target fields.
+
+    ESPHome's ``device_name`` object-id generator prefixes only the ``obj_id``
+    value inside the discovery payload. The discovery topic itself continues
+    to use the entity's function-only default object ID as its final segment.
+    Home Assistant then slugifies the dashed payload object ID for entity_id.
+    """
+    payload_object_id = f"{node}_{function_snake}"
+    entity_object_id = f"{node.replace('-', '_')}_{function_snake}"
+    return {
+        "new_discovery_topic": (
+            f"homeassistant/{component}/{node}/{function_snake}/config"
+        ),
+        "new_object_id": payload_object_id,
+        "new_entity_id": f"{domain}.{entity_object_id}",
+        "new_unique_id": (
+            f"{fullmac}-{component}-{fnv1_hex(function_label)}"
+        ),
+    }
+
+
 def fail(msg: str):
     print(f"VALIDATION FAILED: {msg}", file=sys.stderr)
     raise SystemExit(1)
@@ -137,12 +166,10 @@ def main() -> int:
         node = node_by_mac6.get(mac6)
         if node is None:
             fail(f"mac6 {mac6} not found in plants.yaml")
-        node_us = node.replace("-", "_")
         domain = e["entity_id"].split(".")[0]
-        new_object_id = f"{node_us}_{fn_snake}"
-        new_entity_id = f"{domain}.{new_object_id}"
-        new_unique_id = f"{fullmac}-{component}-{fnv1_hex(fn_label)}"
-        new_topic = f"homeassistant/{component}/{node}/{new_object_id}/config"
+        target = target_fields(
+            fullmac, component, node, fn_label, fn_snake, domain
+        )
         old_topic = topic_by_key.get(triple)
         if old_topic is None:
             fail(f"no discovery topic for entity {e['entity_id']} ({triple})")
@@ -155,15 +182,16 @@ def main() -> int:
             "old_discovery_topic": old_topic,
             "old_entity_id": e["entity_id"],
             "old_unique_id": old_uid,
-            "new_discovery_topic": new_topic,
-            "new_entity_id": new_entity_id,
-            "new_unique_id": new_unique_id,
+            **target,
         })
 
     # --- validation -----------------------------------------------------------
     if len(rows) != 96:
         fail(f"expected 96 rows, got {len(rows)}")
-    for col in ("old_entity_id", "old_unique_id", "new_entity_id", "new_unique_id"):
+    for col in (
+        "old_discovery_topic", "old_entity_id", "old_unique_id",
+        "new_discovery_topic", "new_object_id", "new_entity_id", "new_unique_id",
+    ):
         vals = [r[col] for r in rows]
         if len(set(vals)) != 96:
             dup = [v for v in vals if vals.count(v) > 1]
@@ -177,6 +205,8 @@ def main() -> int:
         {"manifest": {"rows": len(rows), "source_asis": ASIS.name,
                       "ha_version": asis["manifest"]["ha_version"],
                       "asis_extracted_at": asis["manifest"]["extracted_at_utc"],
+                      "discovery_topic": "homeassistant/<component>/<node>/<function_snake>/config",
+                      "payload_object_id": "<node-dashed>_<function_snake>",
                       "fnv1": "FNV-1 32-bit basis=2166136261 prime=16777619 %08x over entity name"},
          "rows": rows}, indent=2, ensure_ascii=False), encoding="utf-8")
     with OUT_CSV.open("w", newline="", encoding="utf-8") as fh:
@@ -185,7 +215,7 @@ def main() -> int:
         w.writerows(rows)
 
     print(f"OK: 96 rows validated -> {OUT_JSON.name}, {OUT_CSV.name}")
-    print(f"  unique old_entity_id/new_entity_id/old_uid/new_uid: 96/96/96/96")
+    print("  unique old/new topic, object_id, entity_id, unique_id: all 96")
     return 0
 
 

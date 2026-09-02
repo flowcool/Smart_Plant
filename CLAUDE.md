@@ -48,9 +48,11 @@ are then taken verbatim from `configured_name`, avoiding a Device Builder
 collision on identical node names. The locked target generalizes each already-
 effective `<device_name>-<mac6>` configured name with
 `name_add_mac_suffix: false` to all eight, preserving every hostname and MQTT
-prefix byte-for-byte while preventing MAC suffixes in human device names. See
-`docs/naming.md` for current production and `docs/naming-architecture.md` for
-the coordinated target/migration contract.
+prefix byte-for-byte while preventing MAC suffixes in human device names. The
+repository and staged NAS YAMLs carry this target, while deployed firmware and
+HA still await the coordinated cutover. See `docs/naming.md` for the explicit
+deployed/staged/target map and `docs/naming-architecture.md` for the migration
+contract.
 
 The 2026-08-14 migration is complete across ESPHome filenames/configuration,
 MQTT retained topics, Home Assistant device/entity registries, automations,

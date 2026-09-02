@@ -29,10 +29,12 @@
   giving Device Builder and build artifacts an unambiguous configured name.
 - The locked naming target generalizes that explicit effective identity to all
   eight devices, still preserving every hostname and MQTT prefix byte-for-byte.
-  This is pending work under `infra-zdxz`, not current fleet state.
+  The repository and staged NAS YAMLs carry that target, but the coordinated HA
+  registry migration and firmware rollout remain pending under `infra-zdxz` and
+  `infra-kl21`; staged configuration is not current fleet state.
 - The authoritative device inventory is in `examples/multi-device/plants.yaml`;
   OTA workflow is in `examples/multi-device/README.md` and `CLAUDE.md`.
-- Current display-name fields and traps: `docs/naming.md`. Locked target and
+- Deployed/staged/target field map and traps: `docs/naming.md`. Locked target and
   coordinated 96-entity migration contract: `docs/naming-architecture.md`.
   Read both before renaming anything; identity fields above are separate from
   display.
@@ -102,7 +104,8 @@
   native-API alternative. Fleet cutover COMPLETE 2026-09-01: all 8 devices on
   `smart_plant_core`+`smart_plant_profile_mqtt`, `smart_plant_base.yaml` retired
   (`infra-3rr.36`/`.37` closed).
-- Naming model: epic `infra-zdxz`. `docs/naming.md` documents current production;
+- Naming model: epic `infra-zdxz`. `docs/naming.md` separates deployed firmware,
+  staged NAS configuration, and repository target;
   `docs/naming-architecture.md` locks the target: preserve all effective runtime
   identities, generalize explicit `<device_name>-<mac6>` configured names to all
   eight, make `display_name` the single human source, use 12 function-only MQTT

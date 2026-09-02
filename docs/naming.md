@@ -1,89 +1,134 @@
-# Naming model — how a plant's name flows through the stack
+# Naming model — deployed, staged, and target states
 
-> **Scope:** this page maps the **current** (coupled) naming reality and the
-> rename traps. The **target** model that decouples identity / display / entity
-> naming — and its 96-row migration-table contract — is locked in
-> [`naming-architecture.md`](naming-architecture.md) (Beads `infra-zdxz`). Until
-> that migration lands, this page remains the authority for the live fleet.
+This page is the operational field map for SmartPlant naming. The durable
+design and the coordinated Home Assistant migration contract live in
+[`naming-architecture.md`](naming-architecture.md). Current execution state and
+acceptance evidence live in Beads (`infra-zdxz` and `infra-kl21`), not in this
+document.
 
-This project has **several independent name fields**. They are easy to confuse:
-changing one does not change the others, and `entity_id` never follows a rename
-automatically after first discovery. This page is the map. Read it before you
-rename anything.
+## Never collapse these three states
 
-## The name sources
+| State | What it means | Current naming state |
+|---|---|---|
+| **Deployed firmware** | What the ESP32 devices are actually running | The eight active entity sets still use the historical coupled names. Six devices still run MAC-suffix application naming; the two Ceropegias already run explicit identity. |
+| **Staged NAS configuration** | YAML and label files present in Device Builder but not necessarily compiled or flashed | The eight device YAMLs contain the target explicit identity and `esphome.friendly_name: ${display_name}`, but still duplicate metadata manually. The name-free label PNGs are present. |
+| **Repository target** | Source that must be committed, pushed, fetched, compiled, migrated in HA, and flashed before it becomes deployed truth | Generated per-device metadata, function-only entities, node-prefixed payload `obj_id`, clean HA `entity_id`, dynamic e-paper names, and name-free reproducible art. |
 
-| Field | Where it is set | What it drives | Follows renames? |
-|---|---|---|---|
-| `substitutions.device_name` | device YAML | ESPHome node name + (with `name_add_mac_suffix`) the **hostname** and **MQTT topic prefix** | — (identity; do not change casually) |
-| `substitutions.display_name` | device YAML | human label; currently interpolated into `device_comment`. It is also duplicated as a literal in `esphome.friendly_name` | you must edit both current literals consistently |
-| `substitutions.friendly_name` | device YAML | **every entity name** (`${friendly_name} Temperature`, …) **and** the subtitle text on the maintenance / storage / low-batt e-paper pages (`smart_plant_core.yaml`) | you must edit the YAML |
-| `substitutions.device_comment` → `esphome.comment` | device YAML | ESPHome comment metadata, exposed by ESPHome's web server when enabled; no MQTT/native-API path to HA is assumed | you must edit the YAML |
-| `esphome.name` (`= ${configured_name}`, +MAC when `name_add_mac_suffix: true`) | shared package + device substitutions | ESPHome node name, hostname and MQTT topic prefix | — (identity) |
-| `esphome.friendly_name` (`esphome:` block) | each live device YAML | suggested MQTT device name in Home Assistant; ESPHome appends ` mac6` on the six devices still using `name_add_mac_suffix: true` | you must edit the YAML |
-| `page_1_background` label image | per-device PNG on the NAS (`esphome/plant_labels/`) | the plant name shown on the **normal measurement page** (a rendered image, not text) | regenerate the PNG |
-| `name_by_user` | Home Assistant device registry (UI rename, or `ha_set_device`) | the device name shown **in the HA UI**, overriding `esphome.friendly_name` | it *is* the rename — but see the trap below |
-| `entity_id` | Home Assistant registry, initially derived at first discovery | the entity's stable reference (`sensor.<slug>_temperature`) | not automatically; only an explicit registry rename |
+A clean repository, a Device Builder `deployed_config_hash`, or a staged YAML is
+not deployment evidence. Confirm the running ESPHome Version entity, runtime
+logs, discovery payloads, and a complete wake/sleep cycle after flashing.
 
-## The two traps
+## Target data flow
 
-1. **`entity_id` is frozen against automatic discovery renames.** It is
-   slugified from the name a device advertised the *first* time HA saw it. It
-   follows **neither** `friendly_name` **nor** `name_by_user` afterwards.
-   Renaming a device leaves the old slug in every `entity_id`, automation, and
-   dashboard reference. To actually change an `entity_id` you must update it in
-   HA's registry (or delete + rediscover) — deliberately, once.
+`examples/multi-device/plants.yaml` is the only hand-edited source for
+per-device identity and visible names:
 
-2. **`name_by_user` is a hidden override.** Renaming a device in the HA UI writes
-   `name_by_user`, which *masks* the `esphome.friendly_name` the firmware sends.
-   The firmware value is still there, just invisible — until someone clears
-   `name_by_user` (a device "reset name"), at which point the UI silently reverts
-   to the firmware value. Two sources of truth that only agree by luck.
+```text
+plants.yaml
+  └─ scripts/generate_device_metadata.py
+       └─ packages/generated/<configured_name>.yaml
+            ├─ configured_name + suffix mode → node/hostname/MQTT identity
+            ├─ display_name → ESPHome/HA device name + e-paper line 1
+            └─ secondary_name → comment + e-paper line 2
 
-## The target rule: one point of edit
+function-only entity names
+  ├─ FNV-1(name) + full MAC + component → MQTT unique_id
+  ├─ function snake → discovery-topic leaf and state-topic object
+  └─ node + function → discovery payload obj_id → clean HA entity_id
+```
 
-Hand-edit the display name only in `examples/multi-device/plants.yaml`; consume
-it through generated **YAML**, and leave `name_by_user` **empty after the
-coordinated migration**:
+Production device YAMLs must import their matching generated metadata package.
+They retain secrets, package references, and their network/`use_address`
+configuration; they must not duplicate naming literals.
 
-- Today there is **not yet one human source**. `display_name` is interpolated
-  into `device_comment`, while the same human label is duplicated as a literal
-  in each live device's `esphome.friendly_name`. Keep those two current values
-  aligned. Do not replace `substitutions.friendly_name` with the human label:
-  that field prefixes every MQTT entity name and therefore participates in its
-  MAC-generated `unique_id`.
-- The target model in `naming-architecture.md` makes `display_name` authoritative,
-  connects `esphome.friendly_name` and every e-paper text page to it, and gives
-  entities function-only names.
-- Do **not** rename devices in the HA UI. A UI rename creates the
-  `name_by_user` divergence above and survives reflash invisibly.
-- Strict typography (accents, `œ`, em-dash `—`, curly apostrophes `’`) belongs in
-  the YAML, so the firmware itself carries it and HA needs no override.
+## Field contract
 
-### What NOT to touch
+| Field | Target owner and role | Human rename changes it? |
+|---|---|---|
+| `device_name` | Historical opaque identity key. Do not reinterpret or rename it. | No |
+| `configured_name` | Exact already-effective `<device_name>-<mac6>` node identity. | No |
+| `name_add_mac_suffix` | `false` on all eight production devices because the suffix is frozen inside `configured_name`. | No |
+| `mqtt_topic_prefix` | Must equal `configured_name`; listed in inventory as the identity invariant. | No |
+| `display_name` | Single human/community name source. Drives `esphome.friendly_name` and e-paper line 1. | Yes |
+| `secondary_name` | Generated from `botanical_name`, falling back to `horticultural_name`. Drives `device_comment` and e-paper line 2. | Only for a deliberate descriptive rename |
+| Entity `name:` | One of 12 fixed function-only literals such as `Temperature` or `Maintenance`. | No |
+| Discovery topic leaf | Function snake only, for example `air_humidity`. | No |
+| Discovery payload `obj_id` | Dashed node plus function, for example `cyperus-papyrus-54a9b2_air_humidity`. | No |
+| HA `entity_id` | HA-sanitized node plus function, for example `sensor.cyperus_papyrus_54a9b2_air_humidity`. | No |
+| `name_by_user` | Must be `null` after cutover so it cannot mask the firmware device name. | No independent override |
 
-`device_name`, `configured_name`, the effective hostname, and the MQTT topic
-prefix are **identity**, not display. Changing their effective values renames
-topics and breaks the OTA mapping and every retained value. The target changes
-the configured representation on six devices but deliberately preserves the
-effective runtime value byte-for-byte. Outside that coordinated migration,
-display-name work must never alter identity. See `AGENTS.md` for the
-identity/topic model and `examples/multi-device/plants.yaml` for the canonical
-per-device names.
+The obsolete `${friendly_name}` substitution is not part of the target. It
+historically prefixed all entity names and therefore changed MQTT `unique_id`
+hashes whenever it changed.
 
-## Consistency across the fleet
+## Identity-preserving representation change
 
-With 8 devices, keep the three display fields consistent per device so nobody has
-to re-derive this map each time:
+For the six historically suffix-enabled devices:
 
-- `substitutions.display_name` = human name with strict typography; currently
-  used by `device_comment` and intended to become the sole source.
-- `esphome.friendly_name` = an equivalent human name stored as a separate
-  current literal; punctuation can already differ. On six devices ESPHome
-  currently appends ` mac6`; HA's `name_by_user` masks it.
-- `substitutions.friendly_name` = botanical/historical entity prefix and special
-  e-paper subtitle. It is deliberately distinct until the coordinated migration.
-- `esphome.name` = `${configured_name}` plus the configured suffix behaviour;
-  this is technical identity.
-- `name_by_user` = currently populated on all eight MQTT devices; the target is
-  empty after firmware names are canonical and the canary proves the result.
+```yaml
+# deployed representation
+configured_name: "cyperus-papyrus"
+name_add_mac_suffix: "true"
+
+# target representation
+configured_name: "cyperus-papyrus-54a9b2"
+name_add_mac_suffix: "false"
+```
+
+Both produce the same runtime node name, hostname, and MQTT prefix:
+`cyperus-papyrus-54a9b2`. This is not a topic migration. The two Ceropegias
+already use the target representation to avoid a Device Builder collision.
+
+## Home Assistant cutover trap
+
+Changing the 12 entity names from historical prefixes to function-only literals
+changes all 12 MQTT `unique_id` hashes per device. Flashing without the
+coordinated HA migration creates replacement entities and strands recorder
+history and consumers.
+
+The canary transaction therefore owns one device and exactly 12 history-bearing
+rows:
+
+1. capture the current retained discovery payloads and HA registries;
+2. put the 12 old discovery payloads into migration mode;
+3. update `unique_id` and `entity_id` together through HA's runtime registry API;
+4. flash the matching firmware during the same awake window;
+5. confirm the new payloads reattach to the same rows and device;
+6. migrate consumers, clear the exact old topics, and clear `name_by_user`;
+7. verify recorder continuity, telemetry, controls, logs, and sleep.
+
+The migration map must keep these different values separate:
+
+```text
+topic:     homeassistant/sensor/<node>/air_humidity/config
+obj_id:    <node>_air_humidity
+entity_id: sensor.<node_with_underscores>_air_humidity
+```
+
+Known pre-cutover cleanup is part of the fleet transaction: Oxalis has a
+12-entity orphan set from the bench experiment, and Rhipsalis has an empty
+duplicate device-registry row. Neither changes the canary's 12-row scope.
+
+## E-paper naming
+
+The versioned PNGs contain only line art and HA-derived recommended-range arcs.
+The firmware renders `display_name` and `secondary_name` dynamically using
+Audiowide with `GF_Latin_Core`. A visible rename therefore changes metadata and
+text only; it does not change the label path or artwork checksum.
+
+The operator selected the pre-existing 20/15 title sizes. Long names can overlap
+the battery/time area; this is an explicitly accepted visual trade-off, not a
+claim that every title fits inside that area.
+
+## Pre-flash invariants
+
+- `configured_name == mqtt_topic_prefix` for all eight devices;
+- every production YAML consumes its matching generated metadata package;
+- generated metadata and naming regression tests are clean;
+- all 12 exposed entity names are fixed function-only literals;
+- the 96-row map validates topic, payload `obj_id`, `entity_id`, and `unique_id`
+  independently;
+- the package and build caches were reset after the final pushed commit;
+- the canary has fresh HA/MQTT/YAML backups and a known-good rollback image;
+- only the coordinated HA migration and matching firmware flash share the
+  canary transaction.
