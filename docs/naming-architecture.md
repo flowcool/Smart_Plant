@@ -180,16 +180,51 @@ rule.
 4. Add `mqtt: discovery_object_id_generator: device_name`.
 5. Keep `discovery_unique_id_generator: mac` (unchanged).
 
-Fresh installs then get clean technical entity_ids with no HA-side action.
-Existing devices still require the coordinated 96-row migration in §4.
+**REFUTED (canary 54a99c, HA 2026.8.1, 2026-09-03, infra-774o).** The firmware
+does publish `obj_id = <node name>_<function>` with
+`discovery_object_id_generator: device_name` (source: `mqtt_component.cpp`
+@2026.7.4 and @dev emit `root[MQTT_OBJECT_ID] = object_id_full`). **But current
+Home Assistant no longer derives `entity_id` from the discovery `object_id`.**
+HA deprecated `object_id` → `entity_id` and stopped honouring it in HA Core
+**2026.4**; the deployed broker's HA is **2026.8.1**. HA now derives `entity_id`
+from `has_entity_name` (device/area name slug + entity name), so a payload's
+`obj_id` is inert. The only discovery field that controls `entity_id` on current
+HA is `default_entity_id` (payload abbreviation **`def_ent_id`**, e.g.
+`"sensor.ceropegia_woodii_54a99c_air_humidity"`), honoured on first creation only.
 
-**Caveat (source-verified on Oxalis 2026-09-03):** "no HA-side action" holds only
-when the 12 target `unique_id`s are free. If a device was previously flashed with
-function-only entity names under a different `friendly_name` — the Oxalis bench
-case — HA matches the new target discovery to those pre-existing registry rows by
-`unique_id` and keeps their frozen `entity_id`s, ignoring the clean `obj_id`. A
-registry rename is then still required for a device that is already on target
-firmware. See §4.2.
+**Firmware cannot emit `default_entity_id`.** ESPHome emits only the deprecated
+`object_id` and has no config to emit `default_entity_id`/`def_ent_id`
+(`esphome/esphome#12353` OPEN since 2025-12-08; `mqtt_component.cpp` @2026.7.4
+**and** @dev verified — no such key; zero referencing/open/merged PRs). So **no
+ESPHome version, and no ESPHome upgrade, unblocks this today.** A patched custom
+component is the only firmware route and is rejected on cost (config-only fleet).
+
+**Consequence — the "clean entity_id with zero HA action" goal is dead.** Canary
+54a99c proved it directly: the 12 *fresh* rows (obj_id present, brand-new
+`unique_id`, no pre-existing registry row) were created by HA as
+`sensor.sejour_guirlande_de_coeurs_sejour_*` — **0/12** carry `ceropegia_woodii_54a99c`.
+Row presence is irrelevant: `obj_id` is ignored either way, so the earlier
+"fresh = clean-but-shadowed" model and the Path Y "delete + rediscover → clean"
+idea are both void. A clean mac-bearing `entity_id` is achievable **only** by an
+HA-side registry rename.
+
+Two real per-device facts survive, both now handled entirely in HA (§4 / kl21):
+
+- **Stale retained orphans.** Each device carries pre-cutover retained discovery
+  payloads (different topic, never republished by new firmware → they do not
+  self-clear). They must be emptied (`mosquitto_pub -r -n`) so HA removes the
+  orphan rows. This is cleanup, not a route to clean ids.
+- **Already-target-flashed device (Oxalis).** HA matches new discovery to
+  pre-existing rows by `unique_id` and keeps their frozen `entity_id`s. Same
+  outcome as the general case: an HA rename is required.
+
+Net: **the fleet path is PATH HA** — per device, empty the stale retained topics
+and rename the 12 fresh entities to the §3.3 target via WS
+`config/entity_registry/update` (`new_entity_id`). Since Recorder history is
+dropped by decision (no statistics/`unique_id` migration), this is a **purely
+cosmetic rename**, deterministic and scriptable — no per-device judgment. Item 4
+of the list above (`discovery_object_id_generator: device_name`) is retained for
+`object_id` hygiene but is **inert for `entity_id`** on HA ≥ 2026.4.
 
 The `device_name` slug (`cyperus-papyrus`, …) is an **opaque, immutable
 identifier key**. Its resemblance to a taxon carries **no semantic authority**
@@ -202,18 +237,32 @@ operational gain (decision D-node).
 
 ```
 AS-IS  (HA-frozen, per registry export): sensor.<historical-ugly-slug>_air_humidity
-FUTURE (deterministic):                  sensor.cyperus_papyrus_54a9b2_air_humidity
+TARGET (HA-side rename, not firmware):   sensor.cyperus_papyrus_54a9b2_air_humidity
 ```
 
-The mac6 is present in **every** entity_id — uniform across the fleet,
-language-neutral, stable, honouring D1 (decision **D-mac**, now *forced* by the
-uniform-identity model rather than an open choice). The AS-IS form varies per
-device and is **not derivable from the current YAML** — it was frozen from a
-past `friendly_name` and must be read from the HA registry (§4).
+The TARGET is the deterministic string SmartPlant supplies as the rename goal; it
+is **not** produced by firmware discovery (§3.2 — HA ignores the payload
+`obj_id`). It exists only after the HA-side `new_entity_id` rename in §4. The mac6
+is present in **every** entity_id — uniform across the fleet, language-neutral,
+stable, honouring D1 (decision **D-mac**, now *forced* by the uniform-identity
+model rather than an open choice). The AS-IS form varies per device and is **not
+derivable from the current YAML** — it was frozen from a past `friendly_name` and
+must be read from the HA registry (§4).
 
 ---
 
 ## 4. Home Assistant migration contract (for `infra-kl21`)
+
+> **SUPERSEDED IN PART (decision 2026-09-03, drop-history).** Recorder history and
+> statistics are disposable for this fleet, so the history-preservation machinery
+> below — coupled `unique_id` + `entity_id` migration via `async_update_entity`,
+> `migrate_discovery`, and statistics-metadata migration — is **no longer
+> required**. Combined with §3.2 (HA ignores the payload `obj_id`; firmware cannot
+> emit `default_entity_id`, `esphome#12353`), the fleet path reduces to a
+> **cosmetic HA-side rename**: per device, empty the stale retained topics and set
+> `new_entity_id` on the 12 fresh rows (delete the stale orphan rows). The detailed
+> history-preserving contract below is retained for reference only; the live §4
+> rewrite is owned by `infra-kl21`, not this SmartPlant doc. See `infra-774o`.
 
 Changing the 12 entity names changes all their `unique_id`s per device → **96
 new entities** fleet-wide at next discovery, orphaning the ~96 historical ones.
