@@ -23,7 +23,7 @@ for the operational state map and Beads for current execution evidence.
 
 ## 1. Problem statement
 
-In the **deployed firmware**, the entity layer has no independent name. Every one of the 12 exposed
+In the **deployed firmware**, the entity layer has no independent name. Every one of the 10 exposed
 entities is named `${friendly_name} <function>` in the packages, so the entities
 inherit whatever `friendly_name` held at *first discovery*. Home Assistant
 freezes an `entity_id` from the advertised name on first discovery and does not
@@ -175,7 +175,7 @@ rule.
 2. Replace each current literal `esphome.friendly_name` with
    `esphome.friendly_name: ${display_name}`, making `display_name` the single
    human source; retire the catch-all `${friendly_name}` entity prefix.
-3. Rename the 12 exposed entities to **function-only** literals (e.g.
+3. Rename the 10 exposed entities to **function-only** literals (e.g.
    `name: "Air Humidity"` instead of `name: "${friendly_name} Air Humidity"`).
 4. Add `mqtt: discovery_object_id_generator: device_name`.
 5. Keep `discovery_unique_id_generator: mac` (unchanged).
@@ -264,8 +264,8 @@ must be read from the HA registry (§4).
 > history-preserving contract below is retained for reference only; the live §4
 > rewrite is owned by `infra-kl21`, not this SmartPlant doc. See `infra-774o`.
 
-Changing the 12 entity names changes all their `unique_id`s per device → **96
-new entities** fleet-wide at next discovery, orphaning the ~96 historical ones.
+Changing the 10 entity names changes all their `unique_id`s per device → **80
+new entities** fleet-wide at next discovery, orphaning the ~80 historical ones.
 Without the coordinated mechanism below, dashboard, Recorder, and Plant-
 integration references would also be stranded.
 
@@ -275,7 +275,7 @@ guesswork about frozen ids):
 1. The **deterministic FUTURE mapping**, keyed by `(device, component_type,
    function)` → discovery topic, payload `obj_id`, target clean `entity_id`, and
    `unique_id`.
-2. An explicit **"all 96 unique_id values change"** signal.
+2. An explicit **"all 80 unique_id values change"** signal.
 
 ESPHome 2026.7.4 keeps three similarly named values deliberately distinct:
 
@@ -328,7 +328,7 @@ old_discovery_topic, old_entity_id, old_unique_id,
 new_discovery_topic, new_object_id, new_entity_id, new_unique_id
 ```
 
-Validation rejects anything other than 96 unique source rows and 96 unique
+Validation rejects anything other than 80 unique source rows and 80 unique
 targets. The preflight also captures every old retained discovery payload, all
 entity-ID consumers, each live YAML checksum, `name_by_user`, an HA backup ID,
 and an exact `core.entity_registry` backup checksum. These are rollback inputs,
@@ -448,7 +448,7 @@ maintenance operation; the accepted premise is that such changes are rare.
 | 9 | `page_1_background` PNG | name + stale thresholds + art baked | name-free art + arcs generated from the versioned one-off HA snapshot |
 | 10 | `name_by_user` (HA) | populated on all 8 MQTT devices, masking the raw firmware name | empty on all 8 after canary validation |
 
-### 6.2 The 12 exposed entities (per device)
+### 6.2 The 10 exposed entities (per device)
 
 `node = <configured_name>` (e.g. `cyperus-papyrus-54a9b2`). Future `entity_id` =
 `<domain>.<node_sanitized>_<function>`, for example
@@ -466,10 +466,8 @@ the name changes.
 | text_sensor (version) | sensor | `${fn} ESPHome Version` | `ESPHome Version` | `sensor.…_esphome_version` |
 | switch (maintenance) | switch | `${fn} Maintenance` | `Maintenance` | `switch.…_maintenance` |
 | switch (storage) | switch | `${fn} Storage Mode` | `Storage Mode` | `switch.…_storage_mode` |
-| switch (pull_ota) | switch | `${fn} Pull OTA` | `Pull OTA` | `switch.…_pull_ota` |
 | text_sensor (maint status) | sensor | `${fn} Maintenance Status` | `Maintenance Status` | `sensor.…_maintenance_status` |
 | text_sensor (storage status) | sensor | `${fn} Storage Mode Status` | `Storage Mode Status` | `sensor.…_storage_mode_status` |
-| update (http_request) | update | `${fn} Firmware pull update` | `Firmware pull update` | `update.…_firmware_pull_update` |
 
 `${fn}` = `${friendly_name}` (the coupled catch-all being removed). This table is
 exactly the 12 MQTT-discovered registry entities per production device: 8 × 12 =

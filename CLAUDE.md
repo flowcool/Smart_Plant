@@ -84,14 +84,10 @@ evidence of individual probe calibration.
   factory flash. OTA does not update the bootloader.
 - **Deep-sleep OTA validation**: keep `safe_mode.mark_successful` before every
   orderly `deep_sleep.enter` path.
-- **Pull-OTA (opt-in)**: base package ships `update: platform: http_request`
-  (`pull_ota_update`) + native switch `pull_ota_enabled` (default OFF). To
-  activate on one device: host an ESP-Web-Tools manifest (JSON with
-  `chipFamily/version/ota.md5/ota.path`), set `pull_ota_manifest_url:
-  http://<host>/manifest.json` in the device YAML, flip "Pull OTA" ON in HA.
-  Next maintenance window pulls the manifest and self-flashes if version
-  differs. Device Builder push path stays in parallel. Details in
-  `docs/pull-ota-eval.md`.
+- **OTA path**: Device Builder push only (`ota: platform: esphome` +
+  `scripts/esphome_fleet_update.py`, triggered in the maintenance window).
+  Pull-OTA was removed 2026-09-03 (`infra-3rr.42`) as over-engineered for an
+  8-device fleet; `ota_min_battery` and the maintenance window are unchanged.
 
 ## Rules
 
@@ -117,8 +113,6 @@ Structural pointers (epics, plan docs, cross-project handoffs):
 - Package cutover (`infra-3rr.36`/`.37`) and low-battery hibernation
   (`infra-3rr.25`) shipped fleet-wide (8/8 on `core`+`profile_mqtt`);
   `smart_plant_base.yaml` retired.
-- Pull-OTA opt-in (`infra-3rr.23`): shipped in base package, inert until a
-  device sets `pull_ota_manifest_url` and flips "Pull OTA" ON in HA.
 - Historical naming migration woodii→botanical: `infra-b5q`
   (`project=homeassistant`, closed) — do not restore legacy prefixes.
 - Upstreaming strategy + coupling audit: `docs/upstreaming-strategy.md`

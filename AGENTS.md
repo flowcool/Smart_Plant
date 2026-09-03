@@ -118,18 +118,13 @@
   fleet rollout, and hourly cycles are already validated; do not repeat them.
 - Home Assistant naming migration: `infra-b5q` with `project=homeassistant`
   (closed and validated across all eight active MQTT devices).
-- Pull-based OTA: shipped in the core + MQTT profile composition on V2R1
-  (`infra-3rr.23`). Every device carries the `http_request`, `ota:
-  platform: http_request`, `update: platform: http_request`
-  (`pull_ota_update`), and native template switch `pull_ota_enabled`
-  (RESTORE_DEFAULT_OFF, entity_category config). Default is inert:
-  `pull_ota_manifest_url` = RFC 5737 `http://192.0.2.1/manifest.json`
-  placeholder and the switch defaults OFF, so `decide_sleep` never calls
-  `update.check`. To opt in on a device: publish an ESP-Web-Tools manifest,
-  override `pull_ota_manifest_url` in the device YAML, and turn the "Pull
-  OTA" switch ON in Home Assistant. During the next maintenance window
-  `decide_sleep` calls `update.check`; if the manifest advertises a newer
-  `esphome.project.version`, the `on_update_available` handler publishes
-  `OTA_PULL_STARTING` (text_sensor + retained MQTT) and invokes
-  `update.perform`. The Device Builder push path remains available in
-  parallel. Evaluation doc: `docs/pull-ota-eval.md` (`infra-3rr.22`).
+- OTA: Device Builder push only — `ota: platform: esphome` +
+  `scripts/esphome_fleet_update.py`, triggered inside the maintenance window
+  (`decide_sleep`, gated by `ota_min_battery`). Pull-OTA (`http_request` +
+  `update:` + `pull_ota_enabled`) was removed 2026-09-03 (`infra-3rr.42`) as
+  over-engineered for an 8-device fleet: it needed an automated manifest
+  producer + hosting that was never built. The maintenance window and
+  `ota_min_battery` gate are unchanged. Already-flashed devices (e.g. canary
+  54a99c) keep two orphan retained discovery topics (`..._pull_ota` switch,
+  `..._firmware_pull_update` update) until emptied HA-side. Historical
+  evaluation: `docs/pull-ota-eval.md` (`infra-3rr.22`, superseded).

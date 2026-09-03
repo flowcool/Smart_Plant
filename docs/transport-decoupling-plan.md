@@ -3,6 +3,10 @@
 Owning issue: **infra-3rr.34** (RTFM + plan). Feeds the deferred consolidated upstream PR
 (infra-3rr.26 strategy). Implementation is a SEPARATE issue created only after this plan is agreed.
 
+> **NOTE 2026-09-03:** pull-OTA was removed (`infra-3rr.42`). Ignore the
+> `http_request`/`update`/`pull_ota_enabled` items in the inventory below — they
+> no longer exist in the packages.
+
 ## 1. Problem
 
 `examples/multi-device/packages/smart_plant_base.yaml` (1098 l.) welds two orthogonal axes:

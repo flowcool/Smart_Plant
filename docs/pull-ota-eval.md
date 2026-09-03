@@ -1,5 +1,14 @@
 # Pull-based OTA evaluation — ESPHome `update` component
 
+> **SUPERSEDED — pull-OTA REMOVED 2026-09-03 (`infra-3rr.42`).** For an 8-device
+> fleet the value never materialised: making it useful needs an automated
+> manifest producer + hosting that was never built (only the manual sketch in
+> §"Manifest generation" below). The Device Builder push path
+> (`ota: platform: esphome` + `scripts/esphome_fleet_update.py`) is sufficient.
+> The `http_request`/`ota http_request`/`update:`/`pull_ota_enabled` components
+> were removed from `smart_plant_core.yaml` + `smart_plant_profile_mqtt.yaml`.
+> This document is kept as the historical rationale only.
+
 **Bead**: `infra-3rr.22` (under roadmap `infra-3rr`)
 **Date**: 2026-08-19
 **Status**: Recommendation — GO for pilot on ONE canary, dual-path with the

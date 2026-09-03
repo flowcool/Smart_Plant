@@ -3,6 +3,10 @@
 Owning issue: **infra-3rr.26**. Related: infra-3rr.21 (API/MQTT profile coordination,
 upstream issue #24), infra-3rr.25 (low-battery hibernation), infra-3rr.23 (pull-OTA).
 
+> **NOTE 2026-09-03:** pull-OTA was removed from the fork (`infra-3rr.42`, over-
+> engineered for 8 devices). All pull-OTA rows/candidates below are historical —
+> there is no longer a pull-OTA feature to upstream.
+
 Baseline of this analysis:
 - Fork `flowcool/Smart_Plant@V2R1` at `c165d67`.
 - Upstream integration branch is **`upstream/V2R1`** (105 commits ahead of `upstream/main`),

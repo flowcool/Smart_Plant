@@ -45,14 +45,6 @@ substitutions:
   # OTA password (leave empty string for no password)
   ota_password: ""
 
-  # Pull-OTA manifest URL. Default is an RFC 5737 TEST-NET-1 placeholder that
-  # ESPHome validates as a well-formed URL at parse time but that is guaranteed
-  # non-routable — update.check is never invoked on it because the HA switch
-  # (pull_ota_enabled) defaults OFF and gates the maintenance-window trigger.
-  # Device YAML overrides this substitution with the URL of its own
-  # ESP-Web-Tools manifest to opt in.
-  pull_ota_manifest_url: "http://192.0.2.1/manifest.json"
-
   # WiFi/MQTT credentials — overridden per-device via !secret in the local
   # device file. Must stay plain substitutions here (no !secret): this file
   # is fetched as a remote package, and the remote-build bundler refuses to

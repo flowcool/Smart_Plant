@@ -3,8 +3,8 @@
 # =============================================================================
 # Compose with smart_plant_core.yaml. Adds the MQTT data path (retained values
 # survive deep sleep), retained remote control (Maintenance / Storage Mode),
-# opt-in pull-OTA, and the boot orchestration. Requires deep-sleep-friendly
-# retained state; use this profile for the production fleet.
+# native ESPHome OTA (Device Builder push), and the boot orchestration. Requires
+# deep-sleep-friendly retained state; use this profile for the production fleet.
 #
 #   packages:
 #     core:      github://flowcool/Smart_Plant/examples/multi-device/packages/smart_plant_core.yaml@V2R1
@@ -97,12 +97,6 @@ api:
     key: "${api_encryption_key}"
   reboot_timeout: 0s
 
-# HTTP client shared by the pull-OTA back-end and the update entity. RX buffer
-# lifted above the 512-byte default so manifests slightly larger than one
-# buffer do not truncate mid-parse. TX buffer stays at 512 (only GET requests).
-http_request:
-  buffer_size_rx: 1024
-
 ota:
   - platform: esphome
     password: "${ota_password}"
@@ -134,45 +128,6 @@ ota:
               # boot, where BUSY can be observed through completion.
               - lambda: 'id(storage_display_refresh_pending) = true;'
         - delay: 2s
-
-  # Pull-OTA back-end. Always compiled; only consulted when the update entity
-  # below fires update.perform, itself gated by the maintenance-window switch.
-  - platform: http_request
-
-# Opt-in pull-OTA. Inert unless pull_ota_manifest_url is set AND the HA switch
-# (pull_ota_enabled) is turned ON. Never polls on its own — update.check and
-# update.perform are triggered from decide_sleep during the maintenance window.
-update:
-  - platform: http_request
-    id: pull_ota_update
-    name: "Firmware pull update"
-    source: "${pull_ota_manifest_url}"
-    update_interval: never
-    # Fires when an explicit update.check (from decide_sleep) returns a version
-    # newer than the running firmware. Re-gated because switch state or battery
-    # may have moved during the HTTP fetch. update.perform reboots on success,
-    # so every status publication MUST happen BEFORE the call.
-    on_update_available:
-      then:
-        - if:
-            condition:
-              and:
-                - switch.is_on: pull_ota_enabled
-                - lambda: |-
-                    return id(batpercent).has_state() &&
-                           !isnan(id(batpercent).state) &&
-                           id(batpercent).state >= ${ota_min_battery};
-            then:
-              - text_sensor.template.publish:
-                  id: maintenance_status
-                  state: "OTA_PULL_STARTING"
-              - mqtt.publish:
-                  topic: !lambda 'return id(mqtt_client).get_topic_prefix() + "/status/maintenance";'
-                  payload: "OTA_PULL_STARTING"
-                  qos: 1
-                  retain: true
-              - update.perform:
-                  id: pull_ota_update
 
 switch:
   # Native MQTT-discovered control: ESPHome associates it with the same device
@@ -227,20 +182,6 @@ switch:
             lambda: 'return id(boot_sequence_complete) && !id(maintenance_active);'
           then:
             - script.execute: prepare_cycle
-
-  # Opt-in gate for pull-OTA. No command_topic/state_topic on purpose: the
-  # decision is taken on-device inside decide_sleep during the maintenance
-  # window, so the switch state never needs to be reachable while asleep.
-  # RESTORE_DEFAULT_OFF is NVS-backed and survives reboot, OTA and deep sleep.
-  # Consumers on the ESPHome API see a first-class native switch; MQTT
-  # deployments (this fleet) still get one via ESPHome MQTT auto-discovery.
-  - platform: template
-    id: pull_ota_enabled
-    name: "Pull OTA"
-    icon: "mdi:cloud-download-outline"
-    optimistic: true
-    restore_mode: RESTORE_DEFAULT_OFF
-    entity_category: config
 
 text_sensor:
   # Publish the actual state-machine result through a native entity so Home
@@ -357,18 +298,6 @@ script:
                         - text_sensor.template.publish:
                             id: maintenance_status
                             state: "ON"
-                        # Opt-in pull-OTA path. The on_update_available handler
-                        # on the update entity does the actual work (publish
-                        # status + update.perform) once the manifest fetch
-                        # returns a newer version. If no update is available,
-                        # the trigger simply does not fire and the normal push
-                        # window below runs.
-                        - if:
-                            condition:
-                              switch.is_on: pull_ota_enabled
-                            then:
-                              - update.check:
-                                  id: pull_ota_update
                         - script.execute: maintenance_watchdog
                       else:
                         - text_sensor.template.publish:
