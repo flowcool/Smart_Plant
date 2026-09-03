@@ -183,6 +183,14 @@ rule.
 Fresh installs then get clean technical entity_ids with no HA-side action.
 Existing devices still require the coordinated 96-row migration in §4.
 
+**Caveat (source-verified on Oxalis 2026-09-03):** "no HA-side action" holds only
+when the 12 target `unique_id`s are free. If a device was previously flashed with
+function-only entity names under a different `friendly_name` — the Oxalis bench
+case — HA matches the new target discovery to those pre-existing registry rows by
+`unique_id` and keeps their frozen `entity_id`s, ignoring the clean `obj_id`. A
+registry rename is then still required for a device that is already on target
+firmware. See §4.2.
+
 The `device_name` slug (`cyperus-papyrus`, …) is an **opaque, immutable
 identifier key**. Its resemblance to a taxon carries **no semantic authority**
 (it is non-unique across the two Ceropegias) — it is not "the botanical name",
@@ -284,6 +292,53 @@ live YAML and validated firmware, republish the captured old discovery payloads,
 restore `name_by_user` and all changed references, then verify the original 12
 rows and Recorder continuity. Restore the full HA backup only if this targeted
 rollback cannot re-establish the captured state.
+
+### 4.2 Amended path for an already-target-flashed device (Oxalis)
+
+The §4 sequence assumes a clean pre-cutover device: one coupled AS-IS set, with the
+12 target `unique_id`s free. Oxalis breaks that assumption — it was flashed to the
+target firmware during the `infra-zdxz.3` bench, so `core.entity_registry` holds 24
+enabled mqtt rows on the one device (`device_id
+c4e0f66680eff0befd322fc390a576bc`, verified read-only 2026-09-03):
+
+- **history-bearing coupled set** — `unique_id 4827e25326ba-*-53accb91…`, entity_id
+  `sensor.sejour_oxalis_triangularis_oxalis_triangularis_*`. ~6.5 months of recorder
+  history since 2026-02-14 (kl21.5: 4814 long-term rows on Air Humidity), frozen
+  when the target firmware took over on 2026-09-02;
+- **target set** — `unique_id 4827e25326ba-*-da2b7bfa…` (the exact `new_unique_id`s
+  from the 96-row map), entity_id `sensor.sejour_trefle_pourpre_*`. A pre-2026-02
+  orphan revived by the bench flash — live but on the wrong entity_id, ~17 long-term
+  rows only.
+
+Both sets are separate from the HA Plant/template layer (`plant.trefle_pourpre`,
+`device_id e961e5…`, `platform: plant`, own `unique_id` scheme, since 2024-10-22),
+which is out of scope for this migration.
+
+Because the 12 target `unique_id`s are already present, the plain §4 in-place
+`unique_id` swap on the coupled set cannot be applied directly — HA rejects a
+duplicate `unique_id` within the mqtt platform. §3.2's clean-entity_id assumption
+also failed here (see §3.2 caveat): HA kept the frozen `sejour_trefle_pourpre_*`
+entity_ids.
+
+**The reconciliation mechanism is owned by HA/kl21, not specified here.** SmartPlant
+delivers only the validated end-state constraints kl21 must satisfy for Oxalis:
+
+- the 6.5-month recorder history currently keyed to the coupled entity_ids
+  (`sensor.sejour_oxalis_triangularis_*`, uid `…-53accb91…`) must be preserved on
+  the target entity_ids (`sensor.oxalis_triangularis_5326ba_*`, uid `…-da2b7bfa…`);
+- the 12 target `unique_id`s are already occupied by the revived-orphan set
+  (`sensor.sejour_trefle_pourpre_*`), so they must be freed/reassigned before or as
+  part of binding them to the history-bearing rows — whatever HA-side path kl21
+  chooses (registry reassignment, discovery migration, recorder metadata) is theirs;
+- the ~17 bench statistics on the revived-orphan set are disposable (redundant with
+  the coupled set and the plant layer);
+- watch the retained-discovery reattach ordering: the firmware's retained target
+  discovery (`…-da2b7bfa…`) is still in the broker, so a naive registry edit can be
+  undone by HA re-processing that retained payload. Sequencing is kl21's.
+
+The firmware-flash step of §4 is a no-op for Oxalis (already flashed). The other
+seven devices are unaffected and follow §4 as written (0/12 target `unique_id`s
+present in the registry).
 
 ---
 

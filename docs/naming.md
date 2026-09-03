@@ -105,9 +105,30 @@ obj_id:    <node>_air_humidity
 entity_id: sensor.<node_with_underscores>_air_humidity
 ```
 
-Known pre-cutover cleanup is part of the fleet transaction: Oxalis has a
-12-entity orphan set from the bench experiment, and Rhipsalis has an empty
-duplicate device-registry row. Neither changes the canary's 12-row scope.
+Known pre-cutover cleanup is part of the fleet transaction. Oxalis is a special
+case: it was already flashed to the target firmware during the `infra-zdxz.3`
+bench, so its HA device now carries **two** retained 12-entity MQTT sets at once
+(verified read-only 2026-09-03 in `core.entity_registry`: 24 enabled rows on one
+device):
+
+- the coupled deployed set (`unique_id 4827e25326ba-*-53accb91…`, entity_id
+  `sensor.sejour_oxalis_triangularis_oxalis_triangularis_*`) holds the ~6.5
+  months of recorder history since 2026-02-14. It is the history-bearing AS-IS
+  set the canary must preserve, **not** a disposable orphan; it only froze when
+  the target firmware took over;
+- the target-firmware set (`unique_id 4827e25326ba-*-da2b7bfa…` — the exact
+  `new_unique_id` values from the 96-row map, entity_id
+  `sensor.sejour_trefle_pourpre_*`) is a pre-2026-02 orphan **revived** by the
+  bench flash: live, but bound to the wrong (old, frozen) entity_id.
+
+Consequence: on Oxalis the 12 target `unique_id`s are **already occupied**, so the
+plain §4 in-place `unique_id` migration does not apply directly — the target ids
+must be freed/reassigned as part of the HA reconciliation (mechanism owned by kl21).
+This **does** change the migration path for Oxalis — see the constraints in
+`naming-architecture.md` §4.2. The other seven devices are in the clean single-set
+pre-cutover state and follow the §4 contract unchanged (verified: 0/12 target
+`unique_id`s present in the registry for each). Rhipsalis still has an empty
+duplicate device-registry row, which does not affect the 12-row scope.
 
 ## E-paper naming
 
