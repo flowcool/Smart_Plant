@@ -117,6 +117,12 @@
   typography). Field map `docs/naming.md`; contract `docs/naming-architecture.md`.
   E-paper arcs use a versioned one-off snapshot of HA-authoritative plant
   thresholds, no runtime sync. Supersedes `infra-4u5`.
+- Source-audit remediation epic `infra-3rr.44` (IN PROGRESS, P1): `.44.3` captive-portal
+  web-OTA (CLOSED 2026-09-12, `d058579`), `.44.2` page1 NaN/unavailable guard (CLOSED
+  2026-09-12, `e80f765`), `.44.4` ADC false-wet clamp (CLOSED 2026-09-12, `7645f5c`).
+  Open children: `.44.5` BUSY fault policy (P1, unblocked), `.44.1` soil calibration (P2),
+  `.44.6` acquisition cadence (P3), `.44.7` API boot order (P3). No fleet rollout yet —
+  each child needs its own canary. Concurrent fleet rollout authorized by Florent only.
 - Residual induced-failure validation only: `infra-3rr.14` (low-battery
   rejection, repeated-ON deadline restart, MQTT outage/recovery, and failed-OTA
   retry). Normal Maintenance, Storage entry/daily wake/exit, naming migration,
