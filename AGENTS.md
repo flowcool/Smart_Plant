@@ -76,6 +76,12 @@
   one short online measurement window, deep sleep, and at least two subsequent
   hourly wake/sleep cycles.
 - OTA reachability: `nc -z -w1 <ip> 3232`; ICMP ping is not authoritative.
+- Next device wake time: query HA API `last_updated` of each plant battery sensor
+  and add 1 hour. Do NOT use MQTT `%I` (delivery time, not publish time).
+  ```bash
+  curl -s "$HASS_SERVER/api/states" -H "Authorization: Bearer $HASS_TOKEN" \
+    | python3 -c "import json,sys; ..."
+  ```
 - Package cache purge: `docker exec esphome rm -rf
   /config/.esphome/packages/`.
 - OTA upload: `docker exec esphome esphome upload /config/<device>.yaml
