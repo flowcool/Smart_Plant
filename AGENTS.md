@@ -154,11 +154,16 @@
     multiple autonomous wake cycles, no OTA rollback. TRAP (still live for any future flash of the
     calibration branch): the generated-`metadata:` `soil_v_wet` substitution OVERRIDES the core
     default (same mechanism as per-device names); `@V2R1` now carries 1.36 so a fresh `@V2R1` flash
-    calibrates correctly. Cache purge MANDATORY before compile. RESIDUAL (Florent-gated, NAS write):
-    (1) repin `core:` AND `metadata:` `@V2R1` for the 3 canaries + rhipsalis-baccifera-54a936
-    (currently `@feat/soil-voltage-diagnostic`); branch KEPT on origin until then. (2) Fleet rollout
-    of the 5 remaining devices to shared 1.36 V — Florent-authorized only. Issue stays open until
-    repin + rollout done.
+    calibrates correctly. Cache purge MANDATORY before compile. REPIN DONE 2026-09-13 (fleet-wide
+    NAS cleanup, Florent-authorized): full audit of all 8 device YAMLs on NAS ugreen — 4 carried
+    stale branch pins (3 canaries core+metadata `@feat/soil-voltage-diagnostic`, rhipsalis-54a936
+    core `@fix/decouple-soil-cadence-v2`), all repinned `@V2R1` (backups `.bak-20260913-144847`);
+    now all 8 pin `@V2R1` exclusively on core+transport+metadata. `feat/soil-voltage-diagnostic`
+    branch is now safe to delete (no NAS reference). HYGIENE FLAG: `ceropegia-woodii-54a8f2.yaml`
+    is `root:root -rwxrwx---` (no `flow` access, modified today 08:17) — pins clean but ownership
+    anomalous vs the other 7 (`flow:admin`). RESIDUAL now only: fleet rollout of the 5 not-yet-
+    calibrated devices to shared 1.36 V — Florent-authorized flash only. Issue stays open until
+    rollout done.
 - Residual induced-failure validation `infra-3rr.14` is CLOSED wontfix (Florent
   2026-09-04): live induced-failure canaries not justified on a stable fleet. The
   low-battery maintenance reject (`bat < ota_min_battery` = 50%) was nonetheless
