@@ -125,14 +125,24 @@
   thresholds, no runtime sync. Supersedes `infra-4u5`.
 - Source-audit remediation epic `infra-3rr.44` (IN PROGRESS, P1): `.44.3` captive-portal
   web-OTA (CLOSED 2026-09-12, `d058579`), `.44.2` page1 NaN/unavailable guard (CLOSED
-  2026-09-12, `e80f765`), `.44.4` ADC false-wet clamp (CLOSED 2026-09-12, `7645f5c`).
-  Open children: `.44.5` BUSY fault policy (P1, unblocked), `.44.1` soil calibration (P2),
-  `.44.6` acquisition cadence (P3), `.44.7` API boot order (P3). No fleet rollout yet —
-  each child needs its own canary. Concurrent fleet rollout authorized by Florent only.
-- Residual induced-failure validation only: `infra-3rr.14` (low-battery
-  rejection, repeated-ON deadline restart, MQTT outage/recovery, and failed-OTA
-  retry). Normal Maintenance, Storage entry/daily wake/exit, naming migration,
-  fleet rollout, and hourly cycles are already validated; do not repeat them.
+  2026-09-12, `e80f765`), `.44.4` ADC false-wet clamp (CLOSED 2026-09-12, `7645f5c`),
+  `.44.5` bounded e-paper BUSY fault policy (CLOSED 2026-09-13, `6634a2c` pushed direct
+  to V2R1; canary 54a8f2 normal-cycle validated; forced-BUSY bench test explicitly waived
+  by Florent), `.44.7` API boot-order acquisition (CLOSED 2026-09-13, PR #5 merged
+  `9462eb9`/`f20fe28`; API profile unused in prod so no canary). `.44.6` acquisition
+  cadence decouple IN PROGRESS: code delivered on branch `fix/decouple-soil-cadence-v2`,
+  PR #6 OPEN (base V2R1); canary rhipsalis-baccifera-54a936 (54a936, `192.168.2.233`) —
+  its device-YAML `core:` pinned to `@fix/decouple-soil-cadence-v2`, Florent handling
+  purge/compile/flash/validation. After validation: merge PR #6, then repin rhipsalis
+  `core:` back to `@V2R1`. Open children: `.44.6` (in progress), `.44.1` soil calibration
+  (P2, not started). No fleet rollout yet — each child needs its own canary. Concurrent
+  fleet rollout authorized by Florent only.
+- Residual induced-failure validation `infra-3rr.14` is CLOSED wontfix (Florent
+  2026-09-04): live induced-failure canaries not justified on a stable fleet. The
+  low-battery maintenance reject (`bat < ota_min_battery` = 50%) was nonetheless
+  observed live 2026-09-13 (pilea-peperomioides-54a8e4 at 49% rejected). Normal
+  Maintenance, Storage entry/daily wake/exit, naming migration, fleet rollout, and
+  hourly cycles are already validated; do not repeat them.
 - Home Assistant naming migration: `infra-b5q` with `project=homeassistant`
   (closed and validated across all eight active MQTT devices).
 - OTA: Device Builder push only — `ota: platform: esphome` +
