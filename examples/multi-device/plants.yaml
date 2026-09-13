@@ -27,9 +27,9 @@ plants:
     label_image: "plant_labels/Ceropegia_woodii_label_page_1.png"
     timezone: "Europe/Paris"
     soil_calibration:
-      wet_voltage: 1.25
+      wet_voltage: 1.36
       dry_voltage: 2.8
-      status: "shared-default-not-measured-per-probe"
+      status: "shared-fleet-wet-constant-1.36 (2026-09-13); not individually measured; adopted from 3-device immersion sample (median-of-medians 1.361V, inter-device spread 7mV < intra-device noise 8-16mV); dry 2.8 documented out-of-range"
 
   ceropegia-woodii-54a99c:
     device_name: "ceropegia-woodii"
@@ -44,9 +44,9 @@ plants:
     label_image: "plant_labels/Ceropegia_woodii_label_page_1.png"
     timezone: "Europe/Paris"
     soil_calibration:
-      wet_voltage: 1.25
+      wet_voltage: 1.36
       dry_voltage: 2.8
-      status: "shared-default-not-measured-per-probe"
+      status: "shared-fleet-wet-constant-1.36 (2026-09-13); not individually measured; adopted from 3-device immersion sample (median-of-medians 1.361V, inter-device spread 7mV < intra-device noise 8-16mV); dry 2.8 documented out-of-range"
 
   cyperus-papyrus-54a9b2:
     device_name: "cyperus-papyrus"
@@ -60,9 +60,9 @@ plants:
     label_image: "plant_labels/Cyperus_papyrus_label_page_1.png"
     timezone: "Europe/Paris"
     soil_calibration:
-      wet_voltage: 1.25
+      wet_voltage: 1.36
       dry_voltage: 2.8
-      status: "shared-default-not-measured-per-probe"
+      status: "wet-calibrated-2026-09-13; immersion median 1.361V (n=3); shared fleet wet constant 1.36; dry 2.8 documented out-of-range"
 
   equisetum-hyemale-54a994:
     device_name: "equisetum-hyemale"
@@ -76,9 +76,9 @@ plants:
     label_image: "plant_labels/Equisetum_hyemale_label_page_1.png"
     timezone: "Europe/Paris"
     soil_calibration:
-      wet_voltage: 1.25
+      wet_voltage: 1.36
       dry_voltage: 2.8
-      status: "shared-default-not-measured-per-probe"
+      status: "wet-calibrated-2026-09-13; immersion median 1.355V (n=5); shared fleet wet constant 1.36; dry 2.8 documented out-of-range"
 
   oxalis-triangularis-5326ba:
     device_name: "oxalis-triangularis"
@@ -92,9 +92,9 @@ plants:
     label_image: "plant_labels/Oxalis_triangularis_label_page_1.png"
     timezone: "Europe/Paris"
     soil_calibration:
-      wet_voltage: 1.25
+      wet_voltage: 1.36
       dry_voltage: 2.8
-      status: "shared-default-not-measured-per-probe"
+      status: "wet-calibrated-2026-09-13; immersion median 1.362V (n=6); shared fleet wet constant 1.36; dry 2.8 documented out-of-range"
 
   peperomia-tetraphylla-54a940:
     device_name: "peperomia-tetraphylla"
@@ -117,9 +117,9 @@ plants:
     label_image: "plant_labels/Peperomia_Hope_label_page_1.png"
     timezone: "Europe/Paris"
     soil_calibration:
-      wet_voltage: 1.25
+      wet_voltage: 1.36
       dry_voltage: 2.8
-      status: "shared-default-not-measured-per-probe"
+      status: "shared-fleet-wet-constant-1.36 (2026-09-13); not individually measured; adopted from 3-device immersion sample (median-of-medians 1.361V, inter-device spread 7mV < intra-device noise 8-16mV); dry 2.8 documented out-of-range"
 
   pilea-peperomioides-54a8e4:
     device_name: "pilea-peperomioides"
@@ -133,9 +133,9 @@ plants:
     label_image: "plant_labels/Pilea_peperomioides_label_page_1.png"
     timezone: "Europe/Paris"
     soil_calibration:
-      wet_voltage: 1.25
+      wet_voltage: 1.36
       dry_voltage: 2.8
-      status: "shared-default-not-measured-per-probe"
+      status: "shared-fleet-wet-constant-1.36 (2026-09-13); not individually measured; adopted from 3-device immersion sample (median-of-medians 1.361V, inter-device spread 7mV < intra-device noise 8-16mV); dry 2.8 documented out-of-range"
 
   rhipsalis-baccifera-54a936:
     device_name: "rhipsalis-baccifera"
@@ -149,9 +149,9 @@ plants:
     label_image: "plant_labels/Rhipsalis_baccifera_label_page_1.png"
     timezone: "Europe/Paris"
     soil_calibration:
-      wet_voltage: 1.25
+      wet_voltage: 1.36
       dry_voltage: 2.8
-      status: "shared-default-not-measured-per-probe"
+      status: "shared-fleet-wet-constant-1.36 (2026-09-13); not individually measured; adopted from 3-device immersion sample (median-of-medians 1.361V, inter-device spread 7mV < intra-device noise 8-16mV); dry 2.8 documented out-of-range"
 
 unused_label_images:
   - "plant_labels/Lemon_tree_label_page_1.png"

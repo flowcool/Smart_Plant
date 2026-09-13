@@ -19,5 +19,5 @@ substitutions:
   secondary_name: "Equisetum hyemale"
   label_image: "plant_labels/Equisetum_hyemale_label_page_1.png"
   timezone: "Europe/Paris"
-  soil_v_wet: "1.25"
+  soil_v_wet: "1.36"
   soil_v_dry: "2.8"

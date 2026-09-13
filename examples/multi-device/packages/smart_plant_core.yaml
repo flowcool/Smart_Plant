@@ -61,8 +61,9 @@ substitutions:
   label_image: "https://smart-plant.readthedocs.io/en/v2r1/_images/Lemon_tree_label_page_1.png"
 
   # Soil moisture calibration (ADC voltage → %)
-  soil_v_wet: "1.25"   # voltage when sensor is fully submerged
-  soil_v_dry: "2.8"    # voltage in dry air
+  # Fleet default; per-device values come from packages/generated/*.yaml (source: plants.yaml).
+  soil_v_wet: "1.36"   # submerged; shared empirical wet constant, immersion calibration 2026-09-13
+  soil_v_dry: "2.8"    # dry air; documented out-of-range approximation (> ESP32-S2 characterized range)
 
   # Gauge display ranges
   light_max: "3775"
