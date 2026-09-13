@@ -61,8 +61,9 @@ substitutions:
   label_image: "https://smart-plant.readthedocs.io/en/v2r1/_images/Lemon_tree_label_page_1.png"
 
   # Soil moisture calibration (ADC voltage → %)
-  soil_v_wet: "1.25"   # voltage when sensor is fully submerged
-  soil_v_dry: "2.8"    # voltage in dry air
+  # Fleet default; per-device values come from packages/generated/*.yaml (source: plants.yaml).
+  soil_v_wet: "1.36"   # submerged; shared empirical wet constant, immersion calibration 2026-09-13
+  soil_v_dry: "2.8"    # dry air; documented out-of-range approximation (> ESP32-S2 characterized range)
 
   # Gauge display ranges
   light_max: "3775"
@@ -289,21 +290,28 @@ sensor:
       name: "Actual gain"
       internal: true
 
+  # Raw soil ADC voltage, published to Home Assistant as a diagnostic so the
+  # per-device wet-immersion reference (infra-3rr.44.1) can be captured in
+  # continuous operation without a throwaway calibration firmware. This is the
+  # median+clamped voltage BEFORE the moisture % mapping. acquire_normal drives
+  # this source sensor; the moisture % is derived from it by the copy sensor.
   - platform: adc
     pin: GPIO1
-    name: "Soil Moisture"
-    id: soil
-    icon: "mdi:cup-water"
-    device_class: moisture
+    name: "Soil Voltage"
+    id: soil_voltage
+    device_class: voltage
+    state_class: measurement
+    unit_of_measurement: "V"
+    entity_category: diagnostic
     update_interval: never
-    unit_of_measurement: "%"
     attenuation: 12db
     force_update: true
+    accuracy_decimals: 3
     filters:
       # send_first_at=5 (with window_size=send_every=5) publishes a single
-      # filtered value only after five samples, so acquire_normal's five soil
-      # updates yield exactly one median publication with no transient
-      # unfiltered value at the first sample (default send_first_at is 1).
+      # median voltage only after five samples, so acquire_normal's five soil
+      # updates yield exactly one publication with no transient value at the
+      # first sample (default send_first_at is 1).
       - median:
           window_size: 5
           send_every: 5
@@ -312,11 +320,26 @@ sensor:
           min_value: 0.5
           max_value: 3.3
           ignore_out_of_range: true
+
+  # Soil moisture %: derived from the raw voltage by the same linear mapping as
+  # before. calibrate_linear pivots the line around the (per-device or shared)
+  # wet endpoint; the dry endpoint stays a shared out-of-ADC-range approximation
+  # (infra-3rr.44.1). copy republishes once per source publication, so the single
+  # median voltage yields exactly one moisture value with no transient.
+  - platform: copy
+    source_id: soil_voltage
+    name: "Soil Moisture"
+    id: soil
+    icon: "mdi:cup-water"
+    device_class: moisture
+    unit_of_measurement: "%"
+    force_update: true
+    accuracy_decimals: 0
+    filters:
       - calibrate_linear:
           - ${soil_v_wet} -> 100.00
           - ${soil_v_dry} -> 0.00
       - lambda: if (x < 1) return 0; else if (x > 100) return 100; return (x);
-    accuracy_decimals: 0
 
 # Running ESPHome core version. Function-only entity name like every other
 # exposed entity; Home Assistant cleanup owns legacy collision removal.
@@ -620,7 +643,7 @@ script:
       - repeat:
           count: 5
           then:
-            - component.update: soil
+            - component.update: soil_voltage
             - delay: 3s
       - wait_until:
           condition:
