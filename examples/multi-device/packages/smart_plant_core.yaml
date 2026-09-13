@@ -300,9 +300,14 @@ sensor:
     attenuation: 12db
     force_update: true
     filters:
+      # send_first_at=5 (with window_size=send_every=5) publishes a single
+      # filtered value only after five samples, so acquire_normal's five soil
+      # updates yield exactly one median publication with no transient
+      # unfiltered value at the first sample (default send_first_at is 1).
       - median:
           window_size: 5
           send_every: 5
+          send_first_at: 5
       - clamp:
           min_value: 0.5
           max_value: 3.3
@@ -576,22 +581,53 @@ script:
                      !isnan(id(batpercent).state);
           timeout: 3s
 
-  # Six explicit samples preserve the soil filter's existing first publication
-  # followed by its five-sample median cadence, without background polling.
+  # Acquisition is decoupled per sensor: each is triggered as often as it needs
+  # and given an explicit bounded readiness wait, instead of a shared six-pass
+  # loop that only existed to satisfy the soil median cadence. The soil filter
+  # (median window_size=5/send_every=5/send_first_at=5) now publishes exactly
+  # one filtered value at the fifth sample, so no transient unfiltered soil
+  # value reaches MQTT. Total soil dwell ~15s < the previous ~18s.
   - id: acquire_normal
     mode: restart
     then:
       - switch.turn_on: exc
+      # MAX17048: one wake/config update, then a bounded wait for a finite SoC.
       - component.update: max17043_id
+      - wait_until:
+          condition:
+            lambda: |-
+              return id(batpercent).has_state() &&
+                     !isnan(id(batpercent).state);
+          timeout: 3s
+      # AHT20 + VEML7700 are one-shot digital sensors. Trigger each once; their
+      # async work (AHT ~80-240ms; VEML auto-gain may span several integration
+      # times) completes without re-polling. Wait bounded for finite values.
+      - component.update: aht20_sensor
+      - component.update: veml7700_sensor
+      - wait_until:
+          condition:
+            lambda: |-
+              return id(temp).has_state() && !isnan(id(temp).state) &&
+                     id(hum).has_state() && !isnan(id(hum).state);
+          timeout: 3s
+      - wait_until:
+          condition:
+            lambda: 'return id(light).has_state() && !isnan(id(light).state);'
+          timeout: 5s
+      # Soil ADC: exactly five spaced samples feed the median so a single
+      # filtered value is published. Inter-measurement spacing is preserved
+      # (not synchronous back-to-back ADC reads).
       - repeat:
-          count: 6
+          count: 5
           then:
-            - component.update: aht20_sensor
-            - component.update: veml7700_sensor
             - component.update: soil
             - delay: 3s
-      # Keep the normal e-paper refresh single-shot, but give SNTP a bounded
-      # window so a slow first sync does not leave stale time for one hour.
+      - wait_until:
+          condition:
+            lambda: 'return id(soil).has_state() && !isnan(id(soil).state);'
+          timeout: 3s
+      # Give SNTP a bounded window so a slow first sync does not leave stale
+      # time for one hour.
       - wait_until:
           condition:
             lambda: 'return id(esptime).now().is_valid();'
