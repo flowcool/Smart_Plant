@@ -30,7 +30,14 @@ esphome:
     - priority: 700
       then:
         - lambda: 'delay(250);'
-    - priority: 600
+    # ESPHome 2026.7.4: sensors register at DATA priority 600 and the display at
+    # 400 (component.h). A priority-600 acquisition trigger sorts before those
+    # sensors and its first component.update calls are dropped as "not ready",
+    # so the first cycle can skip battery/soil. Run acquisition at 399.0:
+    # strictly after MAX17048/AHT20/VEML7700/ADC (600) and the display (400),
+    # but before Wi-Fi (250). Deterministic — no arbitrary delay/readiness
+    # plumbing. Recheck on ESPHome upgrades: internal priorities may change.
+    - priority: 399.0
       then:
         - script.execute: acquire_normal   # samples, then chains decide_sleep
 
