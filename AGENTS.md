@@ -136,30 +136,29 @@
    loop, ≥2 clean autonomous hourly cycles, no OTA rollback; exact awake-time accepted as
    publish-span proxy per Florent, "pas d'over engineering"). RESIDUAL: rhipsalis `core:`
    still `@fix/decouple-soil-cadence-v2` (== V2R1 content) → repin `@V2R1` at next flash.
-   `.44.1` per-device soil calibration (P2) IN PROGRESS: design decided (wet-anchored empirical
-   index via `calibrate_linear`; Voie B divider rejected — hw immutable, no reproducible dry
-   ref, immersion ref feasible). Mechanism = publish raw soil voltage to HA as a permanent
-   diagnostic; soil sensor split into `Soil Voltage` (adc→V, diagnostic, the acquisition
-   source) + `Soil Moisture` (copy→%, unchanged entity/semantics). DECIDED + APPLIED: shared
-   `soil_v_wet` = 1.36 V (NOT per-device). Full-day immersion medians: papyrus 1.361 (n=3),
-   prêle 1.355 (n=5), trèfle 1.362 (n=6); inter-device spread 7 mV < intra-device noise
-   8-16 mV ⇒ shared justified (per-device would calibrate on noise). Applied on branch
-   `feat/soil-voltage-diagnostic` (rebased onto V2R1, independent of `.44.6`; HEAD `80e7327`,
-   PR #7 base V2R1 MERGEABLE): `plants.yaml` all 8 (honest per-device status: 3 measured carry
-   their median, 5 carry adopted shared constant), regenerated `generated/*.yaml` (drift-check
-   OK), core default. `soil_v_dry` stays 2.8 (documented out-of-range). Old 1.25 traced to
-   upstream `7425d09` (never measured) → fork diverges (note for upstreaming). NEXT (Florent,
-   self-handling flash): flash 3 immersed calibration canaries — cyperus-papyrus-54a9b2
-   (papyrus, .237), oxalis-triangularis-5326ba (trèfle pourpre, .234), equisetum-hyemale-54a994
-   (prêle du Japon, .238) — from branch. NAS configs PREPARED 2026-09-13: on all 3, `core:`
-   AND `metadata:` repinned `@feat/soil-voltage-diagnostic` (`transport:` stays `@V2R1`). TRAP
-   fixed: the generated-`metadata:` `soil_v_wet` substitution OVERRIDES the core default (same
-   mechanism as per-device names); it was `@V2R1`=1.25, so without the metadata repin a reflash
-   would recalibrate at 1.25 (92-93% immersed), not 1.36. Cache purge MANDATORY before compile
-   (devices compiled earlier from same ref name but older commit `fe6f4e9`<1.36). Expected
-   immersed Soil Moisture ~100%. On validation → merge PR #7. RESIDUAL after merge: repin
-   `core:` AND `metadata:` `@V2R1` for the 3 + rhipsalis-54a936. Fleet rollout Florent-
-   authorized only.
+    `.44.1` per-device soil calibration (P2) IN PROGRESS — calibration VALIDATED + MERGED,
+    only rollout/repin residual left. Design: wet-anchored empirical index via `calibrate_linear`
+    (Voie B divider rejected — hw immutable, no reproducible dry ref, immersion ref feasible).
+    Mechanism = publish raw soil voltage to HA as a permanent diagnostic; soil sensor split into
+    `Soil Voltage` (adc→V, diagnostic, the acquisition source) + `Soil Moisture` (copy→%,
+    unchanged entity/semantics). Shared `soil_v_wet` = 1.36 V (NOT per-device): full-day immersion
+    medians papyrus 1.361, prêle 1.355, trèfle 1.362, inter-device spread <10 mV < intra-device
+    noise 8-16 mV ⇒ shared justified (per-device would calibrate on noise). `soil_v_dry` stays 2.8
+    (documented out-of-range). Old 1.25 traced to upstream `7425d09` (never measured) → fork
+    diverges (note for upstreaming). PR #7 (`feat/soil-voltage-diagnostic`) MERGED into V2R1
+    2026-09-13 as merge commit `4974562`: `plants.yaml` all 8 (honest per-device status: 3 measured
+    carry their median, 5 carry adopted shared constant), regenerated `generated/*.yaml`
+    (drift-check OK), core default 1.36. VALIDATION (3 immersed canaries, HA live 2026-09-13):
+    cyperus-papyrus-54a9b2 100% moisture / soil_voltage 1.363V, oxalis-triangularis-5326ba 100% /
+    1.359V, equisetum-hyemale-54a994 100% / 1.353V; all on ESPHome 2026.8.2, healthy batteries,
+    multiple autonomous wake cycles, no OTA rollback. TRAP (still live for any future flash of the
+    calibration branch): the generated-`metadata:` `soil_v_wet` substitution OVERRIDES the core
+    default (same mechanism as per-device names); `@V2R1` now carries 1.36 so a fresh `@V2R1` flash
+    calibrates correctly. Cache purge MANDATORY before compile. RESIDUAL (Florent-gated, NAS write):
+    (1) repin `core:` AND `metadata:` `@V2R1` for the 3 canaries + rhipsalis-baccifera-54a936
+    (currently `@feat/soil-voltage-diagnostic`); branch KEPT on origin until then. (2) Fleet rollout
+    of the 5 remaining devices to shared 1.36 V — Florent-authorized only. Issue stays open until
+    repin + rollout done.
 - Residual induced-failure validation `infra-3rr.14` is CLOSED wontfix (Florent
   2026-09-04): live induced-failure canaries not justified on a stable fleet. The
   low-battery maintenance reject (`bat < ota_min_battery` = 50%) was nonetheless
