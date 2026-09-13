@@ -138,9 +138,33 @@ precompiles every selected device before opening any maintenance window, then
 waits independently for each device to be online with retained Maintenance
 Status `ON`. After a 10-second display-settling guard, it arms that device's
 install without making slower devices block ready ones. The default readiness
-timeout is 75 minutes, covering one hourly sleep cycle with margin. Run its
+ timeout is 75 minutes, covering one hourly sleep cycle with margin. Run its
 `--help` output before use; execute `reset`, then `update` for one canary before
 using `update all` for the validated fleet.
+
+### Command cheatsheet (read this, not the source)
+
+All device arguments are `plants.yaml` keys, or the literal `all` for the whole
+fleet. Defaults are correct for normal use; `ROOT=examples/multi-device`.
+
+```bash
+# from repo root
+S="python3 scripts/esphome_fleet_update.py"
+$S status                 # read-only: expected vs deployed config-hash, version, online state
+$S reset                  # reset local + paired remote build envs (run before a batch)
+$S update all             # precompile all, open maintenance, arm OTA per device as it wakes (idempotent: no-op where deployed==expected)
+$S update <dev> [<dev>..] # same, scoped to named devices (canary first)
+$S maintenance ON|OFF <dev..>   # retained MQTT maintenance desired-state (manual OTA window)
+$S storage ON|OFF <dev..>       # storage mode for a device off-plant
+```
+
+Standard fleet rollout after a merged package change:
+1. Purge package cache: `docker exec esphome rm -rf /config/.esphome/packages/`
+   (via `ssh ugreen`).
+2. `$S status` — confirm which devices show `expected != deployed`.
+3. `$S update all` — waits up to 75 min for each device's hourly maintenance
+   window; devices below `ota_min_battery` (50%) self-reject and time out.
+4. Verify per AGENTS.md (no OTA rollback, expected version, ≥2 clean cycles).
 
 Device Builder is the compile scheduler: its firmware API selects a paired
 build server, including the VPS offloader. Never use `esphome compile` directly
