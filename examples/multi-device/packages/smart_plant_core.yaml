@@ -86,10 +86,14 @@ substitutions:
   low_batt_warn_pct: "30"
   low_batt_sleep_duration: "${storage_sleep_duration}"
   display_busy_gpio: "14"
+  display_reset_gpio: "15"
   # The legacy driver returns immediately after MASTER ACTIVATION. Observe the
   # panel's active-high BUSY transition directly instead of guessing a delay.
   display_busy_assert_timeout: "2s"
   display_busy_clear_timeout: "30s"
+  # Additional bounded recovery window after settle_display's clear timeout.
+  # Total fault budget ≈ assert(2s) + clear(30s) + recovery(30s) = ~62s.
+  display_busy_recovery_timeout: "30s"
 
 globals:
   # storage_active: NVS-backed seasonal state; read by the core display and
@@ -130,6 +134,12 @@ globals:
     # No refresh is in flight at boot. settle_display resets this before every
     # activation and only restores it after BUSY is observed low.
     initial_value: 'true'
+  # NVS-backed cumulative count of permanent BUSY faults that triggered the
+  # last-resort emergency sleep path. Survives deep sleep and power cycles.
+  - id: display_busy_fault_count
+    type: int
+    restore_value: true
+    initial_value: '0'
 
 esphome:
   name: "${configured_name}"
@@ -493,11 +503,10 @@ script:
   - id: recover_display_busy
     mode: restart
     then:
-      - while:
+      - wait_until:
           condition:
-            lambda: 'return digitalRead(${display_busy_gpio}) == HIGH;'
-          then:
-            - delay: 1s
+            lambda: 'return digitalRead(${display_busy_gpio}) == LOW;'
+          timeout: ${display_busy_recovery_timeout}
       - delay: 500ms
       - if:
           condition:
@@ -506,12 +515,53 @@ script:
             - lambda: 'id(display_safe_to_sleep) = true;'
             - logger.log:
                 level: WARN
-                format: "E-paper BUSY cleared after timeout; resuming safe sleep"
+                format: "E-paper BUSY cleared after recovery window; resuming safe sleep"
             - script.execute: enter_deep_sleep
           else:
-            # BUSY asserted again during the stability margin. Treat it as a
-            # new in-flight refresh and resume bounded observation.
-            - script.execute: recover_display_busy
+            # BUSY still HIGH after the full recovery window (~60s total).
+            # Increment the NVS fault counter, pulse RST for a best-effort
+            # hardware reset, then enter emergency sleep with no further SPI.
+            - lambda: 'id(display_busy_fault_count) += 1;'
+            - logger.log:
+                level: ERROR
+                format: "E-paper BUSY permanent after 60s — fault #%d; hardware reset then emergency sleep"
+                args:
+                  - 'id(display_busy_fault_count)'
+            - lambda: |-
+                pinMode(${display_reset_gpio}, OUTPUT);
+                digitalWrite(${display_reset_gpio}, LOW);
+            - delay: 10ms
+            - lambda: 'digitalWrite(${display_reset_gpio}, HIGH);'
+            - delay: 500ms
+            - script.execute: force_sleep_after_busy_fault
+
+  # Emergency sleep path for a permanent BUSY fault. Bypasses the BUSY check
+  # in enter_deep_sleep. Battery-priority and storage durations are preserved.
+  # The panel may show a corrupted image until the next normal boot.
+  - id: force_sleep_after_busy_fault
+    then:
+      - script.execute: on_display_fault
+      - script.wait: on_display_fault
+      - safe_mode.mark_successful
+      - deep_sleep.allow: deep_sleep_control
+      - switch.turn_off: exc
+      - if:
+          condition:
+            lambda: 'return id(low_batt_active);'
+          then:
+            - deep_sleep.enter:
+                id: deep_sleep_control
+                sleep_duration: ${low_batt_sleep_duration}
+          else:
+            - if:
+                condition:
+                  lambda: 'return id(storage_active);'
+                then:
+                  - deep_sleep.enter:
+                      id: deep_sleep_control
+                      sleep_duration: ${storage_sleep_duration}
+                else:
+                  - deep_sleep.enter: deep_sleep_control
 
   - id: sample_battery
     mode: restart

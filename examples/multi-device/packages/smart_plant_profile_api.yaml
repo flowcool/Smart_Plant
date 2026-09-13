@@ -35,6 +35,17 @@ esphome:
         - script.execute: acquire_normal   # samples, then chains decide_sleep
 
 script:
+  # Called by force_sleep_after_busy_fault (core) on a permanent BUSY fault.
+  # No MQTT in this profile; log only.
+  - id: on_display_fault
+    then:
+      - logger.log:
+          level: ERROR
+          format: "Display BUSY permanent fault #%d — emergency sleep"
+          args:
+            - 'id(display_busy_fault_count)'
+      - delay: 500ms
+
   # Simple sleep decision: no maintenance/storage. acquire_normal (core) ends by
   # calling this; render the measurement page and sleep.
   - id: decide_sleep

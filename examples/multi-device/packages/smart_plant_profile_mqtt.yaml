@@ -208,6 +208,18 @@ text_sensor:
     retain: true
 
 script:
+  # Called by force_sleep_after_busy_fault (core) when a permanent BUSY fault
+  # triggers the emergency sleep path. Publishes the NVS-backed fault counter
+  # retained so Home Assistant reflects the current count after each wake.
+  - id: on_display_fault
+    then:
+      - mqtt.publish:
+          topic: !lambda 'return id(mqtt_client).get_topic_prefix() + "/status/display_fault_count";'
+          payload: !lambda 'return to_string(id(display_busy_fault_count));'
+          qos: 1
+          retain: true
+      - delay: 1s
+
   - id: sleep_after_display
     mode: restart
     then:
