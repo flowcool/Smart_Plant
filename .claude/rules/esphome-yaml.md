@@ -23,3 +23,9 @@ paths:
 - Packages are fetched from GitHub — after pushing changes, clear the package cache on NAS before flashing.
 - Every orderly deep-sleep path must call `safe_mode.mark_successful` before
   `deep_sleep.enter` so a healthy first OTA boot is not rolled back.
+- To read deployed fleet ESPHome version, trust the HA discovery config `dev.sw`
+  field or the current function-only topic `<mac-prefix>/sensor/esphome_version/state`,
+  cross-checked with `esphome/discover/<current-mac-name>`. Legacy per-device
+  topics (`<prefix>/sensor/<device>_esphome_version/state`) and legacy/test
+  discover names are stale retained orphans and can misreport the version. Use
+  `scripts/mqtt_retained.sh` (read-only) rather than re-deriving the auth path.
