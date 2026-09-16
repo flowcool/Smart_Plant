@@ -123,7 +123,9 @@
   typography). Field map `docs/naming.md`; contract `docs/naming-architecture.md`.
   E-paper arcs use a versioned one-off snapshot of HA-authoritative plant
   thresholds, no runtime sync. Supersedes `infra-4u5`.
-- Source-audit remediation epic `infra-3rr.44` (IN PROGRESS, P1): `.44.3` captive-portal
+- Source-audit remediation epic `infra-3rr.44` (CLOSED 2026-09-16 — 12/12 children, P1;
+  block below is retained history, a project-tidy candidate to collapse to a pointer):
+  `.44.3` captive-portal
   web-OTA (CLOSED 2026-09-12, `d058579`), `.44.2` page1 NaN/unavailable guard (CLOSED
   2026-09-12, `e80f765`), `.44.4` ADC false-wet clamp (CLOSED 2026-09-12, `7645f5c`),
   `.44.5` bounded e-paper BUSY fault policy (CLOSED 2026-09-13, `6634a2c` pushed direct
@@ -136,8 +138,8 @@
    loop, ≥2 clean autonomous hourly cycles, no OTA rollback; exact awake-time accepted as
    publish-span proxy per Florent, "pas d'over engineering"). RESIDUAL: rhipsalis `core:`
    still `@fix/decouple-soil-cadence-v2` (== V2R1 content) → repin `@V2R1` at next flash.
-    `.44.1` per-device soil calibration (P2) IN PROGRESS — calibration VALIDATED + MERGED,
-    only rollout/repin residual left. Design: wet-anchored empirical index via `calibrate_linear`
+    `.44.1` per-device soil calibration (P2) CLOSED — calibration VALIDATED + MERGED
+    (PR #7 `4974562`), rollout/repin reconciled. Design: wet-anchored empirical index via `calibrate_linear`
     (Voie B divider rejected — hw immutable, no reproducible dry ref, immersion ref feasible).
     Mechanism = publish raw soil voltage to HA as a permanent diagnostic; soil sensor split into
     `Soil Voltage` (adc→V, diagnostic, the acquisition source) + `Soil Moisture` (copy→%,
