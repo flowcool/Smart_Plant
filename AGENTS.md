@@ -92,95 +92,46 @@
 
 ## Durable work state
 
-- Beads is authoritative for current work. Filter with
-  `bd list --metadata-field project=Smart_Plant`.
+Beads is authoritative for current work: `bd list --metadata-field project=Smart_Plant`.
+This section holds only structural pointers (epics, plan docs, durable design facts,
+live residuals); closed-work detail (commits, canary IDs, per-device values) lives in Beads.
+
 - Roadmap epic: `infra-3rr`.
-- Low-battery protective hibernation + e-paper signalling: epic `infra-3rr.25`
-  CLOSED 2026-09-01 — shipped fleet-wide (all 8 on V2R1 core+profile_mqtt,
-  rollout `.25.9`). WARN (<30%) full-screen e-paper inversion + CRITIQUE
-  (<=15%) 24h protective hibernation with hysteresis exit (>=22%), thresholds
-  per-device. Durable design on the epic; C7 brownout accepted-risk/prod-monitored.
-- Fork upstreaming strategy to `JGAguado/Smart_Plant` given the large refactors:
-  strategy + per-feature coupling audit in `docs/upstreaming-strategy.md`
-  (`infra-3rr.26`). Execution is deferred fork-first: accumulate on V2R1 with clean
-  per-feature commits, then one consolidated upstream PR once OTA + fleet validation
-  are done. Upstream steps S0-S4 = `infra-3rr.28`-`.33` (deferred).
-- Transport decoupling (native API vs MQTT ⊥ multi-device, model B): MQTT coupling is
-  driven by deep-sleep UX, not device count. Plan `docs/transport-decoupling-plan.md`
-  (`infra-3rr.34`, signed). Production composes `smart_plant_core.yaml` with
-  `smart_plant_profile_mqtt.yaml`; `smart_plant_profile_api.yaml` provides the
-  native-API alternative. Fleet cutover COMPLETE 2026-09-01: all 8 devices on
-  `smart_plant_core`+`smart_plant_profile_mqtt`, `smart_plant_base.yaml` retired
-  (`infra-3rr.36`/`.37` closed).
-- Naming model (DELIVERED; epic `infra-zdxz` + HA `infra-kl21` closed 2026-09-04):
-  all effective runtime identities preserved, explicit `<device_name>-<mac6>`
-  configured names on all eight, `display_name` the single human source, 10
-  function-only MQTT entity names/device (was 12; `pull_ota` switch +
-  `firmware_pull_update` dropped with pull-OTA at `f913779`). HA migration ran
-  Path 2 (Florent 2026-09-03): flash → HA auto-creates clean MAC-bearing
-  entity_ids → delete orphan rows + clear stats → empty retained discovery →
-  re-point consumers; no `unique_id`/history remap. `name_by_user` kept (FR
-  typography). Field map `docs/naming.md`; contract `docs/naming-architecture.md`.
-  E-paper arcs use a versioned one-off snapshot of HA-authoritative plant
-  thresholds, no runtime sync. Supersedes `infra-4u5`.
-- Source-audit remediation epic `infra-3rr.44` (CLOSED 2026-09-16 — 12/12 children, P1;
-  block below is retained history, a project-tidy candidate to collapse to a pointer):
-  `.44.3` captive-portal
-  web-OTA (CLOSED 2026-09-12, `d058579`), `.44.2` page1 NaN/unavailable guard (CLOSED
-  2026-09-12, `e80f765`), `.44.4` ADC false-wet clamp (CLOSED 2026-09-12, `7645f5c`),
-  `.44.5` bounded e-paper BUSY fault policy (CLOSED 2026-09-13, `6634a2c` pushed direct
-  to V2R1; canary 54a8f2 normal-cycle validated; forced-BUSY bench test explicitly waived
-  by Florent), `.44.7` API boot-order acquisition (CLOSED 2026-09-13, PR #5 merged
-   `9462eb9`/`f20fe28`; API profile unused in prod so no canary). `.44.6` acquisition
-   cadence decouple CLOSED 2026-09-13 (PR #6 merged `bfada2e`, fix `b61d75a`): each sensor
-   samples on its own, no transient soil publish, entities unchanged; canary
-   rhipsalis-baccifera-54a936 (`192.168.2.233`) validated (temp/soil once per wake vs 6× old
-   loop, ≥2 clean autonomous hourly cycles, no OTA rollback; exact awake-time accepted as
-   publish-span proxy per Florent, "pas d'over engineering"). RESIDUAL: rhipsalis `core:`
-   still `@fix/decouple-soil-cadence-v2` (== V2R1 content) → repin `@V2R1` at next flash.
-    `.44.1` per-device soil calibration (P2) CLOSED — calibration VALIDATED + MERGED
-    (PR #7 `4974562`), rollout/repin reconciled. Design: wet-anchored empirical index via `calibrate_linear`
-    (Voie B divider rejected — hw immutable, no reproducible dry ref, immersion ref feasible).
-    Mechanism = publish raw soil voltage to HA as a permanent diagnostic; soil sensor split into
-    `Soil Voltage` (adc→V, diagnostic, the acquisition source) + `Soil Moisture` (copy→%,
-    unchanged entity/semantics). Shared `soil_v_wet` = 1.36 V (NOT per-device): full-day immersion
-    medians papyrus 1.361, prêle 1.355, trèfle 1.362, inter-device spread <10 mV < intra-device
-    noise 8-16 mV ⇒ shared justified (per-device would calibrate on noise). `soil_v_dry` stays 2.8
-    (documented out-of-range). Old 1.25 traced to upstream `7425d09` (never measured) → fork
-    diverges (note for upstreaming). PR #7 (`feat/soil-voltage-diagnostic`) MERGED into V2R1
-    2026-09-13 as merge commit `4974562`: `plants.yaml` all 8 (honest per-device status: 3 measured
-    carry their median, 5 carry adopted shared constant), regenerated `generated/*.yaml`
-    (drift-check OK), core default 1.36. VALIDATION (3 immersed canaries, HA live 2026-09-13):
-    cyperus-papyrus-54a9b2 100% moisture / soil_voltage 1.363V, oxalis-triangularis-5326ba 100% /
-    1.359V, equisetum-hyemale-54a994 100% / 1.353V; all on ESPHome 2026.8.2, healthy batteries,
-    multiple autonomous wake cycles, no OTA rollback. TRAP (still live for any future flash of the
-    calibration branch): the generated-`metadata:` `soil_v_wet` substitution OVERRIDES the core
-    default (same mechanism as per-device names); `@V2R1` now carries 1.36 so a fresh `@V2R1` flash
-    calibrates correctly. Cache purge MANDATORY before compile. REPIN DONE 2026-09-13 (fleet-wide
-    NAS cleanup, Florent-authorized): full audit of all 8 device YAMLs on NAS ugreen — 4 carried
-    stale branch pins (3 canaries core+metadata `@feat/soil-voltage-diagnostic`, rhipsalis-54a936
-    core `@fix/decouple-soil-cadence-v2`), all repinned `@V2R1` (backups `.bak-20260913-144847`);
-    now all 8 pin `@V2R1` exclusively on core+transport+metadata. `feat/soil-voltage-diagnostic`
-    branch is now safe to delete (no NAS reference). HYGIENE FLAG: `ceropegia-woodii-54a8f2.yaml`
-    is `root:root -rwxrwx---` (no `flow` access, modified today 08:17) — pins clean but ownership
-    anomalous vs the other 7 (`flow:admin`). RESIDUAL now only: fleet rollout of the 5 not-yet-
-    calibrated devices to shared 1.36 V — Florent-authorized flash only. Issue stays open until
-    rollout done.
-- Residual induced-failure validation `infra-3rr.14` is CLOSED wontfix (Florent
-  2026-09-04): live induced-failure canaries not justified on a stable fleet. The
-  low-battery maintenance reject (`bat < ota_min_battery` = 50%) was nonetheless
-  observed live 2026-09-13 (pilea-peperomioides-54a8e4 at 49% rejected). Normal
-  Maintenance, Storage entry/daily wake/exit, naming migration, fleet rollout, and
-  hourly cycles are already validated; do not repeat them.
-- Home Assistant naming migration: `infra-b5q` with `project=homeassistant`
-  (closed and validated across all eight active MQTT devices).
-- OTA: Device Builder push only — `ota: platform: esphome` +
-  `scripts/esphome_fleet_update.py`, triggered inside the maintenance window
-  (`decide_sleep`, gated by `ota_min_battery`). Pull-OTA (`http_request` +
-  `update:` + `pull_ota_enabled`) was removed 2026-09-03 (`infra-3rr.42`) as
-  over-engineered for an 8-device fleet: it needed an automated manifest
-  producer + hosting that was never built. The maintenance window and
-  `ota_min_battery` gate are unchanged. Already-flashed devices (e.g. canary
-  54a99c) keep two orphan retained discovery topics (`..._pull_ota` switch,
-  `..._firmware_pull_update` update) until emptied HA-side. Historical
-  evaluation: `docs/pull-ota-eval.md` (`infra-3rr.22`, superseded).
+- **Delivered** (fleet 8/8, detail in Beads):
+  - Low-battery protective hibernation + e-paper signalling — `infra-3rr.25` (closed
+    2026-09-01). WARN <30% full-screen inversion; CRITIQUE <=15% 24h hibernation with
+    hysteresis exit >=22%; thresholds per-device. Durable design on the epic.
+  - Transport decoupling + package cutover — `infra-3rr.34`, `.36`/`.37`. Prod composes
+    `smart_plant_core` + `smart_plant_profile_mqtt` (`_profile_api` = native-API
+    alternative; `smart_plant_base` retired). Plan `docs/transport-decoupling-plan.md`.
+  - Naming decoupling — epic `infra-zdxz` + HA `infra-kl21` (closed 2026-09-04). Explicit
+    `<device_name>-<mac6>` identities, `display_name` the human source, function-only MQTT
+    entity names, `name_by_user` kept (FR typography). Field map `docs/naming.md`; contract
+    `docs/naming-architecture.md`. HA migration `infra-b5q` (project=homeassistant, closed).
+  - Source-audit remediation — epic `infra-3rr.44` (closed 2026-09-16, 12/12 children).
+  - Soil calibration — `infra-3rr.44.1` (closed). Durable facts: shared `soil_v_wet = 1.36 V`
+    (NOT per-device — inter-device spread <10 mV < intra-device noise 8-16 mV); `soil_v_dry`
+    = 2.8 (documented out-of-range); soil split into `Soil Voltage` (diagnostic, acquisition
+    source) + `Soil Moisture` (%). TRAP: the generated `metadata:` `soil_v_wet` substitution
+    OVERRIDES the core default (same mechanism as per-device names) — purge the package cache
+    before compile.
+  - MAX17048 low-power doc correction — `infra-3rr.44.12` (closed 2026-09-16).
+- **Deferred / gated**:
+  - Fork upstreaming — fork-first strategy + coupling audit `docs/upstreaming-strategy.md`
+    (`infra-3rr.26`); steps S0-S4 = `infra-3rr.28`-`.33`.
+  - MAX17048 native model — gate `infra-3rr.45` (defer 2026-10-15) on ESPHome PR #18594
+    reaching a stable release; implementation `infra-3rr.46` hard-blocked until then.
+- **Live residuals (open)**:
+  - `infra-3rr.47` — retire manual `safe_mode.mark_successful` (native guard confirmed on
+    2026.8.2; branch `feat/drop-redundant-mark-successful`, canary-gated). In progress.
+  - `infra-3rr.50` — clear stale pull-OTA retained MQTT orphans (`pull_ota` /
+    `firmware_pull_update`, all 8; feature removed `infra-3rr.42`).
+  - `infra-3rr.51` — NAS `ceropegia-woodii-54a8f2.yaml` root:root ownership anomaly.
+- **OTA**: Device Builder push only (`ota: platform: esphome` + `scripts/esphome_fleet_update.py`,
+  maintenance-window gated by `ota_min_battery`). Pull-OTA removed 2026-09-03 (`infra-3rr.42`)
+  as over-engineered for 8 devices. Historical eval `docs/pull-ota-eval.md` (`infra-3rr.22`).
+- Do NOT repeat already-validated flows (Maintenance/Storage entry/exit, naming migration,
+  fleet rollout, hourly cycles). `infra-3rr.14` closed wontfix — no live induced-failure
+  canaries on a stable fleet (low-battery reject observed live 2026-09-13 anyway).
+- Fleet ESPHome version: read via HA discovery `dev.sw` / function-only topic, not legacy
+  retained orphans — see `bd memories version-check` and the `esphome-yaml` rule.
