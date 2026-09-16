@@ -390,5 +390,7 @@ script:
       # validation window. Mark the image valid before deep sleep resets it.
       - safe_mode.mark_successful
       - switch.turn_off: exc              # Cut sensor power before sleep
-      - max17043.sleep_mode: max17043_id  # Fuel gauge low-power mode
+      # The MAX17048 fuel gauge stays powered from VBAT and hibernates
+      # automatically; no host action is needed (max17043.sleep_mode is a no-op
+      # on the MAX17048 until upstream ESPHome PR #18594 is released stable).
       - deep_sleep.enter: deep_sleep_control

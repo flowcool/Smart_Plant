@@ -56,9 +56,18 @@ the one I strongly recommend is the one through the `ESPHome Add-on for Home Ass
 .. Note::
     The Smart Plant integrates a *battery gauge* sensor (MAX17043/MAX17048).
     ESPHome includes a **native** ``max17043`` component — no ``external_components``
-    are needed. The example configuration above already uses it. The native component
-    also provides a ``sleep_mode`` action used in the ``consider_deep_sleep`` script
-    to put the fuel gauge into low-power mode before entering deep sleep.
+    are needed. The example configuration above already uses it.
+
+    The gauge is powered permanently from the battery (VBAT), so it keeps
+    tracking the state of charge across deep sleep. No host action is required
+    to save power during sleep: the MAX17048 enters its **automatic hibernate**
+    mode on its own when cell activity is low (a few microamps) and wakes
+    automatically. Do **not** try to force it asleep from the
+    ``consider_deep_sleep`` script — the native ``max17043`` component's
+    ``sleep_mode`` action does not set the MAX17048 ``MODE.EnSleep`` bit and is
+    a silent no-op on that part until upstream ESPHome PR #18594 is released
+    stable; cutting the switched sensor rail beforehand also removes the I²C
+    pull-ups the gauge needs to answer.
 
 
 .. Note::
