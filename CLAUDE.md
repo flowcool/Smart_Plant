@@ -23,6 +23,13 @@ ESPHome 2027.1.0 image `platform:` syntax; we made the same fix independently
 
 ## NAS (source of truth for live configs)
 
+- **Host facts are NOT in this file — query the sources before assuming.** Which
+  host `/volume1/...` lives on, its OS/type, and the access path are owned by the
+  infra CMDB (`infra/repo/claude/cmdb/authored.yaml`, e.g. `yq '.hosts.ugreen'`),
+  routed by the KB corpus `operations/infrastructure/inventory-authority.md`.
+  Do not infer the host type from a `/volume1/` path — that convention is not a
+  vendor signature. Operational lessons (ACL/permission quirks, safe-write
+  playbooks) live in the KB corpus `/home/flow/claude_project/knowledge-base/bundle/`.
 - ESPHome configs: `/volume1/docker/homeassistant/esphome/`
 - HA configs: `/volume1/docker/homeassistant/homeassistant/`
 - Plant label images: `/volume1/docker/homeassistant/esphome/plant_labels/`
