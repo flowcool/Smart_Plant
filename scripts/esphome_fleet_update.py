@@ -289,13 +289,11 @@ class FleetUpdater:
         self, name: str, timeout_seconds: int, settle_seconds: int
     ) -> bool:
         """Block until the device's OTA port stays reachable for the settle
-        guard, so firmware/install runs against a demonstrably awake target and
-        produces an upload job instead of arming a deferred queued_update.
-        Returns False on timeout so the caller fails loudly, never no-ops
-        silently. NOTE: whether firmware/install still defers even against a
-        reachable target (Device Builder keying its upload on its own stale
-        discovery) is unverified — the bounded upload-adopt + loud raise in
-        install() cover that case regardless."""
+        guard, so the explicit-IP upload flashes a demonstrably awake target
+        instead of failing mid-transfer. Returns False on timeout so the caller
+        fails loudly, never no-ops silently. Reachability is ground truth here;
+        the upload targets the inventory IP directly, so it does not depend on
+        Device Builder's discovery cache being correct."""
         configuration = self.devices[name]["configuration"]
         ip = self.devices[name]["ip"]
         deadline = time.monotonic() + timeout_seconds
@@ -313,6 +311,50 @@ class FleetUpdater:
             time.sleep(self.poll_seconds)
         return False
 
+    def compile_one(self, name: str, retries: int) -> None:
+        """Distributed compile of one device with bounded cold-build retries.
+
+        Keeps the Ceropegia build-identity collision guard even for a single
+        target, so a mis-keyed inventory can never let two devices share one
+        artifact. The compile auto-routes to the paired receiver and stages the
+        binary back locally for the subsequent explicit-IP upload."""
+        self.refuse_unsafe_batch_build([name])
+        configuration = self.devices[name]["configuration"]
+        for attempt in range(1, retries + 2):
+            job = self.api("firmware/compile", {"configuration": configuration})
+            result = self.wait_job(job["job_id"])
+            if result["status"] == "completed":
+                return
+            if attempt > retries:
+                raise RuntimeError(
+                    f"{configuration} compile failed after {attempt} attempt(s): "
+                    f"{result.get('error') or result.get('failure_reason') or 'unknown error'}"
+                )
+            print(f"{configuration}: retrying failed cold build ({attempt}/{retries})")
+
+    def upload_explicit(self, name: str) -> dict[str, Any]:
+        """Flash the last-compiled artifact to the device's inventory IP.
+
+        Uploads with an explicit IP (``port=<ip>``): Device Builder forwards it
+        verbatim as ``esphome --device <ip>``, bypassing the discovery address
+        cache that makes ``firmware/install`` defer against this MQTT-primary
+        fleet (runtime_state chronically ``offline`` even while TCP:3232 is up).
+        The upload is a standalone job whose own id is waited directly — never a
+        dependent adopted from a compile. A non-completed upload raises; there is
+        no silent "deferred" success the caller mistakes for a flash."""
+        configuration = self.devices[name]["configuration"]
+        ip = self.devices[name]["ip"]
+        job = self.api(
+            "firmware/upload", {"configuration": configuration, "port": ip}
+        )
+        result = self.wait_job(job["job_id"])
+        if result["status"] != "completed":
+            raise RuntimeError(
+                f"{configuration} upload to {ip} failed: "
+                f"{result.get('error') or result.get('failure_reason') or 'unknown error'}"
+            )
+        return result
+
     def install(
         self,
         name: str,
@@ -320,66 +362,27 @@ class FleetUpdater:
         reachable_timeout: int,
         settle_seconds: int,
     ) -> dict[str, Any]:
+        """Compile then explicit-IP upload one device — never firmware/install.
+
+        firmware/install keys its dependent upload on Device Builder's discovery
+        cache and defers whenever that cache reads offline, even against a target
+        answering TCP:3232 — a silent no-op the caller mistook for a flash. The
+        split builds first (device may sleep through the distributed compile),
+        then gates on settled OTA reachability and uploads to the inventory IP.
+        Compile and upload are distinct results: a compile failure never counts
+        as a flash, and a missing upload is an error, not a deferred success."""
         configuration = self.devices[name]["configuration"]
-        # Gate on settled OTA reachability BEFORE firing. An install against an
-        # unreachable/sleeping target compiles but produces no dependent upload
-        # job, silently returning a "deferred OTA armed" no-op the caller
-        # mistakes for a flash. Hold the device awake (maintenance ON) so its
-        # OTA port becomes reachable within the timeout.
+        self.compile_one(name, retries)
+        # Gate on settled OTA reachability BEFORE uploading. Hold the device
+        # awake (maintenance ON) so its OTA port becomes reachable in time.
         if not self.wait_flashable(name, reachable_timeout, settle_seconds):
             raise RuntimeError(
                 f"{configuration}: OTA port not settled-reachable within "
-                f"{reachable_timeout}s; refusing to fire install (it would only "
-                f"arm a deferred OTA without flashing). Publish maintenance ON to "
-                f"hold it awake, then retry."
+                f"{reachable_timeout}s; refusing to upload (the artifact is built "
+                f"but the device is unreachable). Publish maintenance ON to hold "
+                f"it awake, then retry."
             )
-        for attempt in range(1, retries + 2):
-            job = self.api(
-                "firmware/install", {"configuration": configuration, "port": "OTA"}
-            )
-            result = self.wait_job(job["job_id"])
-            if result["status"] == "completed":
-                # The dependent upload can lag compile completion by a poll or
-                # two. Adopt it within a bounded window instead of declaring a
-                # deferred no-op on the first miss.
-                upload_job = None
-                for _ in range(3):
-                    jobs = self.api(
-                        "firmware/get_jobs", {"configuration": configuration}
-                    )
-                    uploads = [
-                        candidate
-                        for candidate in jobs
-                        if candidate.get("job_type") == "upload"
-                        and candidate.get("depends_on") == job["job_id"]
-                    ]
-                    if uploads:
-                        upload_job = uploads[-1]
-                        break
-                    time.sleep(self.poll_seconds)
-                if upload_job is None:
-                    # Online at install time yet still no upload: an anomaly,
-                    # not a routine deferral. Fail loudly — never a silent
-                    # "compiled" success the caller mistakes for a flash.
-                    raise RuntimeError(
-                        f"{configuration}: compiled while online but no upload "
-                        f"job materialized (a queued_update may be armed); not "
-                        f"reported as flashed. Inspect Device Builder discovery."
-                    )
-                upload = self.wait_job(upload_job["job_id"])
-                if upload["status"] != "completed":
-                    raise RuntimeError(
-                        f"{configuration} upload failed: "
-                        f"{upload.get('error') or upload.get('failure_reason') or 'unknown error'}"
-                    )
-                return upload
-            if attempt > retries:
-                raise RuntimeError(
-                    f"{configuration} compile failed after {attempt} attempt(s): "
-                    f"{result.get('error') or result.get('failure_reason') or 'unknown error'}"
-                )
-            print(f"{configuration}: retrying failed cold build ({attempt}/{retries})")
-        raise AssertionError("unreachable")
+        return self.upload_explicit(name)
 
     def install_many(
         self,
@@ -429,7 +432,13 @@ class FleetUpdater:
         timeout_seconds: int,
         settle_seconds: int,
     ) -> tuple[dict[str, str], dict[str, str]]:
-        """Arm installs only after online + ON remain true for the guard."""
+        """Arm explicit-IP uploads once online + ON hold for the settle guard.
+
+        The fleet is precompiled before maintenance opens, so each ready device
+        needs only an upload. Submit it to the inventory IP (bypassing the
+        discovery cache that defers firmware/install) as the device settles, so
+        uploads run independently while the rest of the fleet is still waking.
+        Returns the per-device upload job ids to wait on."""
         deadline = time.monotonic() + timeout_seconds
         settling_since: dict[str, float] = {}
         jobs: dict[str, str] = {}
@@ -448,12 +457,12 @@ class FleetUpdater:
                     continue
                 configuration = self.devices[name]["configuration"]
                 job = self.api(
-                    "firmware/install",
-                    {"configuration": configuration, "port": "OTA"},
+                    "firmware/upload",
+                    {"configuration": configuration, "port": self.devices[name]["ip"]},
                 )
                 jobs[name] = job["job_id"]
                 pending.remove(name)
-                print(f"{configuration}: maintenance settled; install armed")
+                print(f"{configuration}: maintenance settled; explicit-IP upload armed")
             if pending:
                 time.sleep(self.poll_seconds)
         return jobs, {name: "maintenance readiness timeout" for name in pending}
@@ -465,7 +474,11 @@ class FleetUpdater:
         maintenance_timeout: int,
         settle_seconds: int,
     ) -> None:
-        """Precompile the fleet, then open maintenance and arm every install."""
+        """Precompile the fleet, then open maintenance and upload each device.
+
+        Every job in ``jobs`` is already a standalone explicit-IP upload (the
+        precompile ran before maintenance), so each is waited directly — no
+        dependent-upload adoption and no "deferred OTA armed" no-op path."""
         self.compile_many(names, retries)
         self.publish_maintenance(names, "ON")
 
@@ -476,28 +489,7 @@ class FleetUpdater:
                 names, maintenance_timeout, settle_seconds
             )
             for name, job_id in jobs.items():
-                result = self.wait_job(job_id)
-                if result["status"] != "completed":
-                    failures[name] = (
-                        result.get("error")
-                        or result.get("failure_reason")
-                        or result["status"]
-                    )
-                    continue
-                configuration = self.devices[name]["configuration"]
-                candidates = self.api(
-                    "firmware/get_jobs", {"configuration": configuration}
-                )
-                uploads = [
-                    candidate
-                    for candidate in candidates
-                    if candidate.get("job_type") == "upload"
-                    and candidate.get("depends_on") == job_id
-                ]
-                if not uploads:
-                    print(f"{configuration}: compiled; deferred OTA armed")
-                    continue
-                upload = self.wait_job(uploads[-1]["job_id"])
+                upload = self.wait_job(job_id)
                 if upload["status"] != "completed":
                     failures[name] = (
                         upload.get("error")
