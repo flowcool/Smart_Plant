@@ -128,9 +128,15 @@ live residuals); closed-work detail (commits, canary IDs, per-device values) liv
     (`infra-3rr.26`); steps S0-S4 = `infra-3rr.28`-`.33`.
   - MAX17048 native model — gate `infra-3rr.45` (defer 2026-10-15) on ESPHome PR #18594
     reaching a stable release; implementation `infra-3rr.46` hard-blocked until then.
+- **Landed 2026-09-22**: `safe_mode.mark_successful` retired from fleet-source `smart_plant_core.yaml`
+  (native `>=2026.8.0` guard confirmed on orderly `deep_sleep.enter`; merged `9ae211f`, canary
+  `ceropegia-woodii-54a8f2` validated on `2026.9.0`, deployed hash `1e6ceb07`, no rollback —
+  `infra-3rr.47` closed). Fleet-upload split compile→explicit-IP proven — `infra-3rr.27` closed
+  (`1dcddfc`, 9/9 unit tests). PENDING (untracked in beads by decision 2026-09-22): the other 7
+  devices still run `2026.8.2` WITH `mark_successful`; a fleet OTA to `2026.9.0` (removes it) awaits
+  a maintenance window under separate authorization. `configuration.yaml` public example keeps the
+  defensive call.
 - **Live residuals (open)**:
-  - `infra-3rr.47` — retire manual `safe_mode.mark_successful` (native guard confirmed on
-    2026.8.2; branch `feat/drop-redundant-mark-successful`, canary-gated). In progress.
   - `infra-3rr.50` — clear stale pull-OTA retained MQTT orphans (`pull_ota` /
     `firmware_pull_update`, all 8; feature removed `infra-3rr.42`).
   - `infra-3rr.51` — NAS `ceropegia-woodii-54a8f2.yaml` root:root ownership anomaly.
