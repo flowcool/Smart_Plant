@@ -76,8 +76,13 @@
   one short online measurement window, deep sleep, and at least two subsequent
   hourly wake/sleep cycles.
 - OTA reachability: `nc -z -w1 <ip> 3232`; ICMP ping is not authoritative.
-- Next device wake time: query HA API `last_updated` of each plant battery sensor
-  and add 1 hour. Do NOT use MQTT `%I` (delivery time, not publish time).
+- Next device wake time: take MAX(`last_updated`/`last_reported`) across ALL of a
+  device's HA entities (soil/lux/RSSI change every wake), then add the cycle
+  length — 1h normally, 24h when its retained `<prefix>/status/storage_mode` is
+  ON. Do NOT use the battery sensor alone: HA does not bump `last_updated` on an
+  identical MQTT payload, so a slowly-changing battery % freezes it and the +1h
+  prediction lands in the past (observed 2026-09-22, `infra-3rr.53`). Do NOT use
+  MQTT `%I` (delivery time, not publish time).
   ```bash
   curl -s "$HASS_SERVER/api/states" -H "Authorization: Bearer $HASS_TOKEN" \
     | python3 -c "import json,sys; ..."
