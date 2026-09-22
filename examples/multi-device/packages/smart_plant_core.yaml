@@ -570,7 +570,10 @@ script:
     then:
       - script.execute: on_display_fault
       - script.wait: on_display_fault
-      - safe_mode.mark_successful
+      # No safe_mode.mark_successful: on ESPHome >=2026.8.0 an orderly
+      # deep_sleep.enter natively confirms the app image (on_safe_shutdown ->
+      # confirm_app_image_), making the manual call redundant. Retired in
+      # infra-3rr.47. The public configuration.yaml example keeps the call.
       - deep_sleep.allow: deep_sleep_control
       - switch.turn_off: exc
       - if:
@@ -695,10 +698,11 @@ script:
               return id(display_safe_to_sleep) &&
                      digitalRead(${display_busy_gpio}) == LOW;
           then:
-            # Normal wake cycles finish in less than ESPHome's default
-            # 60-second validation window. Mark the image valid only after the
-            # final post-flush BUSY check and immediately before safe shutdown.
-            - safe_mode.mark_successful
+            # No safe_mode.mark_successful: the sub-60s wake cycle that used to
+            # need a manual mark before ESPHome's 60-second OTA window is now
+            # covered natively (>=2026.8.0 confirms the image on any orderly
+            # deep_sleep.enter). Retired in infra-3rr.47; the public
+            # configuration.yaml example keeps the call.
             - deep_sleep.allow: deep_sleep_control
             - switch.turn_off: exc
             - if:

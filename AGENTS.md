@@ -55,9 +55,11 @@
   messages. Device Builder container logs do not include every firmware log.
 - A device that reports `Bootloader too old for OTA rollback` needs one serial
   USB flash of `firmware.factory.bin`; OTA does not update the bootloader.
-- Every orderly sleep path must call `safe_mode.mark_successful` before
-  `deep_sleep.enter`, because the normal cycle can finish before ESPHome's
-  default 60-second OTA validation window.
+- ESPHome `>=2026.8.0` natively confirms the app image on every orderly
+  `deep_sleep.enter`, covering the normal cycle that finishes before ESPHome's
+  default 60-second OTA validation window, so production packages no longer call
+  `safe_mode.mark_successful` (retired in `infra-3rr.47`; the public
+  `configuration.yaml` example keeps it for version-agnostic safety).
 - Rollback for shared-package changes: revert the corrective commit, push
   `V2R1`, purge the package cache, and flash the last validated factory/OTA
   image. USB recovery is the final fallback.

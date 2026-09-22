@@ -21,8 +21,12 @@ paths:
   `configured_name` and Device Builder does not collide on identical node names.
 - Maintenance commands must be retained and published/subscribed at QoS 1.
 - Packages are fetched from GitHub — after pushing changes, clear the package cache on NAS before flashing.
-- Every orderly deep-sleep path must call `safe_mode.mark_successful` before
-  `deep_sleep.enter` so a healthy first OTA boot is not rolled back.
+- Production packages rely on ESPHome's native deep-sleep OTA guard
+  (`>=2026.8.0`): an orderly `deep_sleep.enter` confirms the app image via
+  `on_safe_shutdown` -> `confirm_app_image_`, so `smart_plant_core.yaml` no
+  longer calls `safe_mode.mark_successful` (retired in `infra-3rr.47`). The
+  public `configuration.yaml` example keeps the explicit call because it targets
+  arbitrary ESPHome versions.
 - To read deployed fleet ESPHome version, trust the HA discovery config `dev.sw`
   field or the current function-only topic `<mac-prefix>/sensor/esphome_version/state`,
   cross-checked with `esphome/discover/<current-mac-name>`. Legacy per-device
