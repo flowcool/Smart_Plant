@@ -28,8 +28,8 @@
   `name_add_mac_suffix: false`. This preserves hostname/MQTT identity while
   giving Device Builder and build artifacts an unambiguous configured name.
 - The naming target generalizes that explicit effective identity to all eight
-  devices, preserving every hostname and MQTT prefix byte-for-byte. DELIVERED and
-  flashed fleet-wide 2026-09-03 (8/8 on `f913779`): explicit `configured_name` +
+  devices, preserving every hostname and MQTT prefix byte-for-byte. DELIVERED
+  2026-09-03 (evidence in `infra-zdxz`): explicit `configured_name` +
   `name_add_mac_suffix: false`, `display_name` the single human source. HA
   registry migrated in place (clean MAC-bearing entity_ids, orphan rows/stats
   deleted, retained discovery emptied, consumers re-pointed). `name_by_user` is
@@ -102,11 +102,14 @@
 ## Durable work state
 
 Beads is authoritative for current work: `bd list --metadata-field project=Smart_Plant`.
-This section holds only structural pointers (epics, plan docs, durable design facts,
-live residuals); closed-work detail (commits, canary IDs, per-device values) lives in Beads.
+This section holds only structural pointers (epics, plan docs, durable design facts).
+It never records live state: issue status lives in Beads, and per-device firmware
+version/config hash live on the devices. Read them from the source every time:
+`python3 scripts/esphome_fleet_update.py status` (expected vs deployed hash) and
+`scripts/mqtt_retained.sh '+/sensor/esphome_version/state'` (runtime version + config hash).
 
 - Roadmap epic: `infra-3rr`.
-- **Delivered** (fleet 8/8, detail in Beads):
+- **Delivered** (detail in Beads):
   - Low-battery protective hibernation + e-paper signalling — `infra-3rr.25` (closed
     2026-09-01). WARN <30% full-screen inversion; CRITIQUE <=15% 24h hibernation with
     hysteresis exit >=22%; thresholds per-device. Durable design on the epic.
@@ -130,23 +133,14 @@ live residuals); closed-work detail (commits, canary IDs, per-device values) liv
     (`infra-3rr.26`); steps S0-S4 = `infra-3rr.28`-`.33`.
   - MAX17048 native model — gate `infra-3rr.45` (defer 2026-10-15) on ESPHome PR #18594
     reaching a stable release; implementation `infra-3rr.46` hard-blocked until then.
-- **Landed 2026-09-22**: `safe_mode.mark_successful` retired from fleet-source `smart_plant_core.yaml`
-  (native `>=2026.8.0` guard confirmed on orderly `deep_sleep.enter`; merged `9ae211f`, canary
-  `ceropegia-woodii-54a8f2` validated on `2026.9.0`, deployed hash `1e6ceb07`, no rollback —
-  `infra-3rr.47` closed). Fleet-upload split compile→explicit-IP proven — `infra-3rr.27` closed
-  (`1dcddfc`, 9/9 unit tests). PENDING (untracked in beads by decision 2026-09-22): the other 7
-  devices still run `2026.8.2` WITH `mark_successful`; a fleet OTA to `2026.9.0` (removes it) awaits
-  a maintenance window under separate authorization. `configuration.yaml` public example keeps the
-  defensive call.
-- **Live residuals (open)**:
-  - `infra-3rr.50` — clear stale pull-OTA retained MQTT orphans (`pull_ota` /
-    `firmware_pull_update`, all 8; feature removed `infra-3rr.42`).
-  - `infra-3rr.51` — NAS `ceropegia-woodii-54a8f2.yaml` root:root ownership anomaly.
+  - `safe_mode.mark_successful` retired from `smart_plant_core.yaml` — `infra-3rr.47`
+    (native `>=2026.8.0` guard); the public `configuration.yaml` example keeps the
+    defensive call. Compile/explicit-IP upload split — `infra-3rr.27`.
 - **OTA**: Device Builder push only (`ota: platform: esphome` + `scripts/esphome_fleet_update.py`,
   maintenance-window gated by `ota_min_battery`). Pull-OTA removed 2026-09-03 (`infra-3rr.42`)
   as over-engineered for 8 devices. Historical eval `docs/pull-ota-eval.md` (`infra-3rr.22`).
 - Do NOT repeat already-validated flows (Maintenance/Storage entry/exit, naming migration,
   fleet rollout, hourly cycles). `infra-3rr.14` closed wontfix — no live induced-failure
   canaries on a stable fleet (low-battery reject observed live 2026-09-13 anyway).
-- Fleet ESPHome version: read via HA discovery `dev.sw` / function-only topic, not legacy
-  retained orphans — see `bd memories version-check` and the `esphome-yaml` rule.
+- Fleet ESPHome version: read from the runtime surfaces above, not legacy retained
+  orphans; the `config hash` proves a package revision — see the `esphome-yaml` rule.

@@ -56,7 +56,7 @@ collision on identical node names. The naming target generalizes each already-
 effective `<device_name>-<mac6>` configured name with
 `name_add_mac_suffix: false` to all eight, preserving every hostname and MQTT
 prefix byte-for-byte while preventing MAC suffixes in human device names. This
-is DONE: flashed fleet-wide 2026-09-03 (8/8 on `f913779`), HA registry migrated
+is DONE (migration 2026-09-03, evidence in `infra-zdxz`), HA registry migrated
 in place, consumers re-pointed, `name_by_user` kept for FR typography. See
 `docs/naming.md` for the field map and `docs/naming-architecture.md` for the
 migration contract (executed, Path 2).
@@ -124,7 +124,7 @@ Structural pointers (epics, plan docs, cross-project handoffs):
   `entity_id`s; `name_by_user` kept for FR typography. Field map `docs/naming.md`;
   contract `docs/naming-architecture.md`.
 - Package cutover (`infra-3rr.36`/`.37`) and low-battery hibernation
-  (`infra-3rr.25`) shipped fleet-wide (8/8 on `core`+`profile_mqtt`);
+  (`infra-3rr.25`) shipped; production composes `core`+`profile_mqtt`;
   `smart_plant_base.yaml` retired.
 - Historical naming migration woodii→botanical: `infra-b5q`
   (`project=homeassistant`, closed) — do not restore legacy prefixes.
