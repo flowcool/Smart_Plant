@@ -1,18 +1,18 @@
 # Upstream contribution strategy — flowcool/Smart_Plant → JGAguado/Smart_Plant
 
-Owning roadmap: `infra-3rr`. Architecture gate: `infra-3rr.21`. Historical
-strategy issue: `infra-3rr.26`.
+Owning roadmap: `infra-3rr`. Historical strategy issue: `infra-3rr.26`.
+Publication and review owner: `infra-3rr.41`.
 
 ## Status
 
-The fork-first implementation and production validation are complete. Work now
-targets a reviewable contribution series rebuilt from the current
-`upstream/V2R1`; the fork's accumulated commit history is evidence, not the
+The fork-first implementation and production validation are complete. Three
+reviewable contributions rebuilt from `upstream/V2R1` were published on
+2026-09-25; the fork's accumulated commit history remains evidence, not the
 series to merge.
 
 JGAguado accepted the Maintenance/Storage direction and offered `flowcool`
-maintainership of the advanced work in upstream issue #24. The remaining gate
-is explicit agreement on repository topology:
+maintainership of the advanced work in upstream issue #24. The original plan
+asked for explicit agreement on repository topology before publishing:
 
 - preferred: one `V2R1` branch, the existing newcomer configuration kept as the
   default, and advanced material isolated under `examples/multi-device/`;
@@ -21,10 +21,30 @@ is explicit agreement on repository topology:
 
 A follow-up requesting that decision and proposing the PR series was posted on
 2026-09-25: <https://github.com/JGAguado/Smart_Plant/issues/24#issuecomment-5838158797>.
+Florent then removed the response gate and chose normal PR review as the
+decision surface. `infra-3rr.21` was superseded by `infra-3rr.41`.
 
-## Current baseline
+### Published contribution stack
 
-Audit snapshot before preparation:
+All three PRs target upstream `V2R1`. GitHub cannot use a fork-owned branch as
+the base of a PR in the upstream repository, so PR #28 and PR #29 temporarily
+show their predecessors too. Each body identifies its one new commit and links
+an isolated comparison. Review and merge order is #27 → #28 → #29.
+
+| PR | Durable scope | New commit |
+| --- | --- | --- |
+| [#27](https://github.com/JGAguado/Smart_Plant/pull/27) | Standalone baseline and documentation | `35ee343` |
+| [#28](https://github.com/JGAguado/Smart_Plant/pull/28) | Shared core plus API/MQTT profiles | `a544250` |
+| [#29](https://github.com/JGAguado/Smart_Plant/pull/29) | Generic sensor and e-paper lifecycle hardening | `8f4f75f` |
+
+PR 4 (low-battery protection) and PR 5 (Maintenance/Storage) remain separate,
+unprepared contribution scopes. Beads issues `infra-3rr.31` and
+`infra-3rr.40` own any future preparation; this document does not imply that
+they are scheduled or authorized for publication.
+
+## Historical preparation baseline
+
+Historical audit snapshot before preparation:
 
 - fork: `flowcool/Smart_Plant@V2R1`, commit `89a046e`;
 - upstream target: `JGAguado/Smart_Plant@V2R1`, commit `b5d9ba4`;
@@ -67,7 +87,7 @@ upstream: extract a short generic guide and leave deployment operations here.
 
 ## Recommended PR series
 
-### PR 1 — Baseline documentation and standalone configuration
+### PR 1 — Baseline documentation and standalone configuration (published #27)
 
 Correct only behavior that already belongs to the upstream standalone path:
 
@@ -78,7 +98,7 @@ Correct only behavior that already belongs to the upstream standalone path:
 Do not reference future profile filenames in this PR. Validate the standalone
 YAML, build the Sphinx documentation, check links, and document compatibility.
 
-### PR 2 — Shared core and transport profiles
+### PR 2 — Shared core and transport profiles (published #28)
 
 Replace the upstream MQTT-only base package with flat sibling composition:
 
@@ -89,9 +109,9 @@ Replace the upstream MQTT-only base package with flat sibling composition:
 
 This PR owns structure, not later features. Prove the MQTT composition preserves
 the upstream package behavior, compile both profiles, and keep the standalone
-configuration as the newcomer entry point. Opening it is gated by issue #24.
+configuration as the newcomer entry point.
 
-### PR 3 — Generic hardware and sensor hardening
+### PR 3 — Generic hardware and sensor hardening (published #29)
 
 Port only transport-independent corrections:
 
@@ -139,10 +159,11 @@ commits and provide the same evidence matrix per commit.
 
 ## Sequencing
 
-Local documentation/test convergence and the upstream delta inventory may run
-while issue #24 awaits a response. PR 1 can be prepared independently because it
-does not assume the profile topology. PR 2 and every dependent PR may be
-prepared locally but must not be opened until the topology gate is resolved.
+PRs #27-#29 were published as an ordered stack after Florent explicitly removed
+the maintainer-response gate. Review them by their isolated commit and merge
+them in order; after each predecessor merges unchanged, GitHub reduces the next
+PR to its owned delta. PR 4 and PR 5 require their own preparation and
+validation before any separate publication decision.
 
 No upstream merge authorizes a fork rebase, package-cache reset, compile, OTA,
 or fleet deployment. Those remain separate state-changing operations with their

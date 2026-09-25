@@ -10,4 +10,5 @@
 
 # Agent/session scratch and Python caches
 /tmp/
+/docs/build/
 __pycache__/

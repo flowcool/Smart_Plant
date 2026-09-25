@@ -167,7 +167,7 @@ application-friendly-name suffixing changes. The two-Ceropegia special case in
 the current package comment collapses — all eight then follow the same explicit
 rule.
 
-### 3.2 Firmware changes (implemented in repository; live cutover pending)
+### 3.2 Historical firmware change plan (live cutover completed)
 
 1. All 8 devices: `configured_name: "<device_name>-<mac6>"` +
    `name_add_mac_suffix: false` (identity-preserving, §3.1).

@@ -1,13 +1,14 @@
 # Transport decoupling plan (model B) — API vs MQTT ⊥ multi-device
 
-Owning issue: **infra-3rr.34** (RTFM + plan). Feeds the deferred consolidated upstream PR
-(infra-3rr.26 strategy). Implementation is a SEPARATE issue created only after this plan is agreed.
+Owning issue: **infra-3rr.34** (RTFM + plan). This is the historical design
+input to the upstream contribution strategy (`infra-3rr.26`).
 
 > **STATUS — IMPLEMENTED 2026-09-01.** The production fleet composes
 > `smart_plant_core.yaml` with `smart_plant_profile_mqtt.yaml`; the native-API
 > alternative is `smart_plant_profile_api.yaml`; `smart_plant_base.yaml` is
 > retired. This document is the historical design rationale, not current work
-> state. Current contribution sequencing lives in `upstreaming-strategy.md`.
+> state. The profile split was published as upstream PR #28; durable contribution
+> sequencing lives in `upstreaming-strategy.md` and live review state in Beads.
 
 > **NOTE 2026-09-03:** pull-OTA was removed (`infra-3rr.42`). Ignore the
 > `http_request`/`update`/`pull_ota_enabled` items in the inventory below — they
@@ -151,8 +152,9 @@ local/CI, hardware-free.
    preservation.
 5. **Migrate the 8 devices** to `core + profile-mqtt` (one canary first, per nas-operations;
    behaviour-preserving, OTA). Only after this is the fork stabilised.
-6. **Feeds the consolidated upstream PR** (infra-3rr.26): upstream then receives core + both
-   profiles, offering API *and* MQTT instead of imposing MQTT.
+6. **Feed upstream contribution preparation** (infra-3rr.26): upstream receives core + both
+   profiles, offering API *and* MQTT instead of imposing MQTT. This material was
+   published as PR #28 on 2026-09-25.
 
 ## 7. Rollback / blast radius
 

@@ -119,9 +119,10 @@ version/config hash live on the devices. Read them from the source every time:
     before compile.
   - MAX17048 low-power doc correction — `infra-3rr.44.12` (closed 2026-09-16).
 - **Deferred / gated**:
-  - Fork upstreaming — current contribution plan `docs/upstreaming-strategy.md`
-    (`infra-3rr.26`); maintainer architecture gate `infra-3rr.21`; preparation
-    work is tracked by the roadmap children rather than this file.
+  - Fork upstreaming — contribution record and review contract
+    `docs/upstreaming-strategy.md` (`infra-3rr.26`); publication/review owner
+    `infra-3rr.41`. PRs #27-#29 carry the prepared baseline, profile split, and
+    generic hardening changes. Read their live review state from GitHub/Beads.
   - MAX17048 native model — gate `infra-3rr.45` (defer 2026-10-15) on ESPHome PR #18594
     reaching a stable release; implementation `infra-3rr.46` hard-blocked until then.
   - `safe_mode.mark_successful` retired from `smart_plant_core.yaml` — `infra-3rr.47`

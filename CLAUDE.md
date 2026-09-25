@@ -6,11 +6,13 @@ safety, validation, and current-work guide shared by coding agents.
 # Claude-specific context
 
 Fork `flowcool/Smart_Plant` of `JGAguado/Smart_Plant`. Active branch: `V2R1`.
-Upstream PRs: #9,#12,#13,#17,#18,#19,#20,#22,#25 merged on `upstream/V2R1`
-(the integration branch, 105 commits ahead of `upstream/main`). #25 is the
-ESPHome 2027.1.0 image `platform:` syntax; we made the same fix independently
-(convergent, trivial rebase). Fork upstreaming strategy + coupling audit:
-`docs/upstreaming-strategy.md` (infra-3rr.26).
+Historical upstream PRs #9,#12,#13,#17,#18,#19,#20,#22,#25 merged on
+`upstream/V2R1` (the integration branch, 105 commits ahead of `upstream/main`).
+#25 is the ESPHome 2027.1.0 image `platform:` syntax; we made the same fix
+independently (convergent, trivial rebase). The fork published contributions
+#27-#29 on 2026-09-25. Their durable scope/order and the remaining boundaries
+are in `docs/upstreaming-strategy.md` (`infra-3rr.26`); query GitHub or
+`infra-3rr.41` for live review state.
 
 ## Architecture
 

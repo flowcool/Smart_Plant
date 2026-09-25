@@ -5,6 +5,12 @@ issue 24. It describes the behaviour validated in the Smart Plant V2R1 fork;
 it is not an upstream PR and does not prescribe a particular Home Assistant
 implementation.
 
+> **STATUS 2026-09-25:** This remains the historical design foundation for the
+> advanced Maintenance/Storage contribution. The prepared baseline, profile
+> split, and generic hardening work were published separately as upstream PRs
+> #27, #28, and #29. Maintenance/Storage itself is not part of those PRs; use
+> `docs/upstreaming-strategy.md` and Beads for the current contribution boundary.
+
 The implementation later adopted explicit identity-preserving configured names
 for the flowcool fleet. Topic contracts below use the effective ESPHome
 application prefix and do not require one particular suffix configuration.
@@ -154,7 +160,10 @@ opt-in or preserve the current normal one-hour lifecycle unless a mode is
 explicitly requested. Each change needs a compile test, one physical canary,
 and a documented rollback path.
 
-## Issue 24 — continuation draft
+## Issue 24 — historical continuation draft
+
+> The text below predates PRs #27-#29 and is preserved as the discussion draft,
+> not as a current promise or publication gate.
 
 The first part of this proposal comes from a practical Home Assistant use case:
 I wanted a reliable way to patch a sleeping plant without repeatedly refreshing
