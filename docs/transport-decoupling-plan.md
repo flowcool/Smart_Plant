@@ -3,6 +3,12 @@
 Owning issue: **infra-3rr.34** (RTFM + plan). Feeds the deferred consolidated upstream PR
 (infra-3rr.26 strategy). Implementation is a SEPARATE issue created only after this plan is agreed.
 
+> **STATUS — IMPLEMENTED 2026-09-01.** The production fleet composes
+> `smart_plant_core.yaml` with `smart_plant_profile_mqtt.yaml`; the native-API
+> alternative is `smart_plant_profile_api.yaml`; `smart_plant_base.yaml` is
+> retired. This document is the historical design rationale, not current work
+> state. Current contribution sequencing lives in `upstreaming-strategy.md`.
+
 > **NOTE 2026-09-03:** pull-OTA was removed (`infra-3rr.42`). Ignore the
 > `http_request`/`update`/`pull_ota_enabled` items in the inventory below — they
 > no longer exist in the packages.

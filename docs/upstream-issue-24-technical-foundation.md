@@ -5,6 +5,10 @@ issue 24. It describes the behaviour validated in the Smart Plant V2R1 fork;
 it is not an upstream PR and does not prescribe a particular Home Assistant
 implementation.
 
+The implementation later adopted explicit identity-preserving configured names
+for the flowcool fleet. Topic contracts below use the effective ESPHome
+application prefix and do not require one particular suffix configuration.
+
 ## Motivation
 
 Smart Plant devices spend most of their lifetime in deep sleep. A remote
@@ -23,9 +27,10 @@ integration.
 
 ## State and topic contract
 
-The canonical MQTT prefix is derived by ESPHome from the botanical device name
-and the last three MAC bytes (`name_add_mac_suffix: true`). No device-specific
-command topic is hard-coded in the shared package.
+The MQTT prefix is ESPHome's effective application name. A fresh example may
+derive it from the device name and MAC suffix; an existing installation may
+freeze that same effective value as an explicit configured name. No
+device-specific command topic is hard-coded in the shared package.
 
 | Purpose | Topic | Retained | Meaning |
 | --- | --- | --- | --- |
@@ -87,7 +92,8 @@ Important safety properties:
 Storage is a parked-plant mode, not a second measurement cadence. On entry and
 on every daily wake, the device:
 
-1. powers the sensor rail only long enough to read MAX17043;
+1. powers the sensor rail only long enough to read the MAX17048 through
+   ESPHome's `max17043` component;
 2. publishes a fresh battery value;
 3. renders the Storage page once and waits for a safe BUSY transition;
 4. publishes effective Storage `ON` and sleeps for 24 hours.

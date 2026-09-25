@@ -7,7 +7,7 @@ generated per-device metadata:
     and is independent of the human display name;
   * every HA-exposed entity name is function-only, so no display/identity field
     leaks into an entity's MQTT unique_id;
-  * the 12 function-only names yield collision-free MQTT unique_ids
+  * the 11 function-only names yield collision-free MQTT unique_ids
     (fnv1_hash of the entity name, source-verified against ESPHome 2026.7.4);
   * changing display_name changes only human-display outputs, never identity.
 
@@ -34,11 +34,11 @@ _spec = importlib.util.spec_from_file_location(
 gen = importlib.util.module_from_spec(_spec)
 _spec.loader.exec_module(gen)
 
-# The 12 HA-exposed entity names (function-only) + 2 internal ones.
+# The 11 HA-exposed entity names (function-only) + 2 internal ones.
 EXPOSED_NAMES = {
-    "Battery", "Temperature", "Air Humidity", "Ambient light", "Soil Moisture",
-    "ESPHome Version", "Maintenance", "Storage Mode", "Pull OTA",
-    "Maintenance Status", "Storage Mode Status", "Firmware pull update",
+    "Battery", "Temperature", "Air Humidity", "Ambient light", "Soil Voltage",
+    "Soil Moisture", "ESPHome Version", "Maintenance", "Storage Mode",
+    "Maintenance Status", "Storage Mode Status",
 }
 INTERNAL_NAMES = {"Battery voltage", "Actual gain"}
 ENTITY_SECTIONS = ("sensor", "text_sensor", "switch", "update", "binary_sensor")

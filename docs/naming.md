@@ -1,18 +1,17 @@
-# Naming model — deployed, staged, and target states
+# Naming model — deployed contract and historical cutover notes
 
-This page is the operational field map for SmartPlant naming. The durable
-design and the coordinated Home Assistant migration contract live in
-[`naming-architecture.md`](naming-architecture.md). Current execution state and
-acceptance evidence live in Beads (`infra-zdxz` and `infra-kl21`), not in this
-document.
+This page is the operational field map for SmartPlant naming. The coordinated
+cutover completed on 2026-09-03; acceptance evidence lives in closed Beads epics
+`infra-zdxz` and `infra-kl21`. The executed migration design and pre-cutover
+evidence remain in [`naming-architecture.md`](naming-architecture.md).
 
-## Never collapse these three states
+## Current deployed state
 
-| State | What it means | Current naming state |
+| Surface | Current naming state | Authority |
 |---|---|---|
-| **Deployed firmware** | What the ESP32 devices are actually running | The eight active entity sets still use the historical coupled names. Six devices still run MAC-suffix application naming; the two Ceropegias already run explicit identity. |
-| **Staged NAS configuration** | YAML and label files present in Device Builder but not necessarily compiled or flashed | The eight device YAMLs contain the target explicit identity and `esphome.friendly_name: ${display_name}`, but still duplicate metadata manually. The name-free label PNGs are present. |
-| **Repository target** | Source that must be committed, pushed, fetched, compiled, migrated in HA, and flashed before it becomes deployed truth | Generated per-device metadata, function-only entities, node-prefixed payload `obj_id`, clean HA `entity_id`, dynamic e-paper names, and name-free reproducible art. |
+| **Technical identity** | All eight devices use explicit `<device_name>-<mac6>` configured names with `name_add_mac_suffix: false`; hostname and MQTT prefix stayed byte-identical through the cutover. | `plants.yaml` plus generated metadata |
+| **Human display** | `display_name` drives firmware metadata and e-paper text. Home Assistant keeps `name_by_user` to preserve French typography that the ASCII firmware name cannot reproduce exactly. | `plants.yaml` and HA device registry |
+| **Entities** | Eleven exposed entity names are function-only. HA entity IDs carry the MAC-bearing node identity; obsolete rows, statistics, retained discovery, and consumers were reconciled during the cutover. | Firmware packages and HA registries |
 
 A clean repository, a Device Builder `deployed_config_hash`, or a staged YAML is
 not deployment evidence. Confirm the running ESPHome Version entity, runtime
@@ -55,9 +54,9 @@ configuration; they must not duplicate naming literals.
 | Discovery topic leaf | Function snake only, for example `air_humidity`. | No |
 | Discovery payload `obj_id` | Dashed node plus function, for example `cyperus-papyrus-54a9b2_air_humidity`. | No |
 | HA `entity_id` | HA-sanitized node plus function, for example `sensor.cyperus_papyrus_54a9b2_air_humidity`. | No |
-| `name_by_user` | Must be `null` after cutover so it cannot mask the firmware device name. | No independent override |
+| `name_by_user` | Kept in HA only to preserve exact French typography; it must describe the same plant as `display_name`, not create an independent identity. | Coordinated display rename only |
 
-The obsolete `${friendly_name}` substitution is not part of the target. It
+The obsolete `${friendly_name}` substitution is not part of the deployed model. It
 historically prefixed all entity names and therefore changed MQTT `unique_id`
 hashes whenever it changed.
 
@@ -70,16 +69,21 @@ For the six historically suffix-enabled devices:
 configured_name: "cyperus-papyrus"
 name_add_mac_suffix: "true"
 
-# target representation
+# deployed representation
 configured_name: "cyperus-papyrus-54a9b2"
 name_add_mac_suffix: "false"
 ```
 
 Both produce the same runtime node name, hostname, and MQTT prefix:
 `cyperus-papyrus-54a9b2`. This is not a topic migration. The two Ceropegias
-already use the target representation to avoid a Device Builder collision.
+use this representation, including the duplicate Ceropegias.
 
-## Home Assistant cutover trap
+## Historical Home Assistant cutover trap (completed)
+
+The remainder of this section records the pre-cutover constraints and the
+transaction that was executed. It is evidence, not a current procedure. Any
+future identity change requires a new owner, fresh registry captures, and a new
+rollback plan.
 
 Changing the 12 entity names from historical prefixes to function-only literals
 changes all 12 MQTT `unique_id` hashes per device. Flashing without the
@@ -141,7 +145,7 @@ The operator selected the pre-existing 20/15 title sizes. Long names can overlap
 the battery/time area; this is an explicitly accepted visual trade-off, not a
 claim that every title fits inside that area.
 
-## Pre-flash invariants
+## Historical pre-flash invariants
 
 - `configured_name == mqtt_topic_prefix` for all eight devices;
 - every production YAML consumes its matching generated metadata package;

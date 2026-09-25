@@ -19,6 +19,15 @@ The Smart Plant is a board that can be plugged directly on the soil, close to th
 
 <li><a href="./README.md">README.md</a></li>
 
+## ESPHome firmware paths
+
+- The [programming guide](./docs/source/programming.rst) and its standalone
+  configuration are the simplest starting point for one device.
+- The [multi-device example](./examples/multi-device/README.md) documents the
+  shared core plus native-API/MQTT profiles. Its inventory, generated metadata,
+  fleet updater, and NAS/VPS procedures are specific to the `flowcool` deployment
+  and are not required for a normal installation.
+
 
 
 [documentation-shield]: https://readthedocs.org/projects/smart-plant/badge/?version=v2r1&style=for-the-badge

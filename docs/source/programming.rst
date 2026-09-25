@@ -7,12 +7,16 @@ There are two main programming methods supported and tested with the |Product|:
  * Arduino
 
 .. _flashing:
+
 In both scenarios, and if you are using the USB port or the Serial port for programming it, you
 will first need to enter the board into flashing mode: press and hold the *Flash* pushbutton
 while you reset the board (pressing once the *Reset* pushbutton).
 
 .. Caution::
     When flashing the board, make sure its only powered by the USB/Serial port.
+
+.. _programming-esphome:
+
 ESPHome
 ---------
 `ESPHome <https://esphome.io>`_ is a well known platform for programming ESP-based devices 
@@ -50,7 +54,11 @@ the one I strongly recommend is the one through the `ESPHome Add-on for Home Ass
 
 
 .. Important::
-    Note that with this example code, the Smart Plant enters into deep-sleep mode if the battery level is under 95% (see ``consider_deep_sleep`` script at the end of the file), so be aware that if you want to flash it :term:`OTA`, make sure the battery is fully charged or the Smart Plant powered via USB-C.
+    This example performs one bounded measurement/display cycle and then enters
+    deep sleep. Battery charge no longer keeps it awake for OTA. To install an
+    update, power the board through USB-C or start the upload during its short
+    awake window; multi-device deployments can instead use the retained MQTT
+    Maintenance workflow documented under ``examples/multi-device``.
 
     
 .. Note::
@@ -73,7 +81,7 @@ the one I strongly recommend is the one through the `ESPHome Add-on for Home Ass
 .. Note::
     ``Lemon_tree_label_page_1.png`` is the background image that will be displayed on the e-paper. For having always a styled background image, I made a `python script <https://github.com/JGAguado/Label-maker>`_ that generates the image of the plant, the title and the parameter 
     gauges out of a JSON config file. Alternativelly, you can use any photo editor of your choice, but keep in mind the display size 
-    (296x128 pixel) and the center of each gauges (indicated in the YAML code). In this example, it is obtained from an URL, but you can upload yours locally following the `ESPHome guide <https://esphome.io/components/display/index.html#images>`_
+    (296x128 pixel) and the center of each gauges (indicated in the YAML code). In this example, it is obtained from an URL, but you can upload yours locally following the `ESPHome image guide <https://esphome.io/components/image/>`_
 
     .. image:: images/programming/Lemon_tree_label_page_1.png
         :width: 150px

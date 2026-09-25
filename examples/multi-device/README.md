@@ -1,4 +1,10 @@
-# Multi-device OTA maintenance
+# Multi-device firmware and fleet operations
+
+This guide serves two audiences. The package composition, transport profiles,
+device overlay, and MQTT mode contracts are reusable Smart Plant examples. The
+inventory, generated metadata, Device Builder workflow, NAS/VPS commands, and
+rollout evidence describe the `flowcool` production fleet and are not portable
+defaults for upstream users.
 
 ## Device identity
 
@@ -23,7 +29,7 @@ Keep these identity layers separate:
 
 The repository packages decouple the three name layers: `display_name` is the
 single human source (the core package feeds it to `esphome.friendly_name`,
-`device_comment`, and every e-paper text page), and the 12 exposed entities have
+`device_comment`, and every e-paper text page), and the 11 exposed entities have
 function-only names (`Temperature`, `Air Humidity`, …), so no display or
 identity field enters an entity's MAC-generated MQTT `unique_id`. Per-device
 identity/display/tuning metadata is generated from `plants.yaml` into
@@ -40,10 +46,11 @@ packages:
   metadata: github://flowcool/Smart_Plant/examples/multi-device/packages/generated/cyperus-papyrus-54a9b2.yaml@V2R1
 ```
 
-The deployed firmware still runs the older coupled
-names until the locked, canary-first migration in
-[`naming-architecture.md`](../../docs/naming-architecture.md) flashes each device
-and migrates its 96 registry identities in place.
+The coordinated naming cutover completed on 2026-09-03. All eight devices now
+use explicit identity-preserving configured names, function-only entity names,
+and dynamic display text. The executed migration contract and its historical
+96-row pre-cutover map remain in
+[`naming-architecture.md`](../../docs/naming-architecture.md).
 
 Use `scripts/migrate_live_device_metadata.py` to migrate and validate the eight
 production YAMLs deterministically. Always run it on an offline copy first. Its
@@ -51,10 +58,9 @@ production YAMLs deterministically. Always run it on an offline copy first. Its
 separately verified backup and rollback gate owned by the cutover issue.
 
 Do not rename existing device names, MQTT prefixes, entity names, entity IDs,
-or discovery unique IDs outside that coordinated migration. It requires
-captured MQTT discovery payloads, a generated 96-row old/new map, runtime HA
-registry updates, migrated references, and a single-device canary first. The
-current installation timezone is intentionally `Europe/Paris`.
+or discovery unique IDs without a new coordinated migration that owns every
+consumer and its rollback. The flowcool fleet timezone is intentionally
+`Europe/Paris`; other deployments should set their own timezone.
 
 The shared soil calibration values are defaults, not evidence that every probe
 was individually measured. `plants.yaml` records this explicitly. Unused label
@@ -103,10 +109,12 @@ preventing a stale command from reactivating maintenance at the next wake. A
 request below the battery threshold is reset to `OFF`, reports
 `REJECTED_LOW_BATTERY`, and sleeps without showing the maintenance page. A
 missing fuel-gauge reading instead reports `BATTERY_UNAVAILABLE`; it is never
-misrepresented as a genuinely low battery. The MAX17043 remains awake across
-MCU deep sleep because ESPHome 2026.7.4 provides a sleep action but no matching
-wake action, and reliable OTA admission is more important than the gauge's
-small software-sleep saving. A successful OTA clears both retained maintenance
+misrepresented as a genuinely low battery. The physical MAX17048 remains
+powered from VBAT across MCU deep sleep and uses its automatic hibernation. Do
+not call `max17043.sleep_mode`: released ESPHome versions without explicit
+MAX17048 model support do not set `MODE.EnSleep`, and forced sleep would also
+stop state-of-charge tracking for negligible fleet-level savings. A successful
+OTA clears both retained maintenance
 states immediately before its automatic reboot and never starts a physical
 refresh at that boundary. A normal
 reboot performs the normal display refresh; a persisted Storage Mode records a
@@ -252,7 +260,7 @@ retained state must remain visible while the device sleeps.
 
 Home Assistant's device information reports the Smart Plant release and ESPHome
 core version. The diagnostic ESPHome Version entity also retains ESPHome's native
-configuration hash, for example `2026.7.4 (config hash 0x761df8d0)`. This hash
+configuration hash, for example `<ESPHome version> (config hash 0x761df8d0)`. This hash
 identifies the effective per-device configuration compiled into the image and
 can be compared with the corresponding Device Builder artifact. Record the
 `config_hash`, source commit, and artifact SHA-256 together in deployment notes.
@@ -279,8 +287,8 @@ rollback` must therefore receive one serial/USB factory flash before relying on
 future OTA updates. Use the generated `firmware.factory.bin`, verify one normal
 wake/sleep cycle, and only then resume OTA maintenance.
 
-Every orderly sleep path calls `safe_mode.mark_successful` immediately before
-deep sleep. This is required because the normal measurement/display cycle can
-finish before ESPHome's default 60-second boot validation window; without the
-explicit mark, ESP-IDF treats deep sleep as a failed first boot and rolls back to
-the previous OTA partition.
+ESPHome 2026.8.0 and later confirm the application image during every orderly
+`deep_sleep.enter`, including wake cycles shorter than the default OTA
+validation window. The production packages therefore do not call
+`safe_mode.mark_successful`; the public standalone `configuration.yaml` keeps
+the defensive call because it is intended to remain version-agnostic.

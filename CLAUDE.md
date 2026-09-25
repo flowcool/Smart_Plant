@@ -18,7 +18,7 @@ ESPHome 2027.1.0 image `platform:` syntax; we made the same fix independently
 - **Data path**: MQTT-only (retained values survive sleep, no "unavailable" in HA)
 - **Native API**: enabled for ESPHome dashboard metadata only (mDNS `_esphomelib._tcp`) — do NOT add to HA via ESPHome integration (duplicate entities)
 - **Package system**: `smart_plant_core.yaml` contains transport-agnostic shared logic; production device files compose it with `smart_plant_profile_mqtt.yaml` and otherwise contain substitutions only
-- Sensors: AHT20 (temp/humidity), VEML7700 (lux), ADC soil moisture, MAX17043 (battery)
+- Sensors: AHT20 (temp/humidity), VEML7700 (lux), ADC soil moisture, physical MAX17048 battery gauge through ESPHome's `max17043` component
 - Display: Waveshare 2.9" e-paper (2.90inv2), full refresh every wake
 
 ## NAS (source of truth for live configs)
@@ -45,18 +45,12 @@ credentials and runtime configuration.
 
 Current naming convention: `device_name` is the historical botanical-looking
 slug (`genre-espece`). Treat it as an opaque immutable identity key, not as
-botanical authority.
-Unique species keep the core default `name_add_mac_suffix: true`, which appends
-the last 3 MAC bytes to produce a unique hostname and MQTT topic prefix.
-Duplicate species (the two Ceropegia woodii) share one `device_name`, so they
-instead set an explicit unique `configured_name` (`<device_name>-<mac6>`) with
-`name_add_mac_suffix: false`; the ESPHome node name, hostname and MQTT prefix
-are then taken verbatim from `configured_name`, avoiding a Device Builder
-collision on identical node names. The naming target generalizes each already-
-effective `<device_name>-<mac6>` configured name with
-`name_add_mac_suffix: false` to all eight, preserving every hostname and MQTT
-prefix byte-for-byte while preventing MAC suffixes in human device names. This
-is DONE (migration 2026-09-03, evidence in `infra-zdxz`), HA registry migrated
+botanical authority. All eight devices set their already-effective
+`<device_name>-<mac6>` value explicitly as `configured_name` with
+`name_add_mac_suffix: false`. This preserves every hostname and MQTT prefix
+byte-for-byte, prevents MAC suffixes in human device names, and avoids Device
+Builder collisions for duplicate species. This is DONE (migration 2026-09-03,
+evidence in `infra-zdxz`), HA registry migrated
 in place, consumers re-pointed, `name_by_user` kept for FR typography. See
 `docs/naming.md` for the field map and `docs/naming-architecture.md` for the
 migration contract (executed, Path 2).
@@ -71,8 +65,9 @@ MAC-bearing entity IDs. It ran Path 2 (Florent 2026-09-03): HA auto-created fres
 clean entities and the old rows/stats were deleted — pre-cutover plant history
 was NOT preserved (judged low-value).
 
-The shared `1.25V → 100%, 2.8V → 0%` soil values are defaults; they are not
-evidence of individual probe calibration.
+The shared soil calibration is `1.36V → 100%, 2.8V → 0%`. The wet value comes
+from the three-device immersion sample; it is intentionally shared fleet-wide,
+not evidence that every probe was calibrated individually.
 
 ## Operations
 

@@ -9,27 +9,17 @@
   `smart_plant_profile_mqtt.yaml`. Device files contain substitutions only and
   fetch both packages from GitHub `@V2R1`.
 - Devices measure AHT20 temperature/humidity, VEML7700 light, capacitive soil
-  moisture, and MAX17043 battery state, update a Waveshare 2.9-inch e-paper
-  display once, then deep-sleep for one hour.
+  moisture, and MAX17048 battery state through ESPHome's `max17043` component,
+  update a Waveshare 2.9-inch e-paper display once, then deep-sleep for one hour.
 - MQTT is the Home Assistant data path; retained values remain visible during
   sleep. The native API exists for Device Builder metadata and awake-window
   runtime logs only. Do not add the devices to HA through the ESPHome
   integration because that duplicates MQTT entities.
-- MQTT topic prefixes are auto-derived by ESPHome (`name_add_mac_suffix: true`)
-  from `device_name` + last 3 MAC bytes. Device YAML files set only the
-  botanical `device_name`; the MAC suffix is appended automatically. Two
-  Ceropegias migrated from legacy sequential prefixes (`woodii1`/`woodii2`) to
-  auto-derived MAC-only prefixes. The coordinated migration is complete across
-  ESPHome, MQTT, Home Assistant entity references, dashboards, and Plant
-  integration bindings; evidence is recorded in Home Assistant epic
-  `infra-b5q`.
-- Duplicate botanical names such as the two Ceropegias use their already-
-  effective `<device_name>-<mac6>` value as `configured_name` with
-  `name_add_mac_suffix: false`. This preserves hostname/MQTT identity while
-  giving Device Builder and build artifacts an unambiguous configured name.
-- The naming target generalizes that explicit effective identity to all eight
-  devices, preserving every hostname and MQTT prefix byte-for-byte. DELIVERED
-  2026-09-03 (evidence in `infra-zdxz`): explicit `configured_name` +
+- All eight devices use their already-effective `<device_name>-<mac6>` value as
+  explicit `configured_name` with `name_add_mac_suffix: false`. This preserves
+  every hostname and MQTT prefix byte-for-byte while giving Device Builder and
+  build artifacts an unambiguous configured name. DELIVERED 2026-09-03
+  (evidence in `infra-zdxz`): explicit `configured_name` +
   `name_add_mac_suffix: false`, `display_name` the single human source. HA
   registry migrated in place (clean MAC-bearing entity_ids, orphan rows/stats
   deleted, retained discovery emptied, consumers re-pointed). `name_by_user` is
@@ -129,8 +119,9 @@ version/config hash live on the devices. Read them from the source every time:
     before compile.
   - MAX17048 low-power doc correction — `infra-3rr.44.12` (closed 2026-09-16).
 - **Deferred / gated**:
-  - Fork upstreaming — fork-first strategy + coupling audit `docs/upstreaming-strategy.md`
-    (`infra-3rr.26`); steps S0-S4 = `infra-3rr.28`-`.33`.
+  - Fork upstreaming — current contribution plan `docs/upstreaming-strategy.md`
+    (`infra-3rr.26`); maintainer architecture gate `infra-3rr.21`; preparation
+    work is tracked by the roadmap children rather than this file.
   - MAX17048 native model — gate `infra-3rr.45` (defer 2026-10-15) on ESPHome PR #18594
     reaching a stable release; implementation `infra-3rr.46` hard-blocked until then.
   - `safe_mode.mark_successful` retired from `smart_plant_core.yaml` — `infra-3rr.47`

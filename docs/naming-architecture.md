@@ -1,11 +1,10 @@
-# SmartPlant naming architecture — locked target and migration contract
+# SmartPlant naming architecture — executed migration contract
 
-**Status: IMPLEMENTED IN REPOSITORY (rev 4); coordinated live cutover pending.**
-Companion to `naming.md` (current-state field map). Owns the target model, its
-rationale, and the contract for generating the AS-IS → future migration table. Feeds
-Beads `infra-zdxz` (SmartPlant source/spec) and the Home Assistant handoff
-`infra-kl21` (registry migration + dashboard side-effects). HA owns the
-history-preservation mechanism.
+**Status: EXECUTED 2026-09-03 (Path 2); epics `infra-zdxz` and `infra-kl21`
+closed 2026-09-04.** Companion to `naming.md` (current deployed field map).
+This document preserves the design, pre-cutover evidence, rejected assumptions,
+and rollback contract. Its future-tense passages are historical and must not be
+used as a live migration procedure without a newly owned plan.
 
 The production facts below were rechecked read-only against all eight live YAML
 files, ESPHome 2026.7.4, Home Assistant 2026.8.1, retained MQTT discovery, and
@@ -14,10 +13,10 @@ decisions are locked: preserve the effective runtime identities, put `mac6` in
 every clean entity ID, migrate both `unique_id` and `entity_id` in place, and
 preserve the e-paper arcs from a one-off HA threshold snapshot.
 
-Keep the states distinct: the repository implements the target; Device Builder
-has partially staged target literals and label assets; the eight active HA
-entity sets still represent the historical deployed firmware. See `naming.md`
-for the operational state map and Beads for current execution evidence.
+The executed Path 2 created clean entities and removed the old rows/statistics
+rather than remapping recorder history. `name_by_user` was intentionally kept
+to preserve exact French typography. See `naming.md` for the deployed field map
+and the closed epics for execution evidence.
 
 ---
 
@@ -407,8 +406,8 @@ normal e-paper page:
 as **dynamic text** (same path as the maintenance/storage pages), so a rename
 needs no image work. The versioned PNG becomes name-free and contains only the
 illustration plus threshold arcs derived from the one-off HA snapshot. This part
-is owned by `infra-zdxz.3`; repository and Oxalis bench evidence exist, while the
-final coordinated fleet flash remains pending.
+is owned by `infra-zdxz.3`; repository and Oxalis bench evidence preceded the
+completed fleet cutover.
 
 The arcs remain because they are useful visual guidance on an offline e-paper
 display. They do **not** need a runtime MQTT threshold subscription: these are
@@ -508,11 +507,10 @@ G3).
    e-paper art/arcs, render names dynamically, and declare `GF_Latin_Core`.
 4. `infra-kl21.1/.3/.4` **complete**: capture the AS-IS registry/threshold inputs
    and generate the 96-row correspondence table.
-5. `infra-kl21.2` **pending**: perform the
-   coordinated `migrate_discovery` → runtime registry update → firmware cutover,
-   canary first, including dashboard/Plant/recorder references.
+5. `infra-kl21.2` and its successor path **completed**: the operator selected
+   Path 2 (fresh clean entities, old rows/statistics removed), then completed
+   the firmware cutover and consumer updates canary-first.
 
-Repository implementation is not deployment evidence. The remaining cutover
-requires the owning Beads issues, their rollback prerequisites, and Florent's
-explicit authorization for each live write, cache reset, compile, upload, or
-flash.
+The repository and HA end state were verified during the completed cutover.
+Future naming changes remain coordinated migrations and require their own Beads
+owner, rollback prerequisites, and explicit authorization for live writes.
