@@ -20,7 +20,7 @@ paths:
   so their node name / hostname / MQTT prefix come verbatim from
   `configured_name` and Device Builder does not collide on identical node names.
 - Maintenance commands must be retained and published/subscribed at QoS 1.
-- Packages are fetched from GitHub — after pushing changes, clear the package cache on NAS before flashing.
+- Packages are fetched from GitHub by each build server — after pushing changes, run `scripts/esphome_fleet_update.py reset` (NAS + paired VPS builder) before compiling; a NAS-only purge leaves the VPS clone stale.
 - Production packages rely on ESPHome's native deep-sleep OTA guard
   (`>=2026.8.0`): an orderly `deep_sleep.enter` confirms the app image via
   `on_safe_shutdown` -> `confirm_app_image_`, so `smart_plant_core.yaml` no

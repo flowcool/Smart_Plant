@@ -89,8 +89,10 @@
   curl -s "$HASS_SERVER/api/states" -H "Authorization: Bearer $HASS_TOKEN" \
     | python3 -c "import json,sys; ..."
   ```
-- Package cache purge: `docker exec esphome rm -rf
-  /config/.esphome/packages/`.
+- Package cache purge: `python3 scripts/esphome_fleet_update.py reset` purges
+  every builder (NAS + paired VPS receiver, which runs all compiles). The
+  NAS-only `docker exec esphome rm -rf /config/.esphome/packages/` is
+  insufficient; see `examples/multi-device/README.md` rollout step 1.
 - OTA upload: `docker exec esphome esphome upload /config/<device>.yaml
   --device <ip>`.
 - Maintenance uses retained `<prefix>/cmd/maintenance` and

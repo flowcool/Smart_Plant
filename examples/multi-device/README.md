@@ -126,7 +126,8 @@ reads and publishes a fresh battery value, refreshes the Storage page once, and
 keeps temperature, humidity, light, and soil acquisition disabled.
 
 Always validate one device before a batch OTA. To roll back this package, revert
-the package commit, push the branch, purge ESPHome's package cache, and reflash
+the package commit, push the branch, purge every builder's package cache
+(`scripts/esphome_fleet_update.py reset`), and reflash
 the last validated firmware over USB if OTA recovery is unavailable.
 
 The repeatable operator workflow is implemented by
@@ -159,8 +160,19 @@ $S storage ON|OFF <dev..>       # storage mode for a device off-plant
 ```
 
 Standard fleet rollout after a merged package change:
-1. Purge package cache: `docker exec esphome rm -rf /config/.esphome/packages/`
-   (via `ssh ugreen`).
+1. `$S reset` — purge the package cache on **every** build server. Each builder
+   keeps its own `github://` clone (bundles sent to a remote builder exclude
+   git packages; the receiver re-fetches them) and refreshes it only once per
+   day (`refresh: 1d` default). The NAS is excluded from the build pool
+   (`include_local_in_pool: false`), so compiles run on the VPS and purging
+   the NAS alone leaves the VPS clone able to build the previous package
+   revision. `reset` runs `esphome clean-all` on the NAS and on the paired
+   receiver (`--receiver-pin`, default = VPS); the next compiles are cold. It
+   cancels in-flight Device Builder jobs and disarms queued updates, so run it
+   before, never during, a batch. Before `reset`, confirm the pool still holds
+   only the pinned receiver (read-only, prints no key material):
+   `ssh ugreen "sudo python3 -c 'import json;d=json.load(open(\"/volume1/docker/homeassistant/esphome/.offloader_pairings.json\"));print(\"local_in_pool\",d[\"include_local_in_pool\"]);[print(p[\"pin_sha256\"],p[\"status\"],p[\"enabled\"],p[\"label\"]) for p in d[\"pairings\"]]'"`
+   Run `$S --receiver-pin <pin> reset` for each additional approved peer.
 2. `$S status` — confirm which devices show `expected != deployed`.
 3. `$S update all` — waits up to 75 min for each device's hourly maintenance
    window; devices below `ota_min_battery` (50%) self-reject and time out.
