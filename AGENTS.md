@@ -56,6 +56,13 @@
 
 ## Validation and operations
 
+- Follow `.github/pull_request_template.md` for CodeRabbit review. Once an
+  open PR is ready, post `@coderabbitai review` after the final push: OSS
+  repositories below 10 stars require manual requests. Verify a completed
+  review on the current head, address confirmed findings and record the review
+  URL/head SHA. A summary or skipped notice is not completion evidence.
+  If unavailable, record the reason for the maintainer; CI and existing
+  canary/production authorization requirements still apply.
 - Parse changed YAML and run `git diff --check`; inspect both `git diff
   --numstat` and the semantic diff before committing.
 - Compile a real canary with the production ESPHome version after purging the
