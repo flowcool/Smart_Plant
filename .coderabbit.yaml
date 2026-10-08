@@ -1,0 +1,30 @@
+# yaml-language-server: $schema=https://www.coderabbit.ai/integrations/schema.v2.json
+language: en-US
+inheritance: true
+reviews:
+  profile: chill
+  poem: false
+  in_progress_fortune: false
+  review_status: true
+  auto_review:
+    enabled: true
+    drafts: false
+  path_instructions:
+    - path: "**/*.yaml"
+      instructions: >-
+        Check compatibility with the supported ESPHome version and package
+        composition. Prioritize device identity and MQTT topic stability,
+        retained discovery, bounded wake windows, orderly deep sleep and battery
+        protection. Check that substitutions do not unexpectedly override shared
+        defaults. Flag embedded secrets and changes that duplicate MQTT and
+        native-API entities. Compilation or builder metadata alone does not
+        prove deployment; follow the existing canary and runtime-verification
+        procedure for firmware changes.
+    - path: "scripts/**"
+      instructions: >-
+        Prioritize explicit device targeting, distributed package-cache
+        freshness, maintenance-window and battery guards, and observable
+        failure/rollback handling. Flag tests or commands that mutate live
+        devices, MQTT or Home Assistant without operator authorization.
+chat:
+  art: false
