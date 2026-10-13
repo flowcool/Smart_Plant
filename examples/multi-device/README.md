@@ -134,7 +134,7 @@ reads and publishes a fresh battery value, refreshes the Storage page once, and
 keeps temperature, humidity, light, and soil acquisition disabled.
 
 Always validate one device before a batch OTA. To roll back this package, revert
-the package commit, push the branch, purge every builder's package cache
+the package commit through a PR into `V2R1`, purge every builder's package cache
 (`scripts/esphome_fleet_update.py reset`), and reflash
 the last validated firmware over USB if OTA recovery is unavailable.
 
