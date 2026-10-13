@@ -75,7 +75,7 @@ not evidence that every probe was calibrated individually.
 
 - **OTA detection**: `nc -z -w1 <ip> 3232` (ICMP ping unreliable on ESP32)
 - **Flash CLI**: `docker exec esphome esphome upload /config/<device>.yaml --device <ip>`
-- **Package cache clear**: `python3 scripts/esphome_fleet_update.py reset` after GitHub push —
+- **Package cache clear**: `python3 scripts/esphome_fleet_update.py reset` after a package PR merges —
   purges the NAS and the paired VPS builder (NAS-only `rm -rf /config/.esphome/packages/` is
   insufficient: the VPS compiles and keeps its own clone, refreshed daily)
 - **Compile entrypoint**: use the Device Builder firmware API through

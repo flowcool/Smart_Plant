@@ -50,12 +50,13 @@
   default 60-second OTA validation window, so production packages no longer call
   `safe_mode.mark_successful` (retired in `infra-3rr.47`; the public
   `configuration.yaml` example keeps it for version-agnostic safety).
-- Rollback for shared-package changes: revert the corrective commit, push
-  `V2R1`, purge the package cache, and flash the last validated factory/OTA
+- Rollback for shared-package changes: merge a revert PR into `V2R1`, purge
+  the package cache, and flash the last validated factory/OTA
   image. USB recovery is the final fallback.
 
 ## Validation and operations
 
+- For GitHub source delivery, follow `.claude/rules/github-ops.md`.
 - Follow `.github/pull_request_template.md` for CodeRabbit review. Once an
   open PR is ready, post `@coderabbitai review` after the final push: OSS
   repositories below 10 stars require manual requests. Verify a completed
