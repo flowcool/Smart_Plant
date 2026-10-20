@@ -92,8 +92,11 @@ substitutions:
   # panel's active-high BUSY transition directly instead of guessing a delay.
   display_busy_assert_timeout: "2s"
   display_busy_clear_timeout: "30s"
-  # Additional bounded recovery window after settle_display's clear timeout.
-  # Total fault budget ≈ assert(2s) + clear(30s) + recovery(30s) = ~62s.
+  # Total recovery budget shared across all retries and final sleep delays.
+  # From first recovery: timeout + reset(10ms) + guard(500ms) + notification
+  # (MQTT 1s / API 500ms), plus event-loop scheduling latency, reaches the
+  # deep_sleep.enter action. Stock driver shutdown still sends its sleep SPI
+  # command; this is not a physical-sleep deadline or a driver-hook bypass.
   display_busy_recovery_timeout: "30s"
 
 globals:
@@ -132,9 +135,14 @@ globals:
   - id: display_safe_to_sleep
     type: bool
     restore_value: false
-    # No refresh is in flight at boot. settle_display resets this before every
+    # No refresh is in flight at boot. prepare_display_refresh resets this before every
     # activation and only restores it after BUSY is observed low.
     initial_value: 'true'
+  # Release RST if a new refresh cancels an asynchronous terminal reset pulse.
+  - id: display_reset_pending
+    type: bool
+    restore_value: false
+    initial_value: 'false'
   # NVS-backed cumulative count of permanent BUSY faults that triggered the
   # last-resort emergency sleep path. Survives deep sleep and power cycles.
   - id: display_busy_fault_count
@@ -489,16 +497,31 @@ script:
   # before writing but returns immediately after MASTER ACTIVATION, so every
   # caller must observe the subsequent HIGH -> LOW transition before sleep or
   # another lifecycle boundary.
-  - id: settle_display
-    mode: restart
+  - id: prepare_display_refresh
     then:
-      # A new refresh invalidates any delayed recovery from an older one.
+      # Run before any new display SPI writes. A new refresh invalidates any
+      # delayed recovery from an older one.
+      - script.stop: settle_display
       - script.stop: recover_display_busy
+      - script.stop: display_recovery_budget
       - script.stop: enter_deep_sleep
+      - script.stop: sleep_after_display
+      - script.stop: handle_display_busy_fault
+      - script.stop: force_sleep_after_busy_fault
+      - script.stop: on_display_fault
       - lambda: |-
+          // Cancellation during the asynchronous reset pulse must release RST.
+          if (id(display_reset_pending)) {
+            digitalWrite(${display_reset_gpio}, HIGH);
+            id(display_reset_pending) = false;
+          }
           id(display_settle_ok) = false;
           id(display_busy_seen) = false;
           id(display_safe_to_sleep) = false;
+
+  - id: settle_display
+    mode: restart
+    then:
       - delay: 100ms
       - wait_until:
           condition:
@@ -533,6 +556,14 @@ script:
   - id: recover_display_busy
     mode: restart
     then:
+      # A separate single-mode timer survives LOW/HIGH retries and the final
+      # 1s sleep delay. Only a new refresh or successful sleep cancels it.
+      - if:
+          condition:
+            not:
+              script.is_running: display_recovery_budget
+          then:
+            - script.execute: display_recovery_budget
       - wait_until:
           condition:
             lambda: 'return digitalRead(${display_busy_gpio}) == LOW;'
@@ -548,25 +579,45 @@ script:
                 format: "E-paper BUSY cleared after recovery window; resuming safe sleep"
             - script.execute: enter_deep_sleep
           else:
-            # BUSY still HIGH after the full recovery window (~60s total).
-            # Increment the NVS fault counter, pulse RST for a best-effort
-            # hardware reset, then enter emergency sleep with no further SPI.
-            - lambda: 'id(display_busy_fault_count) += 1;'
-            - logger.log:
-                level: ERROR
-                format: "E-paper BUSY permanent after 60s — fault #%d; hardware reset then emergency sleep"
-                args:
-                  - 'id(display_busy_fault_count)'
-            - lambda: |-
-                pinMode(${display_reset_gpio}, OUTPUT);
-                digitalWrite(${display_reset_gpio}, LOW);
-            - delay: 10ms
-            - lambda: 'digitalWrite(${display_reset_gpio}, HIGH);'
-            - delay: 500ms
-            - script.execute: force_sleep_after_busy_fault
+            - script.execute: handle_display_busy_fault
 
-  # Emergency sleep path for a permanent BUSY fault. Bypasses the BUSY check
-  # in enter_deep_sleep. Battery-priority and storage durations are preserved.
+  - id: display_recovery_budget
+    mode: single
+    then:
+      - delay: ${display_busy_recovery_timeout}
+      - script.execute: handle_display_busy_fault
+
+  # Shared terminal path for a failed guard or the total budget. Stop pending
+  # normal sleep/recovery before reset. No display/SPI action occurs here.
+  - id: handle_display_busy_fault
+    mode: single
+    then:
+      - script.stop: display_recovery_budget
+      - script.stop: recover_display_busy
+      - script.stop: enter_deep_sleep
+      - script.stop: sleep_after_display
+      - lambda: |-
+          id(display_safe_to_sleep) = false;
+          id(display_busy_fault_count) += 1;
+      - logger.log:
+          level: ERROR
+          format: "E-paper BUSY recovery failed or budget exhausted - fault #%d; reset then emergency sleep"
+          args:
+            - 'id(display_busy_fault_count)'
+      - lambda: |-
+          pinMode(${display_reset_gpio}, OUTPUT);
+          id(display_reset_pending) = true;
+          digitalWrite(${display_reset_gpio}, LOW);
+      - delay: 10ms
+      - lambda: |-
+          digitalWrite(${display_reset_gpio}, HIGH);
+          id(display_reset_pending) = false;
+      - delay: 500ms
+      - script.execute: force_sleep_after_busy_fault
+
+  # Emergency sleep request for a permanent BUSY fault. Bypasses our final
+  # BUSY check; stock ESPHome shutdown hooks still run (including display SPI).
+  # Battery-priority and storage durations are preserved.
   # The panel may show a corrupted image until the next normal boot.
   - id: force_sleep_after_busy_fault
     then:
@@ -684,6 +735,7 @@ script:
       - display.page.show: !lambda |-
           if (id(low_batt_active)) return id(page_low_batt);
           return id(storage_active) ? id(page_storage) : id(page1);
+      - script.execute: prepare_display_refresh
       - component.update: my_display
       - script.execute: settle_display
       - script.wait: settle_display
@@ -700,6 +752,7 @@ script:
               return id(display_safe_to_sleep) &&
                      digitalRead(${display_busy_gpio}) == LOW;
           then:
+            - script.stop: display_recovery_budget
             # No safe_mode.mark_successful: the sub-60s wake cycle that used to
             # need a manual mark before ESPHome's 60-second OTA window is now
             # covered natively (>=2026.8.0 confirms the image on any orderly
