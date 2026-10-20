@@ -259,6 +259,50 @@ class MaintenanceStorageTests(unittest.TestCase):
                 if final_on:
                     self.assertNotIn("acquire_normal", runtime.tasks)
 
+    def test_rejection_off_echo_keeps_result_and_does_not_start_another_cycle(self):
+        for storage in (False, True):
+            with self.subTest(storage=storage):
+                runtime = self.runtime()
+                runtime.state.batpercent.state = 40
+                runtime.state.storage_requested = storage
+                runtime.execute("maintenance_control_on")
+                runtime.run_until(500)
+                # A broker forwards our retained cmd/maintenance OFF back to
+                # the subscribed switch. TemplateSwitch runs OFF even if OFF.
+                runtime.execute("maintenance_control_off")
+                runtime.run_until(24000)
+                self.assertEqual(self.updates(runtime), ["max17043_id", "my_display"])
+                self.assertEqual([s for _, s in self.publications(runtime, "maintenance_status")],
+                                 ["REJECTED_LOW_BATTERY"])
+                self.assertEqual(runtime.state.storage_active, storage)
+                self.assertIsNotNone(runtime.sleep)
+
+    def test_exit_off_echo_preserves_one_full_acquisition(self):
+        old = self.program.substitutions["maintenance_timeout"]
+        self.program.substitutions["maintenance_timeout"] = "2s"
+        try:
+            for manual in (False, True):
+                with self.subTest(manual=manual):
+                    runtime = self.runtime()
+                    runtime.execute("maintenance_control_on")
+                    runtime.run_until(2000)
+                    if manual:
+                        runtime.execute("maintenance_control_off")
+                        runtime.run_until(2100)
+                    else:
+                        runtime.run_until(3300)
+                    self.assertFalse(runtime.state.maintenance_active)
+                    runtime.execute("maintenance_control_off")
+                    runtime.run_until(26000)
+                    started = [v for _, k, v in runtime.events if k == "script.execute"]
+                    self.assertEqual(started.count("acquire_normal"), 1)
+                    self.assertEqual(self.updates(runtime).count("soil_voltage"), 5)
+                    self.assertEqual([s for _, s in self.publications(runtime, "maintenance_status")],
+                                     ["ON", "OFF", "OFF"])
+                    self.assertEqual(runtime.sleep[1], 3600000)
+        finally:
+            self.program.substitutions["maintenance_timeout"] = old
+
     def test_topic_contract_persistence_and_transport_separation(self):
         packages = ROOT / "examples/multi-device/packages"
         mqtt = yaml.load((packages / "smart_plant_profile_mqtt.yaml").read_text(), PackageLoader)

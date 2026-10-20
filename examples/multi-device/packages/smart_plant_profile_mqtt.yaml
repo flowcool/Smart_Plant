@@ -162,14 +162,20 @@ switch:
           condition:
             lambda: 'return id(boot_sequence_complete);'
           then:
-            - script.stop: prepare_cycle
             - if:
                 condition:
                   lambda: 'return id(maintenance_active);'
                 then:
+                  - script.stop: prepare_cycle
                   - script.execute: decide_sleep
                 else:
-                  - script.execute: prepare_cycle
+                  # Cancel pending admission. Ignore OFF echoes after rejection
+                  # or exit, which must not start a second acquisition cycle.
+                  - if:
+                      condition:
+                        script.is_running: prepare_cycle
+                      then:
+                        - script.execute: prepare_cycle
 
   - platform: template
     id: storage_control
