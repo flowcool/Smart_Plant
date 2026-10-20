@@ -303,6 +303,52 @@ class MaintenanceStorageTests(unittest.TestCase):
         finally:
             self.program.substitutions["maintenance_timeout"] = old
 
+    def test_storage_duplicate_on_keeps_pending_acceptance_cycle(self):
+        runtime = self.runtime()
+        runtime.execute("storage_control_on")
+        runtime.run_until(100)
+        runtime.execute("storage_control_on")
+        runtime.run_until(500)
+        runtime.execute("storage_control_on")
+        runtime.run_until(5000)
+        self.assertEqual(self.updates(runtime), ["max17043_id", "my_display"])
+        self.assertTrue(runtime.state.storage_active)
+        self.assertEqual(runtime.sleep[1], 86400000)
+
+    def test_storage_off_echo_keeps_one_acquisition_and_exit_refresh(self):
+        runtime = self.runtime()
+        runtime.state.storage_active = True
+        runtime.state.storage_requested = True
+        runtime.execute("storage_control_off")
+        runtime.run_until(100)
+        runtime.execute("storage_control_off")
+        runtime.run_until(15100)
+        # exit_storage has now published retained cmd/storage_mode OFF.
+        runtime.execute("storage_control_off")
+        runtime.run_until(34000)
+        started = [v for _, k, v in runtime.events if k == "script.execute"]
+        self.assertEqual(started.count("acquire_normal"), 1)
+        self.assertEqual(self.updates(runtime).count("soil_voltage"), 5)
+        self.assertEqual(self.updates(runtime).count("my_display"), 1)
+        self.assertFalse(runtime.state.storage_active)
+        self.assertEqual(runtime.sleep[1], 3600000)
+
+    def test_storage_changes_and_duplicates_during_maintenance_keep_latest_request(self):
+        runtime = self.runtime()
+        runtime.execute("maintenance_control_on")
+        runtime.run_until(2000)
+        before = list(self.updates(runtime))
+        for command in ("on", "on", "off", "off"):
+            runtime.execute(f"storage_control_{command}")
+        self.assertEqual(self.updates(runtime), before)
+        self.assertFalse(runtime.state.storage_requested)
+        self.assertTrue(runtime.state.maintenance_active)
+        runtime.execute("maintenance_control_off")
+        runtime.run_until(26000)
+        self.assertFalse(runtime.state.storage_active)
+        self.assertEqual(self.updates(runtime).count("soil_voltage"), 5)
+        self.assertEqual(runtime.sleep[1], 3600000)
+
     def test_topic_contract_persistence_and_transport_separation(self):
         packages = ROOT / "examples/multi-device/packages"
         mqtt = yaml.load((packages / "smart_plant_profile_mqtt.yaml").read_text(), PackageLoader)
