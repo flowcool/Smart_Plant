@@ -298,6 +298,7 @@ script:
                       }
                   - deep_sleep.prevent: deep_sleep_control
                   - display.page.show: page_maintenance
+                  - script.execute: prepare_display_refresh
                   - component.update: my_display
                   - script.execute: settle_display
                   - script.wait: settle_display
