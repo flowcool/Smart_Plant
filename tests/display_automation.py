@@ -110,7 +110,7 @@ class DisplayProgram:
             fields.append(("esptime", "Clock", "0"))
         if control:
             fields += [("batpercent", "Sensor", None), ("temp", "Sensor", None),
-                       ("hum", "Sensor", None), ("light", "Sensor", None), ("soil", "Sensor", None),
+                       ("hum", "Sensor", None), ("light", "Sensor", None), ("soil", "Sensor", None), ("soil_voltage", "Sensor", None),
                        ("esptime", "Clock", None), ("selected_page", "int", "0"),
                        ("mqtt_connected", "bool", "true")]
             fields += [(page["id"], "int", str(index))
