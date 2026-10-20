@@ -6,6 +6,17 @@ inventory, generated metadata, Device Builder workflow, NAS/VPS commands, and
 rollout evidence describe the `flowcool` production fleet and are not portable
 defaults for upstream users.
 
+## Transport examples
+
+- [`my-lemon-tree.yaml`](my-lemon-tree.yaml) selects retained MQTT telemetry.
+- [`my-lemon-tree-api.yaml`](my-lemon-tree-api.yaml) selects the native ESPHome
+  API. Its entities are unavailable between deep-sleep wakes. It has no remote
+  Maintenance or Storage commands.
+
+Both examples compose the shared core with one transport profile. Set the
+referenced secrets before building. Use the fleet inventory and maintenance
+workflow below only for the `flowcool` deployment.
+
 ## Device identity
 
 The repository identity registry is [`plants.yaml`](plants.yaml). Live ESPHome

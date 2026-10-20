@@ -402,7 +402,7 @@ display:
             it.printf(278, 1, id(font_icon), fg, TextAlign::TOP_LEFT, battery_icon_map[battery_range]);
             it.printf(278, 1, id(font_subtitle), fg, TextAlign::TOP_RIGHT, "%3.0f%%", battery_perc);
           } else {
-            it.printf(278, 1, id(font_subtitle), fg, TextAlign::TOP_RIGHT, " --%");
+            it.printf(278, 1, id(font_subtitle), fg, TextAlign::TOP_RIGHT, " --%%");
           }
 
           auto now = id(esptime).now();
