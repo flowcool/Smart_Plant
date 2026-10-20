@@ -728,4 +728,7 @@ script:
             - logger.log:
                 level: WARN
                 format: "E-paper became BUSY before sleep; cancelling shutdown"
+            # The live pin overrides the cached result from settle/recovery.
+            # Both profiles must enter recovery instead of retrying the 1s delay.
+            - lambda: 'id(display_safe_to_sleep) = false;'
             - script.execute: sleep_after_display
