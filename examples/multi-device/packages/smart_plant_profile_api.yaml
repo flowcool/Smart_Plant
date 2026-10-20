@@ -15,6 +15,10 @@
 # profile, whose retained values survive sleep.
 # =============================================================================
 
+substitutions:
+  # Best-effort connection window. Offline wakes still complete one cycle.
+  api_connection_timeout: "10s"
+
 api:
   encryption:
     key: "${api_encryption_key}"
@@ -35,10 +39,16 @@ esphome:
     # sensors and its first component.update calls are dropped as "not ready",
     # so the first cycle can skip battery/soil. Run acquisition at 399.0:
     # strictly after MAX17048/AHT20/VEML7700/ADC (600) and the display (400),
-    # but before Wi-Fi (250). Deterministic — no arbitrary delay/readiness
-    # plumbing. Recheck on ESPHome upgrades: internal priorities may change.
+    # but before Wi-Fi (250). The asynchronous wait yields so Wi-Fi setup can
+    # proceed. A logs-only client does not satisfy the state subscription check.
+    # Recheck on ESPHome upgrades: internal priorities may change.
     - priority: 399.0
       then:
+        - wait_until:
+            condition:
+              api.connected:
+                state_subscription_only: true
+            timeout: ${api_connection_timeout}
         - script.execute: acquire_normal   # samples, then chains decide_sleep
 
 script:
