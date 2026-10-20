@@ -19,6 +19,7 @@ STUB = r"""
 #include <cmath>
 #include <cstdarg>
 #include <cstdio>
+#include <iomanip>
 #include <iostream>
 #include <string>
 #include <vector>
@@ -28,6 +29,7 @@ enum class TextAlign { TOP_CENTER };
 
 struct Display {
   std::string label;
+  double needle_angle = NAN;
   std::vector<std::array<int, 4>> lines;
   void line(int x0, int y0, int x1, int y1, int) {
     lines.push_back({x0, y0, x1, y1});
@@ -43,14 +45,16 @@ struct Display {
 };
 
 int main(int argc, char **argv) {
-  if (argc != 6) return 2;
+  if (argc != 8) return 2;
   Display it;
   int font_parameters = 0;
   int fg = 1;
   // PRODUCTION_LAMBDA
   draw_gauge(std::stof(argv[1]), std::string(argv[2]) == "1",
-             std::stof(argv[3]), std::stof(argv[4]), 80, 50, argv[5]);
+             std::stof(argv[3]), std::stof(argv[4]),
+             std::stoi(argv[6]), std::stoi(argv[7]), argv[5]);
   std::cout << it.label << '\n';
+  std::cerr << std::setprecision(10) << it.needle_angle;
   for (const auto &line : it.lines) {
     for (int coordinate : line) std::cout << coordinate << ' ';
     std::cout << '\n';
@@ -72,6 +76,9 @@ class DisplayGaugeTests(unittest.TestCase):
         gauge = textwrap.dedent(source[start:end])
         if "auto draw_gauge =" not in gauge:
             raise AssertionError("production draw_gauge lambda was not extracted")
+        # Observe its angle before integer pixel rounding. Keep the production
+        # value calculation and all drawing operations intact.
+        gauge = gauge.replace("int x0 =", "it.needle_angle = pi / 2 + beta / 2 + val;\nint x0 =", 1)
         cls.temp = tempfile.TemporaryDirectory(prefix="smartplant-gauge-")
         cls.addClassCleanup(cls.temp.cleanup)
         path = Path(cls.temp.name)
@@ -84,10 +91,10 @@ class DisplayGaugeTests(unittest.TestCase):
             check=True, capture_output=True, text=True,
         )
 
-    def render(self, value, minimum, maximum, fmt, has_state=True):
+    def render(self, value, minimum, maximum, fmt, has_state=True, position=(80, 50)):
         result = subprocess.run(
             [str(self.executable), str(value), "1" if has_state else "0",
-             str(minimum), str(maximum), fmt],
+             str(minimum), str(maximum), fmt, *map(str, position)],
             check=True, capture_output=True, text=True,
         ).stdout.splitlines()
         return result[0], [tuple(map(int, line.split())) for line in result[1:]]

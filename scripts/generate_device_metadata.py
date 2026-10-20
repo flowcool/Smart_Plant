@@ -1,9 +1,10 @@
 #!/usr/bin/env python3
 """Generate per-device metadata packages from the plants.yaml inventory.
 
-plants.yaml is the single hand-edited source for non-secret per-device
-identity/display/tuning metadata. This tool emits one deterministic ESPHome
-package per inventory key under examples/multi-device/packages/generated/.
+plants.yaml is the source for non-secret per-device identity/display/tuning
+metadata. Gauge scales derive from the accepted HA threshold snapshot and the
+shared gauge contract. This tool emits one deterministic ESPHome package per
+inventory key under examples/multi-device/packages/generated/.
 
 Each generated package is identity-preserving: configured_name is set to the
 already-effective <device_name>-<mac6> runtime name (the value stored as
@@ -25,6 +26,11 @@ from pathlib import Path
 
 import yaml
 
+if __package__:
+    from .smartplant_gauge_contract import device_scales
+else:
+    from smartplant_gauge_contract import device_scales
+
 ROOT = Path(__file__).resolve().parent.parent
 INVENTORY = ROOT / "examples/multi-device/plants.yaml"
 OUT_DIR = ROOT / "examples/multi-device/packages/generated"
@@ -32,7 +38,8 @@ OUT_DIR = ROOT / "examples/multi-device/packages/generated"
 HEADER = """\
 # =============================================================================
 # GENERATED FILE - DO NOT EDIT.
-# Source: examples/multi-device/plants.yaml (key: {key})
+# Sources: examples/multi-device/plants.yaml (key: {key})
+#          label_maker/gauge-contract.yaml + ha-thresholds-snapshot.json
 # Regenerate: python3 scripts/generate_device_metadata.py
 # Drift check (CI): python3 scripts/generate_device_metadata.py --check
 # -----------------------------------------------------------------------------
@@ -76,6 +83,7 @@ def configured_name(key: str, values: dict) -> str:
 
 def render(key: str, values: dict) -> str:
     cal = values["soil_calibration"]
+    scales = device_scales(key)
     fields = {
         "device_name": str(values["device_name"]),
         "configured_name": configured_name(key, values),
@@ -86,6 +94,11 @@ def render(key: str, values: dict) -> str:
         "timezone": str(values.get("timezone", "Europe/Paris")),
         "soil_v_wet": str(cal["wet_voltage"]),
         "soil_v_dry": str(cal["dry_voltage"]),
+        "light_max": str(scales["illuminance"][1]),
+        "temp_min": str(scales["temperature"][0]),
+        "temp_max": str(scales["temperature"][1]),
+        "hum_min": str(scales["humidity"][0]),
+        "hum_max": str(scales["humidity"][1]),
     }
     lines = [HEADER.format(key=key), "substitutions:"]
     for name, val in fields.items():
@@ -133,7 +146,7 @@ def main() -> int:
                 print(f"  {d}", file=sys.stderr)
             print("Run: python3 scripts/generate_device_metadata.py", file=sys.stderr)
             return 1
-        print(f"OK: {len(expected)} generated packages match {INVENTORY.name}")
+        print(f"OK: {len(expected)} generated packages match inventory and gauge inputs")
         return 0
 
     OUT_DIR.mkdir(parents=True, exist_ok=True)
