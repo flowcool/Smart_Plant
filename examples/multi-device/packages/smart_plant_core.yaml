@@ -55,6 +55,10 @@ substitutions:
   low_batt_exit_pct: "22"
   low_batt_warn_pct: "30"
   low_batt_sleep_duration: "24h"
+  ota_min_battery: "50"
+  maintenance_timeout_minutes: "25"
+  maintenance_timeout: "${maintenance_timeout_minutes}min"
+  storage_sleep_duration: "24h"
 
   # The legacy Waveshare driver returns before the active-high BUSY signal has
   # completed every physical refresh. These bounded windows prevent sleep from
@@ -66,6 +70,30 @@ substitutions:
   display_busy_recovery_timeout: "30s"
 
 globals:
+  - id: storage_active
+    type: bool
+    restore_value: true
+    initial_value: 'false'
+  - id: maintenance_end_hour
+    type: int
+    restore_value: false
+    initial_value: '-1'
+  - id: maintenance_end_minute
+    type: int
+    restore_value: false
+    initial_value: '-1'
+  - id: display_settle_ok
+    type: bool
+    restore_value: false
+    initial_value: 'false'
+  - id: display_reset_pending
+    type: bool
+    restore_value: false
+    initial_value: 'false'
+  - id: display_busy_fault_count
+    type: int
+    restore_value: true
+    initial_value: '0'
   # Persist hysteresis across deep sleep and power loss. A fresh reading at the
   # exit threshold releases a restored latch after charging or battery exchange.
   - id: low_batt_active
@@ -320,6 +348,30 @@ display:
           draw_gauge(id(temp).state,  id(temp).has_state(),  ${temp_min}, ${temp_max},  188, 50, "%.0f°C");
           draw_gauge(id(hum).state,   id(hum).has_state(),   ${hum_min},  ${hum_max},   242, 70, "%.0f%%");
 
+      - id: page_maintenance
+        lambda: |-
+          it.printf(148, 8, id(font_subtitle), TextAlign::TOP_CENTER, "${friendly_name}");
+          it.printf(148, 38, id(font_title), TextAlign::TOP_CENTER, "MAINTENANCE");
+          if (id(maintenance_end_hour) >= 0) {
+            it.printf(148, 82, id(font_title), TextAlign::TOP_CENTER, "ENDS AT %02d:%02d",
+                      id(maintenance_end_hour), id(maintenance_end_minute));
+          } else {
+            it.printf(148, 82, id(font_title), TextAlign::TOP_CENTER,
+                      "ENDS IN ${maintenance_timeout_minutes} MIN");
+          }
+
+      - id: page_storage
+        lambda: |-
+          it.printf(148, 4, id(font_subtitle), TextAlign::TOP_CENTER, "${friendly_name}");
+          it.printf(148, 31, id(font_title), TextAlign::TOP_CENTER, "STORAGE MODE");
+          it.printf(148, 68, id(font_subtitle), TextAlign::TOP_CENTER, "DAILY CHECK");
+          if (id(batpercent).has_state() && std::isfinite(id(batpercent).state)) {
+            it.printf(148, 91, id(font_title), TextAlign::TOP_CENTER,
+                      "BATTERY %.0f%%", id(batpercent).state);
+          } else {
+            it.printf(148, 91, id(font_title), TextAlign::TOP_CENTER, "BATTERY --%%");
+          }
+
       # Critical protection is transport-independent and takes precedence over
       # the normal page until the persisted hysteresis latch releases.
       - id: page_low_batt
@@ -327,6 +379,9 @@ display:
           it.fill(COLOR_ON);
           it.printf(148, 4, id(font_subtitle), COLOR_OFF, TextAlign::TOP_CENTER, "${friendly_name}");
           it.printf(148, 26, id(font_title), COLOR_OFF, TextAlign::TOP_CENTER, "LOW BATT !");
+          if (id(storage_active)) {
+            it.printf(148, 60, id(font_subtitle), COLOR_OFF, TextAlign::TOP_CENTER, "STORAGE MODE");
+          }
           if (id(batpercent).has_state() && std::isfinite(id(batpercent).state)) {
             it.printf(148, 88, id(font_title), COLOR_OFF, TextAlign::TOP_CENTER,
                       "BATTERY %.0f%%", id(batpercent).state);
@@ -375,9 +430,9 @@ script:
           condition:
             lambda: 'return id(esptime).now().is_valid();'
           timeout: 10s
-      - script.execute: render_and_sleep
+      - script.execute: decide_sleep
 
-  - id: render_and_sleep
+  - id: render_measurement_page
     mode: restart
     then:
       - lambda: |-
@@ -395,30 +450,38 @@ script:
             }
           }
       - display.page.show: !lambda |-
-          return id(low_batt_active) ? id(page_low_batt) : id(page1);
+          if (id(low_batt_active)) return id(page_low_batt);
+          return id(storage_active) ? id(page_storage) : id(page1);
+      - script.execute: prepare_display_refresh
       - component.update: my_display
       - script.execute: settle_display
       - script.wait: settle_display
-      - if:
-          condition:
-            lambda: 'return id(display_safe_to_sleep);'
-          then:
-            - script.execute: enter_deep_sleep
-          else:
-            - deep_sleep.prevent: deep_sleep_control
-            - script.execute: recover_display_busy
 
-  # Observe the panel's physical active-high BUSY cycle. A fixed delay is not
-  # evidence that the e-paper refresh has completed.
+  - id: prepare_display_refresh
+    then:
+      # Run before any new display SPI writes. A new refresh invalidates any
+      # delayed recovery from an older one.
+      - script.stop: settle_display
+      - script.stop: recover_display_busy
+      - script.stop: display_recovery_budget
+      - script.stop: enter_deep_sleep
+      - script.stop: sleep_after_display
+      - script.stop: handle_display_busy_fault
+      - script.stop: force_sleep_after_busy_fault
+      - script.stop: on_display_fault
+      - lambda: |-
+          // Cancellation during the asynchronous reset pulse must release RST.
+          if (id(display_reset_pending)) {
+            digitalWrite(${display_reset_gpio}, HIGH);
+            id(display_reset_pending) = false;
+          }
+          id(display_settle_ok) = false;
+          id(display_busy_seen) = false;
+          id(display_safe_to_sleep) = false;
+
   - id: settle_display
     mode: restart
     then:
-      # A new refresh invalidates recovery and delayed sleep from any older one.
-      - script.stop: recover_display_busy
-      - script.stop: enter_deep_sleep
-      - lambda: |-
-          id(display_busy_seen) = false;
-          id(display_safe_to_sleep) = false;
       - delay: 100ms
       - wait_until:
           condition:
@@ -434,69 +497,131 @@ script:
                   lambda: 'return digitalRead(${display_busy_gpio}) == LOW;'
                 timeout: ${display_busy_clear_timeout}
       - lambda: |-
-          id(display_safe_to_sleep) = id(display_busy_seen) &&
-                                      digitalRead(${display_busy_gpio}) == LOW;
+          const bool busy_low = digitalRead(${display_busy_gpio}) == LOW;
+          id(display_safe_to_sleep) = busy_low;
+          id(display_settle_ok) = id(display_busy_seen) && busy_low;
       - if:
           condition:
-            lambda: 'return id(display_safe_to_sleep);'
+            lambda: 'return id(display_settle_ok);'
           then:
             - delay: 500ms
           else:
             - logger.log:
                 level: ERROR
-                format: "E-paper refresh did not complete inside the BUSY window"
+                format: "E-paper refresh not confirmed (asserted=%s, safe_low=%s)"
+                args:
+                  - 'id(display_busy_seen) ? "true" : "false"'
+                  - 'id(display_safe_to_sleep) ? "true" : "false"'
 
-  # If BUSY clears late, resume normal sleep. A permanently asserted signal is
-  # bounded too: reset the panel, then sleep rather than draining the battery.
   - id: recover_display_busy
     mode: restart
     then:
+      # A separate single-mode timer survives LOW/HIGH retries and the final
+      # 1s sleep delay. Only a new refresh or successful sleep cancels it.
+      - if:
+          condition:
+            not:
+              script.is_running: display_recovery_budget
+          then:
+            - script.execute: display_recovery_budget
       - wait_until:
           condition:
             lambda: 'return digitalRead(${display_busy_gpio}) == LOW;'
           timeout: ${display_busy_recovery_timeout}
+      - delay: 500ms
       - if:
           condition:
             lambda: 'return digitalRead(${display_busy_gpio}) == LOW;'
           then:
-            - delay: 500ms
-            # Re-read after the guard: a newer refresh may have asserted BUSY.
-            - if:
-                condition:
-                  lambda: 'return digitalRead(${display_busy_gpio}) == LOW;'
-                then:
-                  - lambda: 'id(display_safe_to_sleep) = true;'
-                  - script.execute: enter_deep_sleep
-                else:
-                  - script.execute: recover_display_busy
-          else:
+            - lambda: 'id(display_safe_to_sleep) = true;'
             - logger.log:
-                level: ERROR
-                format: "E-paper BUSY stuck; resetting panel before emergency sleep"
-            - lambda: |-
-                pinMode(${display_reset_gpio}, OUTPUT);
-                digitalWrite(${display_reset_gpio}, LOW);
-            - delay: 10ms
-            - lambda: 'digitalWrite(${display_reset_gpio}, HIGH);'
-            - delay: 500ms
-            - safe_mode.mark_successful
-            - deep_sleep.allow: deep_sleep_control
-            - switch.turn_off: exc
+                level: WARN
+                format: "E-paper BUSY cleared after recovery window; resuming safe sleep"
+            - script.execute: enter_deep_sleep
+          else:
+            - script.execute: handle_display_busy_fault
+
+  - id: display_recovery_budget
+    mode: single
+    then:
+      - delay: ${display_busy_recovery_timeout}
+      - script.execute: handle_display_busy_fault
+
+  # Shared terminal path for a failed guard or the total budget. Stop pending
+  # normal sleep/recovery before reset. No display/SPI action occurs here.
+
+  - id: handle_display_busy_fault
+    mode: single
+    then:
+      - script.stop: display_recovery_budget
+      - script.stop: recover_display_busy
+      - script.stop: enter_deep_sleep
+      - script.stop: sleep_after_display
+      - lambda: |-
+          id(display_safe_to_sleep) = false;
+          id(display_busy_fault_count) += 1;
+      - logger.log:
+          level: ERROR
+          format: "E-paper BUSY recovery failed or budget exhausted - fault #%d; reset then emergency sleep"
+          args:
+            - 'id(display_busy_fault_count)'
+      - lambda: |-
+          pinMode(${display_reset_gpio}, OUTPUT);
+          id(display_reset_pending) = true;
+          digitalWrite(${display_reset_gpio}, LOW);
+      - delay: 10ms
+      - lambda: |-
+          digitalWrite(${display_reset_gpio}, HIGH);
+          id(display_reset_pending) = false;
+      - delay: 500ms
+      - script.execute: force_sleep_after_busy_fault
+
+  # Emergency sleep request for a permanent BUSY fault. Bypasses our final
+  # BUSY check; stock ESPHome shutdown hooks still run (including display SPI).
+  # Battery-priority and storage durations are preserved.
+  # The panel may show a corrupted image until the next normal boot.
+
+  - id: force_sleep_after_busy_fault
+    then:
+      - script.execute: on_display_fault
+      - script.wait: on_display_fault
+      - safe_mode.mark_successful
+      - deep_sleep.allow: deep_sleep_control
+      - switch.turn_off: exc
+      - if:
+          condition:
+            lambda: 'return id(low_batt_active);'
+          then:
+            - deep_sleep.enter:
+                id: deep_sleep_control
+                sleep_duration: ${low_batt_sleep_duration}
+          else:
             - if:
                 condition:
-                  lambda: 'return id(low_batt_active);'
+                  lambda: 'return id(storage_active);'
                 then:
                   - deep_sleep.enter:
                       id: deep_sleep_control
-                      sleep_duration: ${low_batt_sleep_duration}
+                      sleep_duration: ${storage_sleep_duration}
                 else:
                   - deep_sleep.enter: deep_sleep_control
+
+  - id: sample_battery
+    mode: restart
+    then:
+      - switch.turn_on: exc
+      - delay: 250ms
+      - component.update: max17043_id
+      - wait_until:
+          condition:
+            lambda: |-
+              return id(batpercent).has_state() &&
+                     std::isfinite(id(batpercent).state);
+          timeout: 3s
 
   - id: enter_deep_sleep
     mode: restart
     then:
-      # Let the selected transport flush its final sensor states before the
-      # Wi-Fi and switched sensor rail disappear.
       - delay: 1s
       - if:
           condition:
@@ -504,7 +629,7 @@ script:
               return id(display_safe_to_sleep) &&
                      digitalRead(${display_busy_gpio}) == LOW;
           then:
-            # Version-agnostic OTA rollback protection for short wake cycles.
+            - script.stop: display_recovery_budget
             - safe_mode.mark_successful
             - deep_sleep.allow: deep_sleep_control
             - switch.turn_off: exc
@@ -512,11 +637,26 @@ script:
                 condition:
                   lambda: 'return id(low_batt_active);'
                 then:
+                  # Protective hibernation: extend the cycle so residual drain
+                  # cannot walk the cell toward deep-discharge damage while low.
                   - deep_sleep.enter:
                       id: deep_sleep_control
                       sleep_duration: ${low_batt_sleep_duration}
                 else:
-                  - deep_sleep.enter: deep_sleep_control
+                  - if:
+                      condition:
+                        lambda: 'return id(storage_active);'
+                      then:
+                        - deep_sleep.enter:
+                            id: deep_sleep_control
+                            sleep_duration: ${storage_sleep_duration}
+                      else:
+                        - deep_sleep.enter: deep_sleep_control
           else:
-            - deep_sleep.prevent: deep_sleep_control
-            - script.execute: recover_display_busy
+            - logger.log:
+                level: WARN
+                format: "E-paper became BUSY before sleep; cancelling shutdown"
+            # The live pin overrides the cached result from settle/recovery.
+            # Both profiles must enter recovery instead of retrying the 1s delay.
+            - lambda: 'id(display_safe_to_sleep) = false;'
+            - script.execute: sleep_after_display
