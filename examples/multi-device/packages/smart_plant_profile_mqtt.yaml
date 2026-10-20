@@ -187,20 +187,30 @@ switch:
     subscribe_qos: 1
     qos: 1
     retain: true
+    # Storage has no renewable window. Equal desired-state commands, including
+    # our retained OFF echo, must not restart pending or completed cycle work.
     turn_on_action:
-      - lambda: 'id(storage_requested) = true;'
       - if:
           condition:
-            lambda: 'return id(boot_sequence_complete) && !id(maintenance_active);'
+            lambda: 'return !id(storage_requested);'
           then:
-            - script.execute: prepare_cycle
+            - lambda: 'id(storage_requested) = true;'
+            - if:
+                condition:
+                  lambda: 'return id(boot_sequence_complete) && !id(maintenance_active);'
+                then:
+                  - script.execute: prepare_cycle
     turn_off_action:
-      - lambda: 'id(storage_requested) = false;'
       - if:
           condition:
-            lambda: 'return id(boot_sequence_complete) && !id(maintenance_active);'
+            lambda: 'return id(storage_requested);'
           then:
-            - script.execute: prepare_cycle
+            - lambda: 'id(storage_requested) = false;'
+            - if:
+                condition:
+                  lambda: 'return id(boot_sequence_complete) && !id(maintenance_active);'
+                then:
+                  - script.execute: prepare_cycle
 
 text_sensor:
   # Publish the actual state-machine result through a native entity so Home
