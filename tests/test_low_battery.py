@@ -42,6 +42,8 @@ HARNESS = r'''
 struct Sensor { float state = 50; bool available = true; bool has_state() { return available; } };
 Sensor batpercent, soil, light, temp, hum;
 bool low_batt_active = false;
+bool storage_active = false;
+int page_storage = 3;
 int page1 = 1, page_low_batt = 2;
 int font_title, font_subtitle, font_parameters, font_icon, page_1_background;
 enum Color { COLOR_OFF, COLOR_ON };
@@ -125,8 +127,8 @@ int main() {
 
 class LowBatteryTests(unittest.TestCase):
     def source(self, overrides=None):
-        evaluation = SCRIPTS["render_and_sleep"]["then"][0]["lambda"]
-        selection = SCRIPTS["render_and_sleep"]["then"][1]["display.page.show"]
+        evaluation = SCRIPTS["render_measurement_page"]["then"][0]["lambda"]
+        selection = SCRIPTS["render_measurement_page"]["then"][1]["display.page.show"]
         source = HARNESS
         for marker, body in (("EVALUATE", evaluation), ("SELECT_PAGE", selection),
                              ("NORMAL_PAGE", PAGES["page1"]), ("CRITICAL_PAGE", PAGES["page_low_batt"])):
@@ -162,11 +164,11 @@ class LowBatteryTests(unittest.TestCase):
         self.assertTrue(latch["restore_value"])
         self.assertEqual(latch["initial_value"], "false")
         self.assertNotIn("mqtt", PACKAGE)
-        self.assertNotIn("storage_active", CORE.read_text())
+        self.assertNotIn("mqtt.publish", CORE.read_text())
         for profile in ("api", "mqtt"):
             text = (CORE.parent / f"smart_plant_profile_{profile}.yaml").read_text()
             self.assertIn("script.execute: acquire_normal", text)
-        self.assertIn({"script.execute": "render_and_sleep"}, SCRIPTS["acquire_normal"]["then"])
+        self.assertIn({"script.execute": "decide_sleep"}, SCRIPTS["acquire_normal"]["then"])
 
     def test_normal_and_emergency_sleep_keep_confirmation_and_battery_duration(self):
         paths = []
@@ -181,7 +183,7 @@ class LowBatteryTests(unittest.TestCase):
                 for child in value.values():
                     find(child)
 
-        for name in ("enter_deep_sleep", "recover_display_busy"):
+        for name in ("enter_deep_sleep", "force_sleep_after_busy_fault"):
             find(SCRIPTS[name])
         self.assertEqual(len(paths), 2)
         self.assertEqual(SUBSTITUTIONS["low_batt_sleep_duration"], "24h")
@@ -195,7 +197,9 @@ class LowBatteryTests(unittest.TestCase):
             self.assertEqual(decision["condition"]["lambda"], "return id(low_batt_active);")
             self.assertEqual(decision["then"], [{"deep_sleep.enter": {
                 "id": "deep_sleep_control", "sleep_duration": "${low_batt_sleep_duration}"}}])
-            self.assertEqual(decision["else"], [{"deep_sleep.enter": "deep_sleep_control"}])
+            storage = decision["else"][0]["if"]
+            self.assertEqual(storage["condition"]["lambda"], "return id(storage_active);")
+            self.assertEqual(storage["else"], [{"deep_sleep.enter": "deep_sleep_control"}])
 
 
 if __name__ == "__main__":
