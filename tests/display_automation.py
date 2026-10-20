@@ -4,7 +4,8 @@ Only the action primitives used by these scripts are supported. C++ lambdas
 run unchanged in a native library with fake globals, time and GPIO. Script
 restart/stop cancels the caller's continuation and waits, not called scripts,
 matching ESPHome 2026.9.0 script.h / automation.h / base_automation.h.
-This checks automation flow, not the panel driver or physical hardware.
+This checks automation flow up to deep_sleep.enter. The driver shutdown hook
+can still send SPI; physical sleep timing is outside this executor.
 """
 
 import ctypes
@@ -34,8 +35,30 @@ class DisplayProgram:
         )
         self.substitutions = core["substitutions"]
         available = {s["id"]: s for p in (core, transport) for s in p["script"]}
+        # Extract the actual refresh boundary at every caller, including the
+        # maintenance path. Surrounding plant/page decisions are irrelevant to
+        # cancellation; keep the real prepare/update/settle/wait action order.
+        self.refresh_sequences = []
+
+        def refreshes(node):
+            if isinstance(node, list):
+                for index, child in enumerate(node):
+                    if child == {"component.update": "my_display"}:
+                        start = index - 1 if index and "script.execute" in node[index - 1] else index
+                        self.refresh_sequences.append(node[start:index + 3])
+                    refreshes(child)
+            elif isinstance(node, dict):
+                for value in node.values():
+                    refreshes(value)
+
+        for package in (core, transport):
+            refreshes(package.get("script", []))
         self.scripts = {}
         pending = ["settle_display", "enter_deep_sleep", "sleep_after_display"]
+        for sequence in self.refresh_sequences:
+            for action in sequence:
+                if "script.execute" in action:
+                    pending.append(action["script.execute"])
         snippets = set()
 
         def visit(node):
@@ -127,6 +150,13 @@ class DisplayRuntime:
         self.events = []
         self.sleep = None
 
+    def refresh(self, index=0):
+        name = "__refresh_caller"
+        task = {"alive": True, "name": name}
+        task["actions"] = self.actions(self.program.refresh_sequences[index], task)
+        self.tasks[name] = task
+        self.resume(task)
+
     def condition(self, condition):
         if len(condition) != 1:
             raise ValueError(f"Unsupported condition: {condition}")
@@ -183,6 +213,12 @@ class DisplayRuntime:
                 if not self.condition(value["condition"]):
                     yield ("wait_until", value["condition"],
                            self.state.now + self.program.duration(value["timeout"]))
+            elif key == "component.update":
+                if value != "my_display":
+                    raise ValueError(f"Unsupported component: {value}")
+                if self.state.reset_low_count != self.state.reset_high_count:
+                    raise AssertionError("Display SPI update occurred while RST was LOW")
+                self.events.append((self.state.now, key, value))
             elif key == "deep_sleep.enter":
                 duration = value.get("sleep_duration", "1h") if isinstance(value, dict) else "1h"
                 self.sleep = (self.state.now, self.program.duration(duration))
