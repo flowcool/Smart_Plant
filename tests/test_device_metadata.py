@@ -29,7 +29,7 @@ GENERATED = PKG / "generated"
 
 # --- load the generator module by path (no package install) -----------------
 _spec = importlib.util.spec_from_file_location(
-    "gen_meta", ROOT / "scripts/generate_device_metadata.py"
+    "scripts.generate_device_metadata", ROOT / "scripts/generate_device_metadata.py"
 )
 gen = importlib.util.module_from_spec(_spec)
 _spec.loader.exec_module(gen)

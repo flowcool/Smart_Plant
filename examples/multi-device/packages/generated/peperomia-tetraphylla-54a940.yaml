@@ -1,6 +1,7 @@
 # =============================================================================
 # GENERATED FILE - DO NOT EDIT.
-# Source: examples/multi-device/plants.yaml (key: peperomia-tetraphylla-54a940)
+# Sources: examples/multi-device/plants.yaml (key: peperomia-tetraphylla-54a940)
+#          label_maker/gauge-contract.yaml + ha-thresholds-snapshot.json
 # Regenerate: python3 scripts/generate_device_metadata.py
 # Drift check (CI): python3 scripts/generate_device_metadata.py --check
 # -----------------------------------------------------------------------------
@@ -21,3 +22,8 @@ substitutions:
   timezone: "Europe/Paris"
   soil_v_wet: "1.36"
   soil_v_dry: "2.8"
+  light_max: "10000"
+  temp_min: "-10"
+  temp_max: "50"
+  hum_min: "0"
+  hum_max: "100"
