@@ -1,6 +1,15 @@
 # Native API wake window
 
-The API profile waits for a state subscriber before it starts acquisition.
+The API profile samples the battery before its optional network wait. It skips
+that wait at or below the critical threshold. A restored low-battery latch also
+skips it until a valid reading reaches the exit threshold. Missing or nonfinite
+readings keep that bypass when the latch is set. An unlatched device with an
+unavailable battery retains the bounded best-effort connection window.
+The existing battery sample adds a 250 ms rail-settle delay and a readiness
+wait of up to 3 seconds before this decision. Skipping the connection window
+still runs the normal acquisition, display and protected sleep sequence.
+
+The API profile then waits for a state subscriber before full acquisition.
 `api_connection_timeout` sets the maximum wait. The default is 10 seconds.
 The wait runs at boot priority 399, after sensor setup at 600 and display setup
 at 400. It is asynchronous. Wi-Fi setup at priority 250 can proceed while the

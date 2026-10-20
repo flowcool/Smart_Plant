@@ -21,6 +21,7 @@ PROFILE = ROOT / "examples/multi-device/packages/smart_plant_profile_api.yaml"
 
 STUB = r"""
 #include <cstdint>
+#include <cmath>
 #include <functional>
 #include <iostream>
 #include <list>
@@ -70,9 +71,13 @@ struct APIServer {
 };
 APIServer server;
 APIServer *global_api_server = &server;
+struct Sensor { float state; bool valid; bool has_state() const { return valid; } };
+Sensor batpercent;
+bool low_batt_active;
+#define id(name) name
 // PINNED_IMPLEMENTATION
 int main(int argc, char **argv) {
-  if (argc != 6) return 2;
+  if (argc != 9) return 2;
   const uint32_t timeout = std::stoul(argv[1]);
   const int subscribed_at = std::stoi(argv[2]);
   const int disconnected_at = std::stoi(argv[3]);
@@ -85,7 +90,11 @@ int main(int argc, char **argv) {
   int acquisitions = 0;
   wait.next = [&] { acquired_at = clock_ms; ++acquisitions; };
   server.client.flags_.state_subscription = subscribed_at == 0;
-  wait.play_complex(); // YAML on_boot priority 399 starts here.
+  batpercent = {std::stof(argv[6]), static_cast<bool>(std::stoi(argv[7]))};
+  low_batt_active = std::stoi(argv[8]);
+  const bool allow_wait = [&]() { /* BATTERY_POLICY */ }();
+  if (allow_wait) wait.play_complex();
+  else wait.next();
   // Returning proves the wait does not hold up Wi-Fi setup at priority 250.
   const bool wifi_setup_reached = true;
   wait.setup(); // Must preserve a wait started before component setup.
@@ -97,6 +106,13 @@ int main(int argc, char **argv) {
   std::cout << acquired_at << ' ' << acquisitions << ' ' << wifi_setup_reached << '\n';
 }
 """
+
+
+class PackageLoader(yaml.SafeLoader):
+    pass
+
+
+PackageLoader.add_multi_constructor("!", lambda loader, tag, node: loader.construct_scalar(node))
 
 
 class APIBootTests(unittest.TestCase):
@@ -111,7 +127,13 @@ class APIBootTests(unittest.TestCase):
         cls.profile = yaml.safe_load(PROFILE.read_text(encoding="utf-8"))
         boot = cls.profile["esphome"]["on_boot"]
         acquire = next(action for action in boot if action["priority"] == 399.0)
-        wait, execute = acquire["then"]
+        sample, settled, guarded, execute = acquire["then"]
+        if sample != {"script.execute": "sample_battery"} or settled != {"script.wait": "sample_battery"}:
+            raise AssertionError("Battery sampling must finish before the optional API window")
+        policy = guarded["if"]["condition"]["lambda"]
+        core = yaml.load((ROOT / "examples/multi-device/packages/smart_plant_core.yaml").read_text(), Loader=PackageLoader)
+        policy = re.sub(r"\$\{([^}]+)\}", lambda m: core["substitutions"][m[1]], policy)
+        wait, = guarded["if"]["then"]
         if execute != {"script.execute": "acquire_normal"}:
             raise AssertionError("API wait must continue into the production acquisition script")
         condition = wait["wait_until"]["condition"]["api.connected"]
@@ -138,13 +160,15 @@ class APIBootTests(unittest.TestCase):
         path = Path(cls.temp.name)
         cpp = path / "api.cpp"
         cls.executable = path / "api"
-        cpp.write_text(STUB.replace("// PINNED_IMPLEMENTATION", match[0] + "\n" + api + "\n" + action))
+        cpp.write_text(STUB.replace("// PINNED_IMPLEMENTATION", match[0] + "\n" + api + "\n" + action)
+                       .replace("/* BATTERY_POLICY */", policy))
         subprocess.run([shutil.which("g++") or "g++", "-std=c++17", str(cpp), "-o", str(cls.executable)],
                        check=True, capture_output=True, text=True)
 
-    def run_scenario(self, subscribed_at=-1, disconnected_at=-1, connected=False):
+    def run_scenario(self, subscribed_at=-1, disconnected_at=-1, connected=False, battery=80, valid=True, latched=False):
         result = subprocess.run([str(self.executable), str(self.timeout), str(subscribed_at),
-                                 str(disconnected_at), str(int(connected)), str(int(self.subscription_only))],
+                                 str(disconnected_at), str(int(connected)), str(int(self.subscription_only)),
+                                 str(battery), str(int(valid)), str(int(latched))],
                                 check=True, capture_output=True, text=True, timeout=5)
         return tuple(map(int, result.stdout.split()))
 
@@ -163,6 +187,26 @@ class APIBootTests(unittest.TestCase):
     def test_disconnect_during_acquisition_does_not_restart_wait(self):
         self.assertEqual(self.run_scenario(subscribed_at=1000, disconnected_at=1001, connected=True),
                          (1000, 1, 1))
+
+    def test_critical_battery_skips_optional_network_wait(self):
+        for battery in [0, 14.9, 15]:
+            with self.subTest(battery=battery):
+                self.assertEqual(self.run_scenario(battery=battery), (0, 1, 1))
+
+    def test_restored_latch_waits_only_after_valid_exit(self):
+        for battery, expected in [(15.1, 0), (21.9, 0), (22, self.timeout), (30, self.timeout)]:
+            with self.subTest(battery=battery):
+                self.assertEqual(self.run_scenario(battery=battery, latched=True), (expected, 1, 1))
+
+    def test_invalid_latched_battery_skips_wait(self):
+        for battery, valid in [(80, False), ("nan", True), ("inf", True), ("-inf", True)]:
+            with self.subTest(battery=battery, valid=valid):
+                self.assertEqual(self.run_scenario(battery=battery, valid=valid, latched=True), (0, 1, 1))
+
+    def test_healthy_or_unlatched_unavailable_battery_keeps_bounded_wait(self):
+        for battery, valid in [(15.1, True), (22, True), (80, False), ("nan", True), ("inf", True)]:
+            with self.subTest(battery=battery, valid=valid):
+                self.assertEqual(self.run_scenario(battery=battery, valid=valid), (self.timeout, 1, 1))
 
 
 if __name__ == "__main__":

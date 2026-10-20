@@ -44,11 +44,23 @@ esphome:
     # Recheck on ESPHome upgrades: internal priorities may change.
     - priority: 399.0
       then:
-        - wait_until:
+        - script.execute: sample_battery
+        - script.wait: sample_battery
+        # Protect a critical or persisted low-battery state before spending an
+        # optional network window. A valid recharge at exit releases the bypass.
+        - if:
             condition:
-              api.connected:
-                state_subscription_only: true
-            timeout: ${api_connection_timeout}
+              lambda: |-
+                const bool valid = id(batpercent).has_state() && std::isfinite(id(batpercent).state);
+                if (!valid) return !id(low_batt_active);
+                return id(batpercent).state > ${low_batt_crit_pct} &&
+                       (!id(low_batt_active) || id(batpercent).state >= ${low_batt_exit_pct});
+            then:
+              - wait_until:
+                  condition:
+                    api.connected:
+                      state_subscription_only: true
+                  timeout: ${api_connection_timeout}
         - script.execute: acquire_normal   # samples, then chains decide_sleep
 
 script:
