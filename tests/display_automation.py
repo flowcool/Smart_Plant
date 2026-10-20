@@ -27,12 +27,16 @@ PackageLoader.add_multi_constructor(
 
 
 class DisplayProgram:
-    def __init__(self, root, profile, control=False):
-        packages = Path(root) / "examples/multi-device/packages"
-        core = yaml.load((packages / "smart_plant_core.yaml").read_text(), PackageLoader)
-        transport = yaml.load(
-            (packages / f"smart_plant_profile_{profile}.yaml").read_text(), PackageLoader
-        )
+    def __init__(self, root, profile=None, standalone=False, control=False):
+        if standalone:
+            core = yaml.load((Path(root) / "docs/source/files/configuration.yaml").read_text(), PackageLoader)
+            transport = {"script": []}
+        else:
+            packages = Path(root) / "examples/multi-device/packages"
+            core = yaml.load((packages / "smart_plant_core.yaml").read_text(), PackageLoader)
+            transport = yaml.load(
+                (packages / f"smart_plant_profile_{profile}.yaml").read_text(), PackageLoader
+            )
         self.substitutions = dict(core["substitutions"], **transport.get("substitutions", {}))
         available = {s["id"]: s for p in (core, transport) for s in p["script"]}
         if control:
@@ -63,6 +67,8 @@ class DisplayProgram:
             refreshes(package.get("script", []))
         self.scripts = {}
         pending = ["settle_display", "enter_deep_sleep", "sleep_after_display"]
+        if standalone:
+            pending.append("consider_deep_sleep")
         if control:
             pending += [name for name in ("prepare_cycle", "decide_sleep", "ota_end", "boot",
                         "maintenance_control_on", "maintenance_control_off",
@@ -100,6 +106,8 @@ class DisplayProgram:
                   for p in (core, transport) for g in p.get("globals", [])]
         fields += [("busy", "int", "0"), ("reset_low_count", "int", "0"),
                    ("reset_high_count", "int", "0"), ("now", "uint32_t", "0")]
+        if standalone:
+            fields.append(("esptime", "Clock", "0"))
         if control:
             fields += [("batpercent", "Sensor", None), ("temp", "Sensor", None),
                        ("hum", "Sensor", None), ("light", "Sensor", None), ("soil", "Sensor", None),
@@ -119,7 +127,7 @@ class DisplayProgram:
 
         self.State = State
         self.initial = {name: (Sensor(80, True) if kind == "Sensor" else Clock(12, 0, True)) if value is None
-                        else value == "true" if kind == "bool" else int(value)
+                        else Clock(0, 0, False) if kind == "Clock" else value == "true" if kind == "bool" else int(value)
                         for name, kind, value in fields}
         source = ["#include <cstdint>\n#include <type_traits>\n#include <cmath>\n",
                   "struct Sensor { float state; bool available; bool has_state() const { return available; } };",
@@ -177,6 +185,7 @@ class DisplayRuntime:
         self.busy = busy
         self.reverse_schedule = reverse_schedule
         self.sensor_update = sensor_update
+        self.api_subscriber = True
         self.tasks = {}
         self.events = []
         self.sleep = None
@@ -200,6 +209,10 @@ class DisplayRuntime:
             return not self.condition(value)
         if key == "mqtt.connected":
             return self.state.mqtt_connected
+        if key == "api.connected":
+            if value != {"state_subscription_only": True}:
+                raise ValueError("Only state subscriber readiness is supported")
+            return self.api_subscriber
         raise ValueError(f"Unsupported condition: {key}")
 
     def stop(self, name):
