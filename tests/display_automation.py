@@ -40,7 +40,8 @@ class DisplayProgram:
                 for direction in ("on", "off"):
                     available[f'{switch["id"]}_{direction}'] = {
                         "then": switch[f"turn_{direction}_action"]}
-            available["ota_end"] = {"then": transport["ota"][0]["on_end"]["then"]}
+            if "on_end" in transport["ota"][0]:
+                available["ota_end"] = {"then": transport["ota"][0]["on_end"]["then"]}
             available["boot"] = {"then": transport["esphome"]["on_boot"][-1]["then"]}
         # Extract the actual refresh boundary at every caller, including the
         # maintenance path. Surrounding plant/page decisions are irrelevant to
@@ -63,9 +64,9 @@ class DisplayProgram:
         self.scripts = {}
         pending = ["settle_display", "enter_deep_sleep", "sleep_after_display"]
         if control:
-            pending += ["prepare_cycle", "decide_sleep", "ota_end", "boot",
+            pending += [name for name in ("prepare_cycle", "decide_sleep", "ota_end", "boot",
                         "maintenance_control_on", "maintenance_control_off",
-                        "storage_control_on", "storage_control_off"]
+                        "storage_control_on", "storage_control_off") if name in available]
         for sequence in self.refresh_sequences:
             for action in sequence:
                 if "script.execute" in action:
@@ -170,11 +171,12 @@ class DisplayProgram:
 class DisplayRuntime:
     TICK = 10
 
-    def __init__(self, program, busy=lambda ms: 0, reverse_schedule=False):
+    def __init__(self, program, busy=lambda ms: 0, reverse_schedule=False, sensor_update=None):
         self.program = program
         self.state = program.State(**program.initial)
         self.busy = busy
         self.reverse_schedule = reverse_schedule
+        self.sensor_update = sensor_update
         self.tasks = {}
         self.events = []
         self.sleep = None
@@ -251,6 +253,8 @@ class DisplayRuntime:
                 if value == "my_display" and self.state.reset_low_count != self.state.reset_high_count:
                     raise AssertionError("Display SPI update occurred while RST was LOW")
                 self.events.append((self.state.now, key, value))
+                if self.sensor_update is not None:
+                    self.sensor_update(value, self.state)
             elif key == "display.page.show":
                 self.state.selected_page = (int(self.program.functions[value](ctypes.byref(self.state)))
                                             if value in self.program.functions else getattr(self.state, value))

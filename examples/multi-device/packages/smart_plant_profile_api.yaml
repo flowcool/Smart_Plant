@@ -16,6 +16,8 @@ esphome:
         - lambda: 'delay(250);'
     - priority: 399.0
       then:
+        # Storage belongs to MQTT. Clear a latch restored from an older profile.
+        - lambda: 'id(storage_active) = false;'
         - script.execute: acquire_normal
 
 api:

@@ -12,7 +12,8 @@ Assistant transport:
 
 Start from `my-lemon-tree.yaml` for MQTT or `my-lemon-tree-api.yaml` for the
 native API, set its substitutions and compose the core with exactly one
-transport profile. Keep credentials in the local `secrets.yaml`; remote package
+transport profile. The API profile clears a Storage latch left by the MQTT
+profile and keeps the common low-battery latch. Keep credentials in the local `secrets.yaml`; remote package
 files contain no secrets.
 
 The MQTT example preserves an explicit topic prefix. Treat that prefix as a
@@ -105,6 +106,8 @@ Maintenance has priority over Storage. Admission requires a finite battery
 reading at or above `ota_min_battery` (50% by default). A lower reading returns
 `REJECTED_LOW_BATTERY`; a missing or non-finite reading returns
 `BATTERY_UNAVAILABLE`. Both results clear the retained Maintenance command.
+A rejected request resumes Storage or acquires fresh plant readings for Normal
+mode. The rejection result remains visible through that cycle.
 Maintenance samples only the battery. Its page shows the window end time when
 the clock is valid. A missing clock delays admission by at most ten seconds.
 

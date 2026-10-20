@@ -50,7 +50,7 @@ class MaintenanceStorageTests(unittest.TestCase):
                 runtime.state.batpercent.available = available
                 runtime.state.maintenance_requested = True
                 runtime.execute("prepare_cycle")
-                runtime.run_until(6000)
+                runtime.run_until(30000)
                 states = [state for _, state in self.publications(runtime, "maintenance_status")]
                 self.assertIn(expected, states)
                 self.assertEqual(runtime.state.maintenance_active, expected == "ON")
@@ -271,7 +271,9 @@ class MaintenanceStorageTests(unittest.TestCase):
                 # the subscribed switch. TemplateSwitch runs OFF even if OFF.
                 runtime.execute("maintenance_control_off")
                 runtime.run_until(24000)
-                self.assertEqual(self.updates(runtime), ["max17043_id", "my_display"])
+                self.assertEqual(self.updates(runtime).count("my_display"), 1)
+                self.assertEqual(self.updates(runtime).count("max17043_id"), 1 if storage else 2)
+                self.assertEqual(self.updates(runtime).count("soil"), 0 if storage else 5)
                 self.assertEqual([s for _, s in self.publications(runtime, "maintenance_status")],
                                  ["REJECTED_LOW_BATTERY"])
                 self.assertEqual(runtime.state.storage_active, storage)
@@ -349,6 +351,34 @@ class MaintenanceStorageTests(unittest.TestCase):
         self.assertEqual(self.updates(runtime).count("soil"), 5)
         self.assertEqual(runtime.sleep[1], 3600000)
 
+    def test_rejected_maintenance_acquires_initially_missing_plant_states(self):
+        runtime = self.runtime()
+        runtime.state.batpercent.state = 40
+        for name in ("temp", "hum", "light", "soil"):
+            sensor = getattr(runtime.state, name)
+            sensor.available = False
+            sensor.state = math.nan
+        readings = {"aht20_sensor": {"temp": 21, "hum": 45},
+                    "veml7700_sensor": {"light": 123}, "soil": {"soil": 42}}
+        def update(component, state):
+            for name, value in readings.get(component, {}).items():
+                sensor = getattr(state, name)
+                sensor.state = value
+                sensor.available = True
+        runtime.sensor_update = update
+        runtime.execute("maintenance_control_on")
+        runtime.run_until(500)
+        runtime.execute("maintenance_control_off")  # retained rejection echo
+        runtime.run_until(26000)
+        for name, value in {"temp": 21, "hum": 45, "light": 123, "soil": 42}.items():
+            self.assertTrue(getattr(runtime.state, name).available)
+            self.assertEqual(getattr(runtime.state, name).state, value)
+        self.assertEqual(self.updates(runtime).count("soil"), 5)
+        self.assertEqual(runtime.state.selected_page, runtime.state.page1)
+        self.assertEqual(runtime.sleep[1], 3600000)
+        self.assertEqual([s for _, s in self.publications(runtime, "maintenance_status")],
+                         ["REJECTED_LOW_BATTERY"])
+
     def test_topic_contract_persistence_and_transport_separation(self):
         packages = ROOT / "examples/multi-device/packages"
         mqtt = yaml.load((packages / "smart_plant_profile_mqtt.yaml").read_text(), PackageLoader)
@@ -368,6 +398,33 @@ class MaintenanceStorageTests(unittest.TestCase):
         self.assertNotIn("mqtt.publish", (packages / "smart_plant_profile_api.yaml").read_text())
         names = [s["name"] for s in mqtt["switch"] + mqtt["text_sensor"]]
         self.assertEqual(len(names), len(set(names)))
+
+
+class APIStorageIsolationTests(unittest.TestCase):
+    def test_restored_mqtt_storage_cannot_change_api_page_or_sleep(self):
+        program = DisplayProgram(ROOT, "api", control=True)
+        try:
+            for battery, latched, expected_low in [(80, False, False), (80, True, False),
+                                                  (20, True, True), (math.nan, True, True)]:
+                with self.subTest(battery=battery, latched=latched):
+                    runtime = DisplayRuntime(program)
+                    runtime.state.storage_active = True
+                    runtime.state.low_batt_active = latched
+                    runtime.state.batpercent.state = battery
+                    def busy(ms):
+                        updates = [t for t, k, v in runtime.events
+                                   if k == "component.update" and v == "my_display"]
+                        return int(bool(updates) and 50 <= ms - updates[-1] < 350)
+                    runtime.busy = busy
+                    runtime.execute("boot")
+                    runtime.run_until(30000)
+                    self.assertFalse(runtime.state.storage_active)
+                    self.assertEqual(runtime.state.low_batt_active, expected_low)
+                    self.assertEqual(runtime.state.selected_page,
+                                     runtime.state.page_low_batt if expected_low else runtime.state.page1)
+                    self.assertEqual(runtime.sleep[1], 86400000 if expected_low else 3600000)
+        finally:
+            program.close()
 
 
 if __name__ == "__main__":
