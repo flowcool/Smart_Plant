@@ -194,3 +194,9 @@ sleep. Native shutdown hooks remain active, including the stock driver's final
 SPI sleep command. Both normal and emergency paths retain explicit OTA image
 confirmation for compatibility. No new application display refresh follows a
 terminal fault.
+
+## Optional label generation
+
+Use the [generic label generator](label_maker/README.md) to keep recommendation
+bands and firmware needle scales aligned. Its example uses synthetic values.
+It does not read Home Assistant or any device inventory.

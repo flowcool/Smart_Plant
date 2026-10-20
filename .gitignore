@@ -9,3 +9,6 @@
 /Enclosure/Others
 /Eagle
 /Design/Smart_Plant-backups
+
+# Python tool caches
+__pycache__/
