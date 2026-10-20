@@ -195,7 +195,8 @@ class FleetUpdaterExplicitUploadTests(unittest.TestCase):
 
     def test_wait_for_maintenance_arms_explicit_ip_upload_not_install(self) -> None:
         self.updater.maintenance_statuses = lambda names: {n: "ON" for n in names}
-        self.updater.runtime_states = lambda: {self.name: "online"}
+        self.updater.runtime_states = lambda: {self.name: "offline"}
+        self.updater.is_ota_reachable = mock.Mock(return_value=True)
         calls: list = []
 
         def api(command: str, args: dict | None = None) -> dict:
@@ -251,6 +252,115 @@ class FleetUpdaterExplicitUploadTests(unittest.TestCase):
         self.assertIn(("maintenance", "ON", (self.name,)), events)
         # Maintenance is turned back OFF for the failed device on cleanup.
         self.assertIn(("maintenance", "OFF", (self.name,)), events)
+
+
+class FleetUpdaterMaintenanceAdmissionTests(unittest.TestCase):
+    def setUp(self) -> None:
+        self.updater = MODULE.FleetUpdater("unused", "unused", "unused", "unused", 1)
+        self.name = "ceropegia-woodii-54a8f2"
+        self.ip = self.updater.devices[self.name]["ip"]
+        self.now = 0
+        self.clock = mock.patch.object(MODULE.time, "monotonic", lambda: self.now)
+        self.sleep = mock.patch.object(MODULE.time, "sleep", self.advance)
+        self.clock.start()
+        self.sleep.start()
+        self.addCleanup(self.clock.stop)
+        self.addCleanup(self.sleep.stop)
+        # Fail closed if a test misses any external boundary.
+        self.updater.ssh = mock.Mock(side_effect=AssertionError("unexpected SSH call"))
+        self.updater.runtime_states = mock.Mock(return_value={self.name: "offline"})
+        self.updater.maintenance_statuses = mock.Mock(return_value={self.name: "ON"})
+        self.updater.is_ota_reachable = mock.Mock(return_value=True)
+        self.updater.api = mock.Mock(return_value={"job_id": "upload-1"})
+
+    def advance(self, seconds: int) -> None:
+        self.now += seconds
+
+    def test_stale_builder_offline_does_not_block_settled_ota(self) -> None:
+        jobs, failures = self.updater.wait_for_maintenance([self.name], 5, 2)
+
+        self.assertEqual(jobs, {self.name: "upload-1"})
+        self.assertEqual(failures, {})
+        self.assertEqual(self.now, 2)
+        self.updater.is_ota_reachable.assert_called_with(self.ip)
+        self.updater.runtime_states.assert_not_called()
+        self.updater.api.assert_called_once_with(
+            "firmware/upload",
+            {"configuration": self.updater.devices[self.name]["configuration"], "port": self.ip},
+        )
+
+    def test_retained_on_cannot_admit_unreachable_device(self) -> None:
+        self.updater.is_ota_reachable.return_value = False
+        # Even an optimistic builder state must not admit the target.
+        self.updater.runtime_states.return_value = {self.name: "online"}
+
+        jobs, failures = self.updater.wait_for_maintenance([self.name], 3, 0)
+
+        self.assertEqual(jobs, {})
+        self.assertEqual(failures, {self.name: "maintenance readiness timeout"})
+        self.assertEqual(self.now, 3)
+        self.updater.api.assert_not_called()
+
+    def test_reachability_loss_restarts_settle_guard(self) -> None:
+        self.updater.is_ota_reachable.side_effect = lambda ip: self.now != 1
+
+        jobs, failures = self.updater.wait_for_maintenance([self.name], 6, 2)
+
+        self.assertEqual(jobs, {self.name: "upload-1"})
+        self.assertEqual(failures, {})
+        self.assertEqual(self.now, 4)
+
+    def test_maintenance_loss_restarts_settle_guard(self) -> None:
+        self.updater.maintenance_statuses.side_effect = lambda names: {
+            self.name: "OFF" if self.now == 1 else "ON"
+        }
+
+        jobs, failures = self.updater.wait_for_maintenance([self.name], 6, 2)
+
+        self.assertEqual(jobs, {self.name: "upload-1"})
+        self.assertEqual(failures, {})
+        self.assertEqual(self.now, 4)
+
+    def test_maintenance_ack_is_required_even_when_reachable(self) -> None:
+        for status in ({}, {self.name: "OFF"}):
+            with self.subTest(status=status):
+                self.now = 0
+                self.updater.maintenance_statuses.side_effect = None
+                self.updater.maintenance_statuses.return_value = status
+
+                jobs, failures = self.updater.wait_for_maintenance([self.name], 3, 0)
+
+                self.assertEqual(jobs, {})
+                self.assertIn(self.name, failures)
+                self.updater.api.assert_not_called()
+
+    def test_update_timeout_clears_maintenance(self) -> None:
+        self.updater.compile_many = mock.Mock()
+        self.updater.publish_maintenance = mock.Mock()
+        self.updater.is_ota_reachable.return_value = False
+
+        with self.assertRaisesRegex(RuntimeError, "maintenance readiness timeout"):
+            self.updater.update_many([self.name], 0, 3, 0)
+
+        self.assertEqual(
+            self.updater.publish_maintenance.call_args_list,
+            [mock.call([self.name], "ON"), mock.call([self.name], "OFF")],
+        )
+        self.updater.api.assert_not_called()
+
+    def test_probe_failure_clears_maintenance(self) -> None:
+        self.updater.compile_many = mock.Mock()
+        self.updater.publish_maintenance = mock.Mock()
+        self.updater.is_ota_reachable.side_effect = RuntimeError("probe failed")
+
+        with self.assertRaisesRegex(RuntimeError, "probe failed"):
+            self.updater.update_many([self.name], 0, 3, 0)
+
+        self.assertEqual(
+            self.updater.publish_maintenance.call_args_list,
+            [mock.call([self.name], "ON"), mock.call([self.name], "OFF")],
+        )
+        self.updater.api.assert_not_called()
 
 
 if __name__ == "__main__":

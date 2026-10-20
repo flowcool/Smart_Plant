@@ -432,7 +432,7 @@ class FleetUpdater:
         timeout_seconds: int,
         settle_seconds: int,
     ) -> tuple[dict[str, str], dict[str, str]]:
-        """Arm explicit-IP uploads once online + ON hold for the settle guard.
+        """Arm uploads once OTA reachability + ON hold for the settle guard.
 
         The fleet is precompiled before maintenance opens, so each ready device
         needs only an upload. Submit it to the inventory IP (bypassing the
@@ -445,10 +445,11 @@ class FleetUpdater:
         pending = set(names)
         while pending and time.monotonic() < deadline:
             statuses = self.maintenance_statuses(list(pending))
-            runtime = self.runtime_states()
-            now = time.monotonic()
             for name in list(pending):
-                ready = runtime.get(name) == "online" and statuses.get(name) == "ON"
+                ready = statuses.get(name) == "ON" and self.is_ota_reachable(
+                    self.devices[name]["ip"]
+                )
+                now = time.monotonic()
                 if not ready:
                     settling_since.pop(name, None)
                     continue
