@@ -44,6 +44,8 @@ esphome:
     # Recheck on ESPHome upgrades: internal priorities may change.
     - priority: 399.0
       then:
+        # Storage belongs to MQTT. Clear a latch restored from an older profile.
+        - lambda: 'id(storage_active) = false;'
         - script.execute: sample_battery
         - script.wait: sample_battery
         # Protect a critical or persisted low-battery state before spending an
