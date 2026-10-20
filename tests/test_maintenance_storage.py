@@ -296,7 +296,7 @@ class MaintenanceStorageTests(unittest.TestCase):
                     runtime.run_until(26000)
                     started = [v for _, k, v in runtime.events if k == "script.execute"]
                     self.assertEqual(started.count("acquire_normal"), 1)
-                    self.assertEqual(self.updates(runtime).count("soil_voltage"), 5)
+                    self.assertEqual(self.updates(runtime).count("soil"), 5)
                     self.assertEqual([s for _, s in self.publications(runtime, "maintenance_status")],
                                      ["ON", "OFF", "OFF"])
                     self.assertEqual(runtime.sleep[1], 3600000)
@@ -328,7 +328,7 @@ class MaintenanceStorageTests(unittest.TestCase):
         runtime.run_until(34000)
         started = [v for _, k, v in runtime.events if k == "script.execute"]
         self.assertEqual(started.count("acquire_normal"), 1)
-        self.assertEqual(self.updates(runtime).count("soil_voltage"), 5)
+        self.assertEqual(self.updates(runtime).count("soil"), 5)
         self.assertEqual(self.updates(runtime).count("my_display"), 1)
         self.assertFalse(runtime.state.storage_active)
         self.assertEqual(runtime.sleep[1], 3600000)
@@ -346,7 +346,7 @@ class MaintenanceStorageTests(unittest.TestCase):
         runtime.execute("maintenance_control_off")
         runtime.run_until(26000)
         self.assertFalse(runtime.state.storage_active)
-        self.assertEqual(self.updates(runtime).count("soil_voltage"), 5)
+        self.assertEqual(self.updates(runtime).count("soil"), 5)
         self.assertEqual(runtime.sleep[1], 3600000)
 
     def test_topic_contract_persistence_and_transport_separation(self):

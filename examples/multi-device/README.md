@@ -113,8 +113,11 @@ an observed panel BUSY HIGH-to-LOW refresh cycle and its settling guard. A
 physical LOW without an observed assertion does not acknowledge readiness.
 A repeated `ON` renews the window. `OFF` or the watchdog clears the retained
 command, restores the selected mode and refreshes the display. Normal mode
-first acquires fresh plant measurements. Commands received during acquisition
-or display settlement cancel the older work; the latest requested state wins.
+first acquires fresh plant measurements. Changed requests received during
+acquisition or display settlement cancel the older work; the latest requested
+state wins. An echoed Maintenance `OFF` after rejection or exit starts no new
+cycle. Equal Storage requests do not restart pending work. Maintenance `ON`
+continues to renew its timed window.
 
 A successful OTA transfer clears the Maintenance request and cancels its
 watchdog before a two-second MQTT flush. It starts no new display refresh.
