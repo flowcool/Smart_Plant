@@ -127,7 +127,9 @@ class APIBootTests(unittest.TestCase):
         cls.profile = yaml.safe_load(PROFILE.read_text(encoding="utf-8"))
         boot = cls.profile["esphome"]["on_boot"]
         acquire = next(action for action in boot if action["priority"] == 399.0)
-        sample, settled, guarded, execute = acquire["then"]
+        reset, sample, settled, guarded, execute = acquire["then"]
+        if reset != {"lambda": "id(storage_active) = false;"}:
+            raise AssertionError("API boot must clear Storage restored from the MQTT profile")
         if sample != {"script.execute": "sample_battery"} or settled != {"script.wait": "sample_battery"}:
             raise AssertionError("Battery sampling must finish before the optional API window")
         policy = guarded["if"]["condition"]["lambda"]

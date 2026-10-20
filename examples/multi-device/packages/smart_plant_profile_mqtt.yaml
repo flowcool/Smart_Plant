@@ -385,9 +385,9 @@ script:
                       then:
                         - script.execute: enter_storage
                       else:
-                        - script.execute: render_measurement_page
-                        - script.wait: render_measurement_page
-                        - script.execute: sleep_after_display
+                        # Admission samples only the battery. Acquire the plant
+                        # states before returning to the normal display cycle.
+                        - script.execute: acquire_normal
           else:
             - script.stop: maintenance_watchdog
             - if:
@@ -408,9 +408,13 @@ script:
                             then:
                               - script.execute: exit_storage
                             else:
-                              - text_sensor.template.publish:
-                                  id: maintenance_status
-                                  state: "OFF"
+                              - if:
+                                  condition:
+                                    lambda: 'return !id(preserve_maintenance_status);'
+                                  then:
+                                    - text_sensor.template.publish:
+                                        id: maintenance_status
+                                        state: "OFF"
                               - text_sensor.template.publish:
                                   id: storage_status
                                   state: "OFF"
