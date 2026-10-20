@@ -137,10 +137,13 @@ window.
 
 Maintenance Status becomes `DISPLAY_REFRESH_FAILED` when the firmware cannot
 confirm a complete BUSY HIGH-to-LOW refresh cycle, and OTA readiness is not
-published. If BUSY remains high, `DISPLAY_BUSY_TIMEOUT` is reported and the
-device refuses deep sleep or a power cut so the panel is not interrupted. A
-lightweight recovery loop keeps observing BUSY and resumes safe sleep
-automatically 500 ms after the line eventually clears. Every daily Storage wake
+published. If BUSY remains high, `DISPLAY_BUSY_TIMEOUT` is reported and normal
+sleep is deferred. Recovery observes BUSY with one total 30-second budget across
+retries and final sleep delays. If it cannot finish safely, the terminal path
+resets the panel and requests emergency sleep. Native shutdown hooks remain
+active, including the driver's final SPI sleep command. See
+[display recovery timing](../../docs/display-recovery.md) for the distinction
+between the bounded sleep action and physical sleep. Every daily Storage wake
 reads and publishes a fresh battery value, refreshes the Storage page once, and
 keeps temperature, humidity, light, and soil acquisition disabled.
 
