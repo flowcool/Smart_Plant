@@ -105,6 +105,8 @@ ota:
     # the new firmware performs a normal measurement/display/sleep cycle.
     on_end:
       then:
+        # Do not let the old deadline refresh the panel during the OTA flush.
+        - script.stop: maintenance_watchdog
         - lambda: |-
             id(maintenance_requested) = false;
             id(maintenance_active) = false;
@@ -145,6 +147,8 @@ switch:
     retain: true
     turn_on_action:
       - lambda: 'id(maintenance_requested) = true;'
+      # Renew the window before the new sample or display refresh can yield.
+      - script.stop: maintenance_watchdog
       - if:
           condition:
             lambda: 'return id(boot_sequence_complete);'
@@ -154,9 +158,22 @@ switch:
       - lambda: 'id(maintenance_requested) = false;'
       - if:
           condition:
-            lambda: 'return id(boot_sequence_complete) && id(maintenance_active);'
+            lambda: 'return id(boot_sequence_complete);'
           then:
-            - script.execute: decide_sleep
+            - if:
+                condition:
+                  lambda: 'return id(maintenance_active);'
+                then:
+                  - script.stop: prepare_cycle
+                  - script.execute: decide_sleep
+                else:
+                  # Cancel pending admission. Ignore OFF echoes after rejection
+                  # or exit, which must not start a second acquisition cycle.
+                  - if:
+                      condition:
+                        script.is_running: prepare_cycle
+                      then:
+                        - script.execute: prepare_cycle
 
   - platform: template
     id: storage_control
@@ -168,20 +185,30 @@ switch:
     subscribe_qos: 1
     qos: 1
     retain: true
+    # Storage has no renewable window. Equal desired-state commands, including
+    # our retained OFF echo, must not restart pending or completed cycle work.
     turn_on_action:
-      - lambda: 'id(storage_requested) = true;'
       - if:
           condition:
-            lambda: 'return id(boot_sequence_complete) && !id(maintenance_active);'
+            lambda: 'return !id(storage_requested);'
           then:
-            - script.execute: prepare_cycle
+            - lambda: 'id(storage_requested) = true;'
+            - if:
+                condition:
+                  lambda: 'return id(boot_sequence_complete) && !id(maintenance_active);'
+                then:
+                  - script.execute: prepare_cycle
     turn_off_action:
-      - lambda: 'id(storage_requested) = false;'
       - if:
           condition:
-            lambda: 'return id(boot_sequence_complete) && !id(maintenance_active);'
+            lambda: 'return id(storage_requested);'
           then:
-            - script.execute: prepare_cycle
+            - lambda: 'id(storage_requested) = false;'
+            - if:
+                condition:
+                  lambda: 'return id(boot_sequence_complete) && !id(maintenance_active);'
+                then:
+                  - script.execute: prepare_cycle
 
 text_sensor:
   # Publish the actual state-machine result through a native entity so Home
@@ -246,6 +273,15 @@ script:
   - id: prepare_cycle
     mode: restart
     then:
+      # Restart also cancels asynchronous children of the previous command.
+      - script.stop: decide_sleep
+      - script.stop: enter_storage
+      - script.stop: exit_storage
+      - script.stop: exit_maintenance
+      - script.stop: acquire_normal
+      - script.stop: render_measurement_page
+      - script.stop: sample_battery
+      - script.execute: prepare_display_refresh
       - if:
           condition:
             lambda: 'return id(maintenance_requested);'
@@ -281,7 +317,7 @@ script:
                 condition:
                   lambda: |-
                     return id(batpercent).has_state() &&
-                           !isnan(id(batpercent).state) &&
+                           std::isfinite(id(batpercent).state) &&
                            id(batpercent).state >= ${ota_min_battery};
                 then:
                   - lambda: |-
@@ -334,7 +370,7 @@ script:
                       condition:
                         lambda: |-
                           return id(batpercent).has_state() &&
-                                 !isnan(id(batpercent).state);
+                                 std::isfinite(id(batpercent).state);
                       then:
                         - text_sensor.template.publish:
                             id: maintenance_status

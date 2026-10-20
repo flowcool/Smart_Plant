@@ -1,6 +1,7 @@
 """Offline executor for the display scripts, read directly from package YAML.
 
-Only the action primitives used by these scripts are supported. C++ lambdas
+Only the action primitives used by these scripts are supported. Control tests
+record publications and sensor updates; they never contact a broker or device. C++ lambdas
 run unchanged in a native library with fake globals, time and GPIO. Script
 restart/stop cancels the caller's continuation and waits, not called scripts,
 matching ESPHome 2026.9.0 script.h / automation.h / base_automation.h.
@@ -27,7 +28,7 @@ PackageLoader.add_multi_constructor(
 
 
 class DisplayProgram:
-    def __init__(self, root, profile=None, standalone=False):
+    def __init__(self, root, profile=None, standalone=False, control=False):
         if standalone:
             core = yaml.load((Path(root) / "docs/source/files/configuration.yaml").read_text(), PackageLoader)
             transport = {"script": []}
@@ -37,8 +38,15 @@ class DisplayProgram:
             transport = yaml.load(
                 (packages / f"smart_plant_profile_{profile}.yaml").read_text(), PackageLoader
             )
-        self.substitutions = core["substitutions"]
+        self.substitutions = dict(core["substitutions"], **transport.get("substitutions", {}))
         available = {s["id"]: s for p in (core, transport) for s in p["script"]}
+        if control:
+            for switch in transport.get("switch", []):
+                for direction in ("on", "off"):
+                    available[f'{switch["id"]}_{direction}'] = {
+                        "then": switch[f"turn_{direction}_action"]}
+            available["ota_end"] = {"then": transport["ota"][0]["on_end"]["then"]}
+            available["boot"] = {"then": transport["esphome"]["on_boot"][-1]["then"]}
         # Extract the actual refresh boundary at every caller, including the
         # maintenance path. Surrounding plant/page decisions are irrelevant to
         # cancellation; keep the real prepare/update/settle/wait action order.
@@ -61,6 +69,10 @@ class DisplayProgram:
         pending = ["settle_display", "enter_deep_sleep", "sleep_after_display"]
         if standalone:
             pending.append("consider_deep_sleep")
+        if control:
+            pending += ["prepare_cycle", "decide_sleep", "ota_end", "boot",
+                        "maintenance_control_on", "maintenance_control_off",
+                        "storage_control_on", "storage_control_off"]
         for sequence in self.refresh_sequences:
             for action in sequence:
                 if "script.execute" in action:
@@ -77,6 +89,8 @@ class DisplayProgram:
                         continue  # Outputs are recorded, not sent or formatted.
                     if key == "lambda":
                         snippets.add(value)
+                    elif key == "display.page.show" and "return" in value:
+                        snippets.add(value)
                     elif key in ("script.execute", "script.stop", "script.wait", "script.is_running"):
                         pending.append(value)
                     else:
@@ -88,25 +102,39 @@ class DisplayProgram:
                 self.scripts[name] = available[name]
                 visit(available[name]["then"])
 
-        fields = [(g["id"], g["type"], g["initial_value"]) for g in core["globals"]]
+        fields = [(g["id"], g["type"], g["initial_value"])
+                  for p in (core, transport) for g in p.get("globals", [])]
         fields += [("busy", "int", "0"), ("reset_low_count", "int", "0"),
                    ("reset_high_count", "int", "0"), ("now", "uint32_t", "0")]
         if standalone:
             fields.append(("esptime", "Clock", "0"))
+        if control:
+            fields += [("batpercent", "Sensor", None), ("temp", "Sensor", None),
+                       ("hum", "Sensor", None), ("light", "Sensor", None),
+                       ("soil", "Sensor", None), ("soil_voltage", "Sensor", None),
+                       ("esptime", "Clock", None), ("selected_page", "int", "0"),
+                       ("mqtt_connected", "bool", "true")]
+            fields += [(page["id"], "int", str(index))
+                       for index, page in enumerate(core["display"][0]["pages"], 1)]
+        types = {"bool": ctypes.c_bool, "int": ctypes.c_int, "uint32_t": ctypes.c_uint32}
+
+        class Sensor(ctypes.Structure):
+            _fields_ = [("state", ctypes.c_float), ("available", ctypes.c_bool)]
 
         class Clock(ctypes.Structure):
-            _fields_ = [("valid", ctypes.c_bool)]
-        types = {"bool": ctypes.c_bool, "int": ctypes.c_int, "uint32_t": ctypes.c_uint32, "Clock": Clock}
+            _fields_ = [("hour", ctypes.c_int), ("minute", ctypes.c_int), ("valid", ctypes.c_bool)]
+        types.update(Sensor=Sensor, Clock=Clock)
 
         class State(ctypes.Structure):
             _fields_ = [(name, types[kind]) for name, kind, _ in fields]
 
         self.State = State
-        self.initial = {name: Clock(False) if kind == "Clock" else value == "true" if kind == "bool" else int(value)
+        self.initial = {name: (Sensor(80, True) if kind == "Sensor" else Clock(12, 0, True)) if value is None
+                        else Clock(0, 0, False) if kind == "Clock" else value == "true" if kind == "bool" else int(value)
                         for name, kind, value in fields}
-        source = ["#include <cstdint>\n#include <type_traits>\n",
-                  "struct Now { bool valid; bool is_valid() { return valid; } };"
-                  "struct Clock { bool valid; Now now() { return {valid}; } };",
+        source = ["#include <cstdint>\n#include <type_traits>\n#include <cmath>\n",
+                  "using std::isnan; struct Sensor { float state; bool available; bool has_state() const { return available; } };",
+                  "struct Clock { int hour; int minute; bool valid; bool is_valid() const { return valid; } Clock now() const { return *this; } };",
                   "struct State {" + "".join(f"{kind} {name};" for name, kind, _ in fields) + "};",
                   "constexpr int HIGH=1, LOW=0, OUTPUT=1;",
                   "#define id(name) state->name",
@@ -180,6 +208,8 @@ class DisplayRuntime:
             return value in self.tasks
         if key == "not":
             return not self.condition(value)
+        if key == "mqtt.connected":
+            return self.state.mqtt_connected
         raise ValueError(f"Unsupported condition: {key}")
 
     def stop(self, name):
@@ -230,18 +260,22 @@ class DisplayRuntime:
                     yield ("wait_until", value["condition"],
                            self.state.now + self.program.duration(value["timeout"]))
             elif key == "component.update":
-                if value != "my_display":
-                    raise ValueError(f"Unsupported component: {value}")
-                if self.state.reset_low_count != self.state.reset_high_count:
+                if value == "my_display" and self.state.reset_low_count != self.state.reset_high_count:
                     raise AssertionError("Display SPI update occurred while RST was LOW")
                 self.events.append((self.state.now, key, value))
+            elif key == "display.page.show":
+                self.state.selected_page = (int(self.program.functions[value](ctypes.byref(self.state)))
+                                            if value in self.program.functions else getattr(self.state, value))
+                self.events.append((self.state.now, key, self.state.selected_page))
+            elif key == "repeat":
+                for _ in range(value["count"]):
+                    yield from self.actions(value["then"], task)
             elif key == "deep_sleep.enter":
                 duration = value.get("sleep_duration", "1h") if isinstance(value, dict) else "1h"
                 self.sleep = (self.state.now, self.program.duration(duration))
                 self.events.append((self.state.now, key, duration))
-            elif key in ("deep_sleep.allow", "deep_sleep.prevent", "switch.turn_off",
-                         "logger.log", "mqtt.publish", "text_sensor.template.publish",
-                         "safe_mode.mark_successful"):
+            elif key in ("deep_sleep.allow", "deep_sleep.prevent", "switch.turn_off", "switch.turn_on",
+                         "safe_mode.mark_successful", "switch.template.publish", "logger.log", "mqtt.publish", "text_sensor.template.publish"):
                 self.events.append((self.state.now, key, value))
             else:
                 raise ValueError(f"Unsupported action: {key}")
