@@ -154,3 +154,43 @@ Run the offline package tests with `python3 -B -m unittest discover -s tests -v`
 They execute the package actions and compile the policy lambdas as C++ with
 simulated sensors, time and GPIO. Firmware compilation checks ESPHome schemas
 and generated code. Neither check proves physical panel or network behavior.
+
+## API connection window
+
+The API profile samples the battery before a best-effort state-subscription
+window. The default `api_connection_timeout` is 10 seconds. A logs-only client
+does not release it. Critical battery protection bypasses this optional wait.
+The device still completes its normal cycle if no subscriber connects.
+Read [the API wake contract](../../docs/api-wake-window.md) for timing and limits.
+
+## Measurement diagnostics
+
+`Soil Voltage` exposes the median-filtered, plausibility-checked ADC reading.
+`Soil Moisture` derives its percentage from the same publication. The package
+keeps its existing wet/dry calibration and takes five samples spaced 3 seconds
+apart. Each window publishes once, after its fifth sample. Read [the soil
+qualification](../../docs/soil-sampling-qualification.md) before changing timing.
+It defines the remaining isolated bench work. It does not approve a shorter
+interval or a production experiment.
+
+`ESPHome Version` exposes the running version and its native configuration
+hash. The hash identifies the effective build, not a Git commit. A local build
+or dashboard record alone does not prove which image a device is running.
+
+Numeric gauge labels retain the measured value. Only needle coordinates are
+clamped to the display range. Missing and nonfinite readings show `--`.
+
+## Display recovery limits
+
+The existing independent recovery timer covers all BUSY retries and final
+sleep delays. A new refresh cancels stale recovery and releases an interrupted
+reset pulse. With the default 30-second recovery budget, the sleep action is
+reached within 31.510 seconds for MQTT or 31.010 seconds for API, plus scheduler
+latency. These bounds start at the first recovery attempt.
+
+Read [the recovery contract](../../docs/display-recovery.md) for the action
+ordering, tests and limits. The bounds end at `deep_sleep.enter`, not physical
+sleep. Native shutdown hooks remain active, including the stock driver's final
+SPI sleep command. Both normal and emergency paths retain explicit OTA image
+confirmation for compatibility. No new application display refresh follows a
+terminal fault.
