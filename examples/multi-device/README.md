@@ -25,3 +25,9 @@ captive portal and Improv Serial recovery paths from the original example; the
 captive portal also enables ESPHome's browser-based recovery upload surface.
 Deployments that do not need local fallback provisioning can remove
 `captive_portal`, `improv_serial`, and the Wi-Fi `ap` block together.
+
+## Optional label generation
+
+Use the [generic label generator](label_maker/README.md) to keep recommendation
+bands and firmware needle scales aligned. Its example uses synthetic values.
+It does not read Home Assistant or any device inventory.
