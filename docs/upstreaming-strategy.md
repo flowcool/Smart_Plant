@@ -1,14 +1,14 @@
 # Upstream contribution strategy — flowcool/Smart_Plant → JGAguado/Smart_Plant
 
 Owning roadmap: `infra-3rr`. Historical strategy issue: `infra-3rr.26`.
-Publication and review owner: `infra-3rr.41`.
+Historical publication and review owner: `infra-3rr.41`.
 
-## Status
+## Contribution history and publication decisions
 
 The fork-first implementation and production validation are complete. Three
 reviewable contributions rebuilt from `upstream/V2R1` were published on
 2026-09-25; the fork's accumulated commit history remains evidence, not the
-series to merge.
+series to merge. Upstream merged PRs #27, #28 and #29 on 2026-10-20.
 
 JGAguado accepted the Maintenance/Storage direction and offered `flowcool`
 maintainership of the advanced work in upstream issue #24. The original plan
@@ -24,12 +24,12 @@ A follow-up requesting that decision and proposing the PR series was posted on
 Florent then removed the response gate and chose normal PR review as the
 decision surface. `infra-3rr.21` was superseded by `infra-3rr.41`.
 
-### Published contribution stack
+### Accepted contribution stack
 
 All three PRs target upstream `V2R1`. GitHub cannot use a fork-owned branch as
 the base of a PR in the upstream repository, so PR #28 and PR #29 temporarily
-show their predecessors too. Each body identifies its one new commit and links
-an isolated comparison. Review and merge order is #27 → #28 → #29.
+showed their predecessors too during review. Each body identified its one new
+commit and linked an isolated comparison. The merge order was #27 → #28 → #29.
 
 | PR | Durable scope | New commit |
 | --- | --- | --- |
@@ -37,10 +37,12 @@ an isolated comparison. Review and merge order is #27 → #28 → #29.
 | [#28](https://github.com/JGAguado/Smart_Plant/pull/28) | Shared core plus API/MQTT profiles | `a544250` |
 | [#29](https://github.com/JGAguado/Smart_Plant/pull/29) | Generic sensor and e-paper lifecycle hardening | `8f4f75f` |
 
-PR 4 (low-battery protection) and PR 5 (Maintenance/Storage) remain separate,
-unprepared contribution scopes. Beads issues `infra-3rr.31` and
-`infra-3rr.40` own any future preparation; this document does not imply that
-they are scheduled or authorized for publication.
+On 2026-10-20, Florent authorized separate fork PRs for low-battery protection
+(`infra-3rr.31`) and Maintenance/Storage (`infra-3rr.40`). Both target
+`flowcool/Smart_Plant:upstream/staging-v2r1`. This staging branch was created
+from upstream commit `bcf373144b2d5c7e3a712fd02698e2e98e45aeed`. It keeps
+contribution review separate from the deployed fork branch. This run does not
+authorize new PRs to `JGAguado/Smart_Plant`.
 
 ## Historical preparation baseline
 
@@ -57,9 +59,11 @@ syntax change is already present independently in the fork. Upstream PR #22
 already established `examples/multi-device/` and an MQTT package on `V2R1`, so
 the contribution is an evolution of accepted structure, not a new subsystem.
 
-Never open a PR from the long-lived fork branch. Create each preparation branch
-from the latest fetched `upstream/V2R1`, port only its owned concern, and verify
-the resulting diff independently.
+Never open a contribution PR from the long-lived fork branch. For the
+2026-10-20 fork review decision, create each preparation branch from
+`upstream/staging-v2r1`, port only its owned concern, and verify the resulting
+diff independently. A later upstream publication needs its own authorization
+and a fresh comparison with the latest fetched `upstream/V2R1`.
 
 ## Contribution boundary
 
@@ -160,10 +164,10 @@ commits and provide the same evidence matrix per commit.
 ## Sequencing
 
 PRs #27-#29 were published as an ordered stack after Florent explicitly removed
-the maintainer-response gate. Review them by their isolated commit and merge
-them in order; after each predecessor merges unchanged, GitHub reduces the next
-PR to its owned delta. PR 4 and PR 5 require their own preparation and
-validation before any separate publication decision.
+the maintainer-response gate. Their upstream merges completed on 2026-10-20.
+PR 4 and PR 5 use separate fork PRs under the authorization above. PR 5 depends
+on PR 4. Each requires its own preparation and validation. Check Beads and GitHub
+for current execution and review state.
 
 No upstream merge authorizes a fork rebase, package-cache reset, compile, OTA,
 or fleet deployment. Those remain separate state-changing operations with their
