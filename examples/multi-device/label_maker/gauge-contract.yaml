@@ -1,0 +1,24 @@
+# Display coordinates and full scales. Recommendations stay in the HA snapshot.
+# Runtime constants and call sites are checked against this contract by tests.
+size: [296, 128]
+angle_degrees: 270
+radius: 22
+arc_thickness: 5
+metrics:
+  moisture:
+    position: [80, 50]
+    icon: cup-water.png
+    range: [0, 100]
+  illuminance:
+    position: [134, 70]
+    icon: white-balance-sunny.png
+    minimum: 0
+    maximum_step: 5000
+  temperature:
+    position: [188, 50]
+    icon: thermometer.png
+    range: [-10, 50]
+  humidity:
+    position: [242, 70]
+    icon: water-percent.png
+    range: [0, 100]

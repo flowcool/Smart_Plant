@@ -10,62 +10,33 @@ Regenerates the 296x128 `page_1_background` PNGs so that:
   - the arcs are reproducible from the infra-kl21.4 HA threshold snapshot
     (rel_range = HA-authoritative thresholds), not from lost per-plant JSON.
 
-Arc geometry is reused VERBATIM from JGAguado/Label-maker `1_Plants/Plants_labels.py`
-(`draw_image`, `plot_parameter`) — the upstream cairo renderer "does just what's
-needed". Only the compositing `main` is SmartPlant-specific: no title/subtitle,
-white background, single-ink (the panel is a 2.90inv2 1-bit BINARY image, so the
-upstream per-parameter fill colours are irrelevant on-device).
-
-Gauge centres/radius match the ESPHome `draw_gauge` overlay in
-`smart_plant_core.yaml` (moisture 80,50 / light 134,70 / temp 188,50 /
-humidity 242,70 / r=22, 270deg) so the baked recommended-mark and the live
-runtime needle share one coordinate system.
-
-Deterministic abs_range (gauge full scale, must contain rel_range):
-  moisture   [0, 100]      humidity [0, 100]      temperature [-10, 50]
-  illuminance [0, ceil(rel_max / 5000) * 5000]   (per-plant headroom)
+Arc rendering derives from JGAguado/Label-maker Plants_labels.py. Its endpoint
+angle is corrected to use the same start angle as the runtime needle.
+Geometry and full scales come from label_maker/gauge-contract.yaml, which also
+drives generated per-device firmware scales. The accepted HA snapshot remains
+the recommendation source; its historical raw-entity appendix is not input.
 """
-import json
 import math
 import argparse
 from pathlib import Path
 
-import numpy as np
 import cairo
 
-# --- Fixed layout constants (match ESPHome draw_gauge in smart_plant_core.yaml) ---
-SIZE = (296, 128)
-GAUGE_ANGLE_DEG = 270
-GAUGE_RADIUS = 22
-GAUGE_THICK = 5
+if __package__:
+    from .smartplant_gauge_contract import CONTRACT, angle as gauge_angle, full_scale, load_thresholds
+else:
+    from smartplant_gauge_contract import CONTRACT, angle as gauge_angle, full_scale, load_thresholds
 
-# metric -> (center[left, top], icon filename). Order == on-device gauge order.
-GAUGES = {
-    "moisture":    {"pos": [80, 50],  "icon": "cup-water.png"},
-    "illuminance": {"pos": [134, 70], "icon": "white-balance-sunny.png"},
-    "temperature": {"pos": [188, 50], "icon": "thermometer.png"},
-    "humidity":    {"pos": [242, 70], "icon": "water-percent.png"},
-}
+SIZE = tuple(CONTRACT["size"])
+GAUGE_ANGLE_DEG = CONTRACT["angle_degrees"]
+GAUGE_RADIUS = CONTRACT["radius"]
+GAUGE_THICK = CONTRACT["arc_thickness"]
+GAUGES = CONTRACT["metrics"]
 
 INK = (0.0, 0.0, 0.0)  # single ink; panel is 1-bit BINARY, colour is cosmetic
 
 
-def abs_range(metric, rel_min, rel_max):
-    """Deterministic gauge full-scale that contains the recommended band."""
-    if metric in ("moisture", "humidity"):
-        return [0, 100]
-    if metric == "temperature":
-        return [-10, 50]
-    if metric == "illuminance":
-        top = int(math.ceil(rel_max / 5000.0) * 5000)
-        return [0, max(top, 5000)]
-    raise ValueError(f"unknown metric {metric}")
-
-
-# ---------------------------------------------------------------------------
-# Arc renderer reused VERBATIM from JGAguado/Label-maker Plants_labels.py,
-# trimmed of the (optional) recommendation-text block and forced to single ink.
-# ---------------------------------------------------------------------------
+# Arc renderer derived from JGAguado/Label-maker Plants_labels.py.
 def draw_image(ctx, image, top, left, height, width, rot=0):
     image_surface = cairo.ImageSurface.create_from_png(image)
     img_height = image_surface.get_height()
@@ -82,8 +53,8 @@ def draw_image(ctx, image, top, left, height, width, rot=0):
     ctx.restore()
 
 
-def plot_parameter(ctx, parameter, thick=GAUGE_THICK, angle=GAUGE_ANGLE_DEG):
-    alpha = np.deg2rad(angle)
+def plot_parameter(ctx, parameter, thick=GAUGE_THICK):
+    alpha = math.radians(GAUGE_ANGLE_DEG)
     beta = 2 * math.pi - alpha
 
     rel_range = parameter["rel_range"]
@@ -95,7 +66,7 @@ def plot_parameter(ctx, parameter, thick=GAUGE_THICK, angle=GAUGE_ANGLE_DEG):
     if rel_range[0] < abs_r[0] or rel_range[1] > abs_r[1]:
         raise ValueError(f"rel_range {rel_range} not within abs_range {abs_r}")
 
-    value = (np.mean(rel_range) - abs_r[0]) / np.abs(abs_r[1] - abs_r[0]) * alpha
+    endpoint = gauge_angle(sum(rel_range) / 2, abs_r)
 
     # Icon (centred in the ring)
     size = radius
@@ -107,10 +78,10 @@ def plot_parameter(ctx, parameter, thick=GAUGE_THICK, angle=GAUGE_ANGLE_DEG):
     ctx.set_source_rgb(*INK)
     ctx.move_to(left + radius + (radius - thick) * math.cos(math.pi / 2 + beta / 2),
                 top + radius + (radius - thick) * math.sin(math.pi / 2 + beta / 2))
-    ctx.arc(left + radius, top + radius, radius, math.pi / 2 + beta / 2, math.pi / 2 + value)
-    ctx.line_to(left + radius + radius * math.cos(math.pi / 2 + value),
-                top + radius + radius * math.sin(math.pi / 2 + value))
-    ctx.arc_negative(left + radius, top + radius, radius - thick, math.pi / 2 + value, math.pi / 2 + beta / 2)
+    ctx.arc(left + radius, top + radius, radius, math.pi / 2 + beta / 2, endpoint)
+    ctx.line_to(left + radius + radius * math.cos(endpoint),
+                top + radius + radius * math.sin(endpoint))
+    ctx.arc_negative(left + radius, top + radius, radius - thick, endpoint, math.pi / 2 + beta / 2)
     ctx.fill()
     ctx.stroke()
 
@@ -145,8 +116,8 @@ def render_label(out_path, illustration, icons_dir, thresholds,
         rmax = thresholds[metric]["max"]
         plot_parameter(ctx, {
             "rel_range": [rmin, rmax],
-            "abs_range": abs_range(metric, rmin, rmax),
-            "position": g["pos"],
+            "abs_range": full_scale(metric, rmin, rmax),
+            "position": g["position"],
             "radius": GAUGE_RADIUS,
             "icon": str(Path(icons_dir) / g["icon"]),
         })
@@ -176,14 +147,14 @@ def main():
     ap.add_argument("--out", required=True, help="output dir for generated PNGs")
     args = ap.parse_args()
 
-    snap = json.load(open(args.snapshot))["by_device_mac6"]
+    snap = load_thresholds(args.snapshot)
     plants = load_plants(args.plants)
     illu_dir = Path(args.illustrations)
     out = Path(args.out)
     out.mkdir(parents=True, exist_ok=True)
 
     # index snapshot by mac6 suffix of the device key
-    generated = []
+    jobs = {}
     for key, p in plants.items():
         mac6 = key.rsplit("-", 1)[-1]
         if mac6 not in snap:
@@ -196,11 +167,19 @@ def main():
         if not illustration.exists():
             raise SystemExit(f"missing illustration {illustration} for {key}")
         out_png = out / Path(p["label_image"]).name
-        render_label(out_png, illustration, args.icons, snap[mac6]["thresholds"])
-        generated.append((key, out_png.name))
+        thresholds = snap[mac6]["thresholds"]
+        signature = [(metric, thresholds[metric], full_scale(
+            metric, thresholds[metric]["min"], thresholds[metric]["max"]))
+            for metric in GAUGES]
+        if out_png.name in jobs and jobs[out_png.name][0] != signature:
+            raise SystemExit(f"conflicting thresholds/scales for shared image {out_png.name}")
+        jobs[out_png.name] = (signature, illustration, thresholds)
         print(f"OK {key:32s} <- {stem:24s} -> {out_png.name}")
 
-    print(f"\n{len(generated)} labels generated in {out}")
+    # Validate all shared filenames before writing any output.
+    for filename, (_, illustration, thresholds) in jobs.items():
+        render_label(out / filename, illustration, args.icons, thresholds)
+    print(f"\n{len(jobs)} unique labels for {len(plants)} devices generated in {out}")
 
 
 if __name__ == "__main__":
