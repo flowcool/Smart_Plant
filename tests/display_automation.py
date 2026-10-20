@@ -27,12 +27,16 @@ PackageLoader.add_multi_constructor(
 
 
 class DisplayProgram:
-    def __init__(self, root, profile):
-        packages = Path(root) / "examples/multi-device/packages"
-        core = yaml.load((packages / "smart_plant_core.yaml").read_text(), PackageLoader)
-        transport = yaml.load(
-            (packages / f"smart_plant_profile_{profile}.yaml").read_text(), PackageLoader
-        )
+    def __init__(self, root, profile=None, standalone=False):
+        if standalone:
+            core = yaml.load((Path(root) / "docs/source/files/configuration.yaml").read_text(), PackageLoader)
+            transport = {"script": []}
+        else:
+            packages = Path(root) / "examples/multi-device/packages"
+            core = yaml.load((packages / "smart_plant_core.yaml").read_text(), PackageLoader)
+            transport = yaml.load(
+                (packages / f"smart_plant_profile_{profile}.yaml").read_text(), PackageLoader
+            )
         self.substitutions = core["substitutions"]
         available = {s["id"]: s for p in (core, transport) for s in p["script"]}
         # Extract the actual refresh boundary at every caller, including the
@@ -55,6 +59,8 @@ class DisplayProgram:
             refreshes(package.get("script", []))
         self.scripts = {}
         pending = ["settle_display", "enter_deep_sleep", "sleep_after_display"]
+        if standalone:
+            pending.append("consider_deep_sleep")
         for sequence in self.refresh_sequences:
             for action in sequence:
                 if "script.execute" in action:
@@ -85,15 +91,22 @@ class DisplayProgram:
         fields = [(g["id"], g["type"], g["initial_value"]) for g in core["globals"]]
         fields += [("busy", "int", "0"), ("reset_low_count", "int", "0"),
                    ("reset_high_count", "int", "0"), ("now", "uint32_t", "0")]
-        types = {"bool": ctypes.c_bool, "int": ctypes.c_int, "uint32_t": ctypes.c_uint32}
+        if standalone:
+            fields.append(("esptime", "Clock", "0"))
+
+        class Clock(ctypes.Structure):
+            _fields_ = [("valid", ctypes.c_bool)]
+        types = {"bool": ctypes.c_bool, "int": ctypes.c_int, "uint32_t": ctypes.c_uint32, "Clock": Clock}
 
         class State(ctypes.Structure):
             _fields_ = [(name, types[kind]) for name, kind, _ in fields]
 
         self.State = State
-        self.initial = {name: value == "true" if kind == "bool" else int(value)
+        self.initial = {name: Clock(False) if kind == "Clock" else value == "true" if kind == "bool" else int(value)
                         for name, kind, value in fields}
         source = ["#include <cstdint>\n#include <type_traits>\n",
+                  "struct Now { bool valid; bool is_valid() { return valid; } };"
+                  "struct Clock { bool valid; Now now() { return {valid}; } };",
                   "struct State {" + "".join(f"{kind} {name};" for name, kind, _ in fields) + "};",
                   "constexpr int HIGH=1, LOW=0, OUTPUT=1;",
                   "#define id(name) state->name",
@@ -192,9 +205,12 @@ class DisplayRuntime:
         for action in actions:
             if not task["alive"] or self.sleep:
                 return
-            if len(action) != 1:
+            if isinstance(action, str):
+                key, value = action, None
+            elif len(action) == 1:
+                key, value = next(iter(action.items()))
+            else:
                 raise ValueError(f"Unsupported action: {action}")
-            key, value = next(iter(action.items()))
             if key == "lambda":
                 self.program.functions[value](ctypes.byref(self.state))
             elif key == "if":
@@ -224,7 +240,8 @@ class DisplayRuntime:
                 self.sleep = (self.state.now, self.program.duration(duration))
                 self.events.append((self.state.now, key, duration))
             elif key in ("deep_sleep.allow", "deep_sleep.prevent", "switch.turn_off",
-                         "logger.log", "mqtt.publish", "text_sensor.template.publish"):
+                         "logger.log", "mqtt.publish", "text_sensor.template.publish",
+                         "safe_mode.mark_successful"):
                 self.events.append((self.state.now, key, value))
             else:
                 raise ValueError(f"Unsupported action: {key}")
