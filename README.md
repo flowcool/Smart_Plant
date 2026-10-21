@@ -14,7 +14,7 @@ and connect it to Home Assistant with ESPHome.
 · **[Read the documentation](https://smart-plant.readthedocs.io/en/v2r1/)**
 
 [![Documentation](https://readthedocs.org/projects/smart-plant/badge/?version=v2r1)](https://smart-plant.readthedocs.io/en/v2r1/)
-[![Firmware tests](https://github.com/JGAguado/Smart_Plant/actions/workflows/firmware-tests.yml/badge.svg?branch=V2R1)](https://github.com/JGAguado/Smart_Plant/actions/workflows/firmware-tests.yml)
+[![YAML syntax](https://github.com/flowcool/Smart_Plant/actions/workflows/yaml-syntax.yml/badge.svg?branch=V2R1)](https://github.com/flowcool/Smart_Plant/actions/workflows/yaml-syntax.yml)
 [![License: CC BY-NC-SA 4.0](https://img.shields.io/badge/license-CC_BY--NC--SA_4.0-lightgrey)](LICENSE)
 
 ## A useful label for every plant
@@ -66,8 +66,8 @@ The firmware draws the live readings over that image.
 | Shared packages with the native ESPHome API | [API example](examples/multi-device/my-lemon-tree-api.yaml) | No network response; entity availability depends on Home Assistant setup. |
 
 The [multi-device guide](examples/multi-device/README.md) explains the shared
-hardware core and transport profiles. Each device keeps a small configuration
-for its identity, credentials, calibration and label image.
+hardware core and transport profiles. Each device sets its identity and
+credentials. Calibration and label images use shared defaults unless overridden.
 
 ## Explore the hardware
 
