@@ -31,8 +31,14 @@ struct Display {
   std::string label;
   double needle_angle = NAN;
   std::vector<std::array<int, 4>> lines;
-  void line(int x0, int y0, int x1, int y1, int) {
+  void line(int x0, int y0, int x1, int y1, int = 1) {
     lines.push_back({x0, y0, x1, y1});
+  }
+  void printf(int x, int y, int font, TextAlign align, const char *fmt, float value) {
+    printf(x, y, font, 1, align, fmt, value);
+  }
+  void printf(int x, int y, int font, TextAlign align, const char *fmt) {
+    printf(x, y, font, 1, align, fmt);
   }
   void printf(int, int, int, int, TextAlign, const char *fmt, ...) {
     char buffer[128];
