@@ -359,7 +359,7 @@ class MaintenanceStorageTests(unittest.TestCase):
             sensor.available = False
             sensor.state = math.nan
         readings = {"aht20_sensor": {"temp": 21, "hum": 45},
-                    "veml7700_sensor": {"light": 123}, "soil_voltage": {"soil": 42, "soil_voltage": 1.9}}
+                    "veml7700_sensor": {"light": 123}, "soil_voltage": {"soil": 42}}
         def update(component, state):
             for name, value in readings.get(component, {}).items():
                 sensor = getattr(state, name)

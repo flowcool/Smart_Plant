@@ -13,8 +13,8 @@ from PIL import Image
 import yaml
 
 from scripts import generate_device_metadata as metadata
-from scripts import smartplant_gauge_contract as contract
-from scripts import smartplant_label_maker as labels
+from scripts import smartplant_fleet_gauge_contract as contract
+from scripts import smartplant_fleet_label_maker as labels
 import test_display_gauge as runtime
 
 
@@ -23,7 +23,7 @@ BASE = ROOT / "examples/multi-device"
 
 
 def label_command(output, snapshot=contract.SNAPSHOT):
-    return [sys.executable, str(ROOT / "scripts/smartplant_label_maker.py"),
+    return [sys.executable, str(ROOT / "scripts/smartplant_fleet_label_maker.py"),
             "--snapshot", str(snapshot), "--plants", str(BASE / "plants.yaml"),
             "--illustrations", str(BASE / "label_maker/illustrations"),
             "--icons", str(BASE / "label_maker/icons"), "--out", str(output)]

@@ -91,9 +91,10 @@ not evidence that every probe was calibrated individually.
 - **Old bootloader**: `Bootloader too old for OTA rollback` requires one USB
   factory flash. OTA does not update the bootloader.
 - **Deep-sleep OTA validation**: ESPHome `>=2026.8.0` natively confirms the app
-  image on every orderly `deep_sleep.enter`, so production packages no longer
-  call `safe_mode.mark_successful` (retired in `infra-3rr.47`; the public
-  `configuration.yaml` example keeps it for version-agnostic safety).
+  image on every orderly `deep_sleep.enter`. The upstream-reviewed shared recovery
+  calls `safe_mode.mark_successful` again before sleep, in the core and the public
+  example (redundant and harmless on `>=2026.8.0`; `infra-3rr.47` had retired it
+  from the core, restored by the upstream sync `infra-3rr.78`).
 - **OTA path**: Device Builder push only (`ota: platform: esphome` +
   `scripts/esphome_fleet_update.py`, triggered in the maintenance window).
   Pull-OTA was removed 2026-09-03 (`infra-3rr.42`) as over-engineered for an

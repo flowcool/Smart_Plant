@@ -1,4 +1,4 @@
-"""Execute the public renderer with optional UBSan and its real YAML automation."""
+"""Execute the public renderer and real display automation in both entry points."""
 from pathlib import Path
 import subprocess
 import os
@@ -120,10 +120,14 @@ class StandaloneRendererTests(unittest.TestCase):
             self.assertEqual(text[position], [expected])
 
 
-class StandaloneFlowTests(unittest.TestCase):
+class DisplayFlowScenarios:
+    standalone = True
+    profile = None
+    # Profile on_display_fault hook (log or MQTT flush) before the sleep request.
+    fault_hook_ms = 0
     @classmethod
     def setUpClass(cls):
-        cls.program = DisplayProgram(ROOT, standalone=True)
+        cls.program = DisplayProgram(ROOT, profile=cls.profile, standalone=cls.standalone)
         cls.addClassCleanup(cls.program.close)
 
     def runtime(self, busy, reverse=False):
@@ -138,12 +142,18 @@ class StandaloneFlowTests(unittest.TestCase):
         self.assertEqual(keys.count("safe_mode.mark_successful"), 1)
         self.assertLess(keys.index("safe_mode.mark_successful"), keys.index("deep_sleep.enter"))
 
-    def test_boot_after_setup_and_normal_refresh_observes_busy(self):
-        package = yaml.load(PUBLIC.read_text(), PackageLoader)
-        self.assertLess(package["esphome"]["on_boot"]["priority"], 400)
+    def test_normal_refresh_observes_busy(self):
         for reverse in (False, True):
-            runtime = self.runtime(lambda ms: int(10000 <= ms < 12000), reverse)
-            runtime.execute("consider_deep_sleep")
+            if self.standalone:
+                package = yaml.load(PUBLIC.read_text(encoding="utf-8"), PackageLoader)
+                self.assertLess(package["esphome"]["on_boot"]["priority"], 400)
+                runtime = self.runtime(lambda ms: int(10000 <= ms < 12000), reverse)
+                runtime.execute("consider_deep_sleep")
+            else:
+                runtime = self.runtime(lambda ms: int(ms < 2000), reverse)
+                runtime.refresh()
+                runtime.run_until(3000)
+                runtime.execute("sleep_after_display")
             runtime.run_until(15000)
             self.assert_valid_sleep(runtime)
             self.assertTrue(runtime.state.display_busy_seen)
@@ -158,9 +168,9 @@ class StandaloneFlowTests(unittest.TestCase):
                 runtime = self.runtime(signal, reverse)
                 runtime.state.display_safe_to_sleep = False
                 runtime.execute("recover_display_busy")
-                runtime.run_until(32000)
+                runtime.run_until(32000 + self.fault_hook_ms)
                 self.assert_valid_sleep(runtime)
-                self.assertLessEqual(runtime.sleep[0], 30530)
+                self.assertLessEqual(runtime.sleep[0], 30530 + self.fault_hook_ms)
                 self.assertEqual(runtime.state.reset_low_count, 1)
                 self.assertEqual(runtime.state.reset_high_count, 1)
                 self.assertFalse([e for e in runtime.events if e[1] == "component.update"])
@@ -172,6 +182,26 @@ class StandaloneFlowTests(unittest.TestCase):
             runtime.run_until(33000)
             self.assert_valid_sleep(runtime)
             self.assertEqual(runtime.state.reset_low_count, 1)
+
+    def test_new_refresh_starts_a_fresh_recovery_budget(self):
+        for reverse in (False, True):
+            runtime = self.runtime(lambda ms: 1, reverse)
+            runtime.state.display_safe_to_sleep = False
+            runtime.execute("recover_display_busy")
+            runtime.run_until(1000)
+            runtime.busy = lambda ms: int(ms < 2000)
+            runtime.refresh()
+            runtime.run_until(4000)
+            runtime.busy = lambda ms: 1
+            runtime.state.busy = 1
+            runtime.state.display_safe_to_sleep = False
+            runtime.execute("recover_display_busy")
+            runtime.run_until(33000)
+            self.assertIsNone(runtime.sleep)
+            runtime.run_until(35000 + self.fault_hook_ms)
+            self.assert_valid_sleep(runtime)
+            self.assertGreaterEqual(runtime.sleep[0], 34000)
+            self.assertLessEqual(runtime.sleep[0], 34530 + self.fault_hook_ms)
 
     def test_new_refresh_cancels_wait_guard_sleep_reset_and_old_notification(self):
         for cancel, signal in [(100, lambda ms: 1), (250, lambda ms: 0),
@@ -190,6 +220,82 @@ class StandaloneFlowTests(unittest.TestCase):
                 self.assertFalse(runtime.tasks)
                 self.assertTrue(runtime.state.display_safe_to_sleep)
                 self.assertEqual(runtime.state.reset_low_count, runtime.state.reset_high_count)
+
+
+class CoreBatterySleepTests(unittest.TestCase):
+    def test_normal_and_fault_sleep_preserve_configurable_protection_duration(self):
+        for profile in ("api", "mqtt"):
+            program = DisplayProgram(ROOT, profile=profile)
+            self.addCleanup(program.close)
+            program.substitutions["low_batt_sleep_duration"] = "12h"
+            for fault in (False, True):
+                for reverse in (False, True):
+                    runtime = DisplayRuntime(program, lambda ms: int(fault), reverse)
+                    runtime.state.busy = int(fault)
+                    runtime.state.display_safe_to_sleep = not fault
+                    runtime.state.low_batt_active = True
+                    runtime.execute("recover_display_busy" if fault else "enter_deep_sleep")
+                    runtime.run_until(32000)
+                    self.assertIsNotNone(runtime.sleep)
+                    self.assertEqual(runtime.sleep[1], 12 * 3600000)
+                    events = [event[1] for event in runtime.events]
+                    self.assertEqual(events.count("safe_mode.mark_successful"), 1)
+                    self.assertLess(events.index("safe_mode.mark_successful"), events.index("deep_sleep.enter"))
+
+
+class RecoveryConsistencyTests(unittest.TestCase):
+    # Multi-device extensions on top of the shared recovery: fault hook and
+    # persisted counter, logs, and the MQTT status entity. Everything else must
+    # stay identical to the public standalone example.
+    EXTENSION_ACTIONS = ("logger.log", "text_sensor.template.publish")
+
+    @classmethod
+    def without_extensions(cls, node):
+        if isinstance(node, list):
+            return [cls.without_extensions(child) for child in node
+                    if not (isinstance(child, dict) and
+                            (child.keys() & set(cls.EXTENSION_ACTIONS) or
+                             child.get("script.stop") == "on_display_fault"))]
+        if isinstance(node, dict):
+            return {key: cls.without_extensions(value) for key, value in node.items()}
+        if isinstance(node, str):
+            return "\n".join(line for line in node.split("\n")
+                             if "display_busy_fault_count" not in line)
+        return node
+
+    def test_shared_recovery_actions_match_standalone(self):
+        public = yaml.load(PUBLIC.read_text(encoding="utf-8"), PackageLoader)
+        public_scripts = {script["id"]: script for script in public["script"]}
+        packages = ROOT / "examples/multi-device/packages"
+        loaded = {name: yaml.load((packages / f"smart_plant_{name}.yaml").read_text(encoding="utf-8"),
+                                  PackageLoader) for name in ("core", "profile_api", "profile_mqtt")}
+        for name in ("prepare_display_refresh", "settle_display", "recover_display_busy",
+                     "display_recovery_budget", "handle_display_busy_fault"):
+            with self.subTest(script=name):
+                core = {script["id"]: script for script in loaded["core"]["script"]}[name]
+                self.assertEqual(self.without_extensions(core),
+                                 self.without_extensions(public_scripts[name]))
+        for profile in ("profile_api", "profile_mqtt"):
+            with self.subTest(script="sleep_after_display", profile=profile):
+                scripts = {script["id"]: script for script in loaded[profile]["script"]}
+                self.assertEqual(self.without_extensions(scripts["sleep_after_display"]),
+                                 self.without_extensions(public_scripts["sleep_after_display"]))
+
+
+class StandaloneFlowTests(DisplayFlowScenarios, unittest.TestCase):
+    pass
+
+
+class CoreApiFlowTests(DisplayFlowScenarios, unittest.TestCase):
+    standalone = False
+    profile = "api"
+    fault_hook_ms = 500
+
+
+class CoreMqttFlowTests(DisplayFlowScenarios, unittest.TestCase):
+    standalone = False
+    profile = "mqtt"
+    fault_hook_ms = 1000
 
 
 if __name__ == "__main__":

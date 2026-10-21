@@ -27,9 +27,9 @@ from pathlib import Path
 import yaml
 
 if __package__:
-    from .smartplant_gauge_contract import device_scales
+    from .smartplant_fleet_gauge_contract import device_scales
 else:
-    from smartplant_gauge_contract import device_scales
+    from smartplant_fleet_gauge_contract import device_scales
 
 ROOT = Path(__file__).resolve().parent.parent
 INVENTORY = ROOT / "examples/multi-device/plants.yaml"
@@ -39,7 +39,7 @@ HEADER = """\
 # =============================================================================
 # GENERATED FILE - DO NOT EDIT.
 # Sources: examples/multi-device/plants.yaml (key: {key})
-#          label_maker/gauge-contract.yaml + ha-thresholds-snapshot.json
+#          label_maker/fleet-gauge-contract.yaml + ha-thresholds-snapshot.json
 # Regenerate: python3 scripts/generate_device_metadata.py
 # Drift check (CI): python3 scripts/generate_device_metadata.py --check
 # -----------------------------------------------------------------------------
