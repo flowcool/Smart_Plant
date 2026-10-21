@@ -1,7 +1,6 @@
 """Offline executor for the display scripts, read directly from package YAML.
 
-Only the action primitives used by these scripts are supported. Control tests
-record publications and sensor updates; they never contact a broker or device. C++ lambdas
+Only the action primitives used by these scripts are supported. C++ lambdas
 run unchanged in a native library with fake globals, time and GPIO. Script
 restart/stop cancels the caller's continuation and waits, not called scripts,
 matching ESPHome 2026.9.0 script.h / automation.h / base_automation.h.
@@ -40,7 +39,7 @@ class DisplayProgram:
                 (packages / f"smart_plant_profile_{profile}.yaml").read_text(encoding="utf-8"), PackageLoader
             )
         self.substitutions = dict(core["substitutions"], **transport.get("substitutions", {}))
-        available = {s["id"]: s for p in (core, transport) for s in p["script"]}
+        available = {s["id"]: s for p in (core, transport) for s in p.get("script", [])}
         if control:
             for switch in transport.get("switch", []):
                 for direction in ("on", "off"):
@@ -112,17 +111,14 @@ class DisplayProgram:
             fields.append(("esptime", "Clock", "0"))
         if control:
             fields += [("batpercent", "Sensor", None), ("temp", "Sensor", None),
-                       ("hum", "Sensor", None), ("light", "Sensor", None),
-                       ("soil", "Sensor", None), ("soil_voltage", "Sensor", None),
+                       ("hum", "Sensor", None), ("light", "Sensor", None), ("soil", "Sensor", None),
                        ("esptime", "Clock", None), ("selected_page", "int", "0"),
                        ("mqtt_connected", "bool", "true")]
             fields += [(page["id"], "int", str(index))
                        for index, page in enumerate(core["display"][0]["pages"], 1)]
         types = {"bool": ctypes.c_bool, "int": ctypes.c_int, "uint32_t": ctypes.c_uint32}
-
         class Sensor(ctypes.Structure):
             _fields_ = [("state", ctypes.c_float), ("available", ctypes.c_bool)]
-
         class Clock(ctypes.Structure):
             _fields_ = [("hour", ctypes.c_int), ("minute", ctypes.c_int), ("valid", ctypes.c_bool)]
         types.update(Sensor=Sensor, Clock=Clock)
@@ -135,7 +131,7 @@ class DisplayProgram:
                         else Clock(0, 0, False) if kind == "Clock" else value == "true" if kind == "bool" else int(value)
                         for name, kind, value in fields}
         source = ["#include <cstdint>\n#include <type_traits>\n#include <cmath>\n",
-                  "using std::isnan; struct Sensor { float state; bool available; bool has_state() const { return available; } };",
+                  "struct Sensor { float state; bool available; bool has_state() const { return available; } };",
                   "struct Clock { int hour; int minute; bool valid; bool is_valid() const { return valid; } Clock now() const { return *this; } };",
                   "struct State {" + "".join(f"{kind} {name};" for name, kind, _ in fields) + "};",
                   "constexpr int HIGH=1, LOW=0, OUTPUT=1;",
@@ -230,7 +226,7 @@ class DisplayRuntime:
             return self.state.mqtt_connected
         if key == "api.connected":
             if value != {"state_subscription_only": True}:
-                raise ValueError("Only the production subscriber condition is supported")
+                raise ValueError("Only state subscriber readiness is supported")
             return self.api_subscriber
         raise ValueError(f"Unsupported condition: {key}")
 
@@ -257,12 +253,12 @@ class DisplayRuntime:
         for action in actions:
             if not task["alive"] or self.sleep:
                 return
-            if isinstance(action, str):
-                key, value = action, None
-            elif len(action) == 1:
-                key, value = next(iter(action.items()))
-            else:
+            if action == "safe_mode.mark_successful":
+                self.events.append((self.state.now, action, None))
+                continue
+            if len(action) != 1:
                 raise ValueError(f"Unsupported action: {action}")
+            key, value = next(iter(action.items()))
             if key == "lambda":
                 self.program.functions[value](ctypes.byref(self.state))
             elif key == "if":
@@ -299,7 +295,7 @@ class DisplayRuntime:
                 self.sleep = (self.state.now, self.program.duration(duration))
                 self.events.append((self.state.now, key, duration))
             elif key in ("deep_sleep.allow", "deep_sleep.prevent", "switch.turn_off", "switch.turn_on",
-                         "safe_mode.mark_successful", "switch.template.publish", "logger.log", "mqtt.publish", "text_sensor.template.publish"):
+                         "switch.template.publish", "logger.log", "mqtt.publish", "text_sensor.template.publish"):
                 self.events.append((self.state.now, key, value))
             else:
                 raise ValueError(f"Unsupported action: {key}")

@@ -1,42 +1,33 @@
 #!/usr/bin/env python3
-# -*- coding: utf-8 -*-
-"""
-SmartPlant name-free e-paper label generator (infra-zdxz.3).
+"""Render a generic 296x128 label and matching display substitutions.
 
-Regenerates the 296x128 `page_1_background` PNGs so that:
-  - the plant NAME is NOT baked in (ESPHome renders display_name/secondary_name
-    as dynamic text on the normal page); the background carries only the
-    hand-drawn illustration + the four recommended-range gauge arcs;
-  - the arcs are reproducible from the infra-kl21.4 HA threshold snapshot
-    (rel_range = HA-authoritative thresholds), not from lost per-plant JSON.
-
-Arc rendering derives from JGAguado/Label-maker Plants_labels.py. Its endpoint
-angle is corrected to use the same start angle as the runtime needle.
-Geometry and full scales come from label_maker/gauge-contract.yaml, which also
-drives generated per-device firmware scales. The accepted HA snapshot remains
-the recommendation source; its historical raw-entity appendix is not input.
+Gauge arcs derive from JGAguado/Label-maker Plants_labels.py. The corrected
+endpoint uses the same 135-degree start angle as Smart Plant runtime needles.
+Only the explicit YAML input is read; no inventory or Home Assistant access.
 """
-import math
+
+# Original arc renderer: Copyright (c) 2021 J.G.Aguado @JGAguado.
+# MIT notice: examples/multi-device/label_maker/LICENSE.Label-maker.txt
 import argparse
+import math
 from pathlib import Path
 
 import cairo
+from PIL import Image
+import yaml
 
 if __package__:
-    from .smartplant_gauge_contract import CONTRACT, angle as gauge_angle, full_scale, load_thresholds
+    from .smartplant_gauge_contract import CONTRACT, angle as gauge_angle, resolve_metrics, substitutions
 else:
-    from smartplant_gauge_contract import CONTRACT, angle as gauge_angle, full_scale, load_thresholds
+    from smartplant_gauge_contract import CONTRACT, angle as gauge_angle, resolve_metrics, substitutions
 
 SIZE = tuple(CONTRACT["size"])
 GAUGE_ANGLE_DEG = CONTRACT["angle_degrees"]
 GAUGE_RADIUS = CONTRACT["radius"]
 GAUGE_THICK = CONTRACT["arc_thickness"]
 GAUGES = CONTRACT["metrics"]
+INK = (0.0, 0.0, 0.0)
 
-INK = (0.0, 0.0, 0.0)  # single ink; panel is 1-bit BINARY, colour is cosmetic
-
-
-# Arc renderer derived from JGAguado/Label-maker Plants_labels.py.
 def draw_image(ctx, image, top, left, height, width, rot=0):
     image_surface = cairo.ImageSurface.create_from_png(image)
     img_height = image_surface.get_height()
@@ -69,9 +60,10 @@ def plot_parameter(ctx, parameter, thick=GAUGE_THICK):
     endpoint = gauge_angle(sum(rel_range) / 2, abs_r)
 
     # Icon (centred in the ring)
-    size = radius
-    draw_image(ctx, parameter["icon"],
-               top + radius - size / 2, left + radius - size / 2, size, size)
+    if parameter.get("icon"):
+        size = radius
+        draw_image(ctx, parameter["icon"],
+                   top + radius - size / 2, left + radius - size / 2, size, size)
 
     # Filled segment: gauge start -> midpoint of recommended band
     ctx.set_line_width(1)
@@ -97,89 +89,52 @@ def plot_parameter(ctx, parameter, thick=GAUGE_THICK):
 
 
 # ---------------------------------------------------------------------------
-def render_label(out_path, illustration, icons_dir, thresholds,
-                 illo=(5, 37), illsize=(75, 88)):
-    """Compose one name-free 296x128 background PNG."""
+
+def render_label(out_path, config):
+    metrics = resolve_metrics(config)
     surface = cairo.ImageSurface(cairo.FORMAT_RGB24, *SIZE)
     ctx = cairo.Context(surface)
-    # White background (BINARY: off pixels show the panel's white)
-    ctx.rectangle(0, 0, *SIZE)
     ctx.set_source_rgb(1, 1, 1)
-    ctx.fill()
-
-    # Hand-drawn illustration, left region (below the dynamic name area)
-    draw_image(ctx, str(illustration), illo[1], illo[0], illsize[1], illsize[0])
-
-    # Four recommended-range arcs
-    for metric, g in GAUGES.items():
-        rmin = thresholds[metric]["min"]
-        rmax = thresholds[metric]["max"]
-        plot_parameter(ctx, {
-            "rel_range": [rmin, rmax],
-            "abs_range": full_scale(metric, rmin, rmax),
-            "position": g["position"],
-            "radius": GAUGE_RADIUS,
-            "icon": str(Path(icons_dir) / g["icon"]),
-        })
-
+    ctx.paint()
+    ctx.set_source_rgb(*INK)
+    ctx.select_font_face("Sans")
+    ctx.set_font_size(15)
+    ctx.move_to(2, 18)
+    ctx.show_text(str(config.get("name", "Smart Plant")))
+    ctx.set_font_size(10)
+    ctx.move_to(2, 33)
+    ctx.show_text(str(config.get("subtitle", "")))
+    for metric, settings in GAUGES.items():
+        spec = metrics[metric]
+        plot_parameter(ctx, {"rel_range": spec["band"], "abs_range": spec["scale"],
+                             "position": settings["position"], "radius": GAUGE_RADIUS})
+        ctx.set_font_size(8)
+        ctx.move_to(settings["position"][0] + 8, settings["position"][1] + GAUGE_RADIUS + 3)
+        ctx.show_text(settings["label"])
     surface.write_to_png(str(out_path))
-    # Flatten cairo's antialiased RGB to a clean 1-bit image: the panel is a
-    # 2.90inv2 BINARY e-paper, so grey edge pixels are noise. Done in code (not
-    # by hand) to keep the output reproducible. Threshold 160 matches the
-    # hand-quantised reference within 99% of pixels.
-    from PIL import Image
-    Image.open(out_path).convert("L").point(
-        lambda p: 255 if p >= 160 else 0, mode="1").save(out_path)
-
-
-def load_plants(plants_yaml):
-    import yaml
-    with open(plants_yaml) as f:
-        return yaml.safe_load(f)["plants"]
+    with Image.open(out_path) as image:
+        image.convert("L").point(lambda p: 255 if p >= 160 else 0, mode="1").save(out_path)
+    return substitutions(metrics)
 
 
 def main():
-    ap = argparse.ArgumentParser(description="SmartPlant name-free label generator")
-    ap.add_argument("--snapshot", required=True, help="kl21.4 HA threshold snapshot JSON")
-    ap.add_argument("--plants", required=True, help="plants.yaml identity registry")
-    ap.add_argument("--illustrations", required=True, help="dir of <Botanical_name>.png illustrations")
-    ap.add_argument("--icons", required=True, help="dir of gauge icon PNGs")
-    ap.add_argument("--out", required=True, help="output dir for generated PNGs")
-    args = ap.parse_args()
-
-    snap = load_thresholds(args.snapshot)
-    plants = load_plants(args.plants)
-    illu_dir = Path(args.illustrations)
-    out = Path(args.out)
-    out.mkdir(parents=True, exist_ok=True)
-
-    # index snapshot by mac6 suffix of the device key
-    jobs = {}
-    for key, p in plants.items():
-        mac6 = key.rsplit("-", 1)[-1]
-        if mac6 not in snap:
-            raise SystemExit(f"no snapshot thresholds for {key} (mac6={mac6})")
-        # Join illustration on the label_image stem, not botanical_name:
-        # both derive from the same original baked PNG, whereas botanical_name
-        # is null/cultivar-mismatched for some devices (e.g. Peperomia_Hope).
-        stem = Path(p["label_image"]).name.replace("_label_page_1.png", "")
-        illustration = illu_dir / f"{stem}.png"
-        if not illustration.exists():
-            raise SystemExit(f"missing illustration {illustration} for {key}")
-        out_png = out / Path(p["label_image"]).name
-        thresholds = snap[mac6]["thresholds"]
-        signature = [(metric, thresholds[metric], full_scale(
-            metric, thresholds[metric]["min"], thresholds[metric]["max"]))
-            for metric in GAUGES]
-        if out_png.name in jobs and jobs[out_png.name][0] != signature:
-            raise SystemExit(f"conflicting thresholds/scales for shared image {out_png.name}")
-        jobs[out_png.name] = (signature, illustration, thresholds)
-        print(f"OK {key:32s} <- {stem:24s} -> {out_png.name}")
-
-    # Validate all shared filenames before writing any output.
-    for filename, (_, illustration, thresholds) in jobs.items():
-        render_label(out / filename, illustration, args.icons, thresholds)
-    print(f"\n{len(jobs)} unique labels for {len(plants)} devices generated in {out}")
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument("--config", required=True, type=Path)
+    parser.add_argument("--image", required=True, type=Path)
+    parser.add_argument("--substitutions", required=True, type=Path)
+    args = parser.parse_args()
+    if args.image.resolve() == args.substitutions.resolve():
+        parser.error("image and substitutions need distinct paths")
+    if args.config.resolve() in (args.image.resolve(), args.substitutions.resolve()):
+        parser.error("output paths must differ from the input configuration")
+    config = yaml.safe_load(args.config.read_text(encoding="utf-8"))
+    # Validate all ranges before writing either output.
+    resolve_metrics(config)
+    for path in (args.image, args.substitutions):
+        path.parent.mkdir(parents=True, exist_ok=True)
+    overrides = render_label(args.image, config)
+    args.substitutions.write_text(yaml.safe_dump({"substitutions": overrides}, sort_keys=False), encoding="utf-8")
+    print(f"Wrote {args.image} and {args.substitutions}")
 
 
 if __name__ == "__main__":

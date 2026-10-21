@@ -29,10 +29,11 @@ paths:
 - Packages are fetched from GitHub by each build server — after pushing changes, run `scripts/esphome_fleet_update.py reset` (NAS + paired VPS builder) before compiling; a NAS-only purge leaves the VPS clone stale.
 - Production packages rely on ESPHome's native deep-sleep OTA guard
   (`>=2026.8.0`): an orderly `deep_sleep.enter` confirms the app image via
-  `on_safe_shutdown` -> `confirm_app_image_`, so `smart_plant_core.yaml` no
-  longer calls `safe_mode.mark_successful` (retired in `infra-3rr.47`). The
-  public `configuration.yaml` example keeps the explicit call because it targets
-  arbitrary ESPHome versions.
+  `on_safe_shutdown` -> `confirm_app_image_`. `smart_plant_core.yaml` and the
+  public `configuration.yaml` example also call `safe_mode.mark_successful`
+  before sleep (upstream-reviewed shared recovery; redundant and harmless on
+  `>=2026.8.0`; `infra-3rr.47` had retired it from the core, restored by the
+  upstream sync `infra-3rr.78`).
 - To read deployed fleet ESPHome version, trust the HA discovery config `dev.sw`
   field or the current function-only topic `<mac-prefix>/sensor/esphome_version/state`,
   cross-checked with `esphome/discover/<current-mac-name>`. To prove a package

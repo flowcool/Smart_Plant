@@ -1,7 +1,7 @@
 # =============================================================================
 # GENERATED FILE - DO NOT EDIT.
 # Sources: examples/multi-device/plants.yaml (key: oxalis-triangularis-5326ba)
-#          label_maker/gauge-contract.yaml + ha-thresholds-snapshot.json
+#          label_maker/fleet-gauge-contract.yaml + ha-thresholds-snapshot.json
 # Regenerate: python3 scripts/generate_device_metadata.py
 # Drift check (CI): python3 scripts/generate_device_metadata.py --check
 # -----------------------------------------------------------------------------

@@ -47,9 +47,10 @@
   USB flash of `firmware.factory.bin`; OTA does not update the bootloader.
 - ESPHome `>=2026.8.0` natively confirms the app image on every orderly
   `deep_sleep.enter`, covering the normal cycle that finishes before ESPHome's
-  default 60-second OTA validation window, so production packages no longer call
-  `safe_mode.mark_successful` (retired in `infra-3rr.47`; the public
-  `configuration.yaml` example keeps it for version-agnostic safety).
+  default 60-second OTA validation window. The core and the public example still
+  call `safe_mode.mark_successful` before sleep (upstream-reviewed shared
+  recovery; redundant and harmless; `infra-3rr.47` had retired it from the core,
+  restored by the upstream sync `infra-3rr.78`).
 - Rollback for shared-package changes: merge a revert PR into `V2R1`, purge
   the package cache, and flash the last validated factory/OTA
   image. USB recovery is the final fallback.
@@ -133,9 +134,9 @@ version/config hash live on the devices. Read them from the source every time:
     generic hardening changes. Read their live review state from GitHub/Beads.
   - MAX17048 native model — gate `infra-3rr.45` (defer 2026-10-15) on ESPHome PR #18594
     reaching a stable release; implementation `infra-3rr.46` hard-blocked until then.
-  - `safe_mode.mark_successful` retired from `smart_plant_core.yaml` — `infra-3rr.47`
-    (native `>=2026.8.0` guard); the public `configuration.yaml` example keeps the
-    defensive call. Compile/explicit-IP upload split — `infra-3rr.27`.
+  - `safe_mode.mark_successful` was retired from `smart_plant_core.yaml` by
+    `infra-3rr.47` (native `>=2026.8.0` guard) and restored by the upstream sync
+    `infra-3rr.78`. Compile/explicit-IP upload split — `infra-3rr.27`.
 - **OTA**: Device Builder push only (`ota: platform: esphome` + `scripts/esphome_fleet_update.py`,
   maintenance-window gated by `ota_min_battery`). Pull-OTA removed 2026-09-03 (`infra-3rr.42`)
   as over-engineered for 8 devices. Historical eval `docs/pull-ota-eval.md` (`infra-3rr.22`).

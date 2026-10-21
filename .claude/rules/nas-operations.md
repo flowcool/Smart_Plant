@@ -10,8 +10,9 @@
   an OTA upload does not update the bootloader.
 - ESPHome's native guard (`>=2026.8.0`) confirms the app image on any orderly
   `deep_sleep.enter`, so a short measurement cycle is no longer misclassified as
-  a failed OTA boot; `smart_plant_core.yaml` no longer calls
-  `safe_mode.mark_successful` (retired in `infra-3rr.47`; the public
-  `configuration.yaml` example keeps it for version-agnostic safety).
+  a failed OTA boot; `smart_plant_core.yaml` calls
+  `safe_mode.mark_successful` again before sleep (redundant and harmless on
+  `>=2026.8.0`; `infra-3rr.47` retired it, restored by the upstream sync
+  `infra-3rr.78`).
 - OTA detection: `nc -z -w1 <ip> 3232` — ICMP ping is unreliable on ESP32.
 - Flash: `docker exec esphome esphome upload /config/<device>.yaml --device <ip>`
