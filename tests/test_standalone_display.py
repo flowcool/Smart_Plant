@@ -1,6 +1,8 @@
-"""Execute the public renderer with UBSan and its real YAML automation."""
+"""Execute the public renderer with optional UBSan and its real YAML automation."""
 from pathlib import Path
 import subprocess
+import os
+import warnings
 import tempfile
 import unittest
 
@@ -51,21 +53,34 @@ int main(int argc,char **argv) {
 class StandaloneRendererTests(unittest.TestCase):
     @classmethod
     def setUpClass(cls):
-        package = yaml.load(PUBLIC.read_text(), PackageLoader)
+        package = yaml.load(PUBLIC.read_text(encoding="utf-8"), PackageLoader)
         page = package["display"][0]["pages"][0]["lambda"]
         cls.temp = tempfile.TemporaryDirectory(prefix="smartplant-public-renderer-")
         cls.addClassCleanup(cls.temp.cleanup)
         path = Path(cls.temp.name)
         source = path / "renderer.cpp"
-        cls.executable = path / "renderer"
-        source.write_text(STUB.replace("// ACTUAL_PAGE", page))
-        subprocess.run(["c++", "-std=c++20", "-fsanitize=undefined,float-cast-overflow",
-                        "-fno-sanitize-recover=all", str(source), "-o", str(cls.executable)], check=True)
+        cls.executable = path / ("renderer.exe" if os.name == "nt" else "renderer")
+        source.write_text(STUB.replace("// ACTUAL_PAGE", page), encoding="utf-8")
+        # Probe a separate valid program. A renderer error must still fail the
+        # real build; it must never trigger a silent unsanitized retry.
+        probe = path / "sanitizer_probe.cpp"
+        probe.write_text("int main() { return 0; }\n", encoding="utf-8")
+        probe_executable = path / ("sanitizer_probe.exe" if os.name == "nt" else "sanitizer_probe")
+        flags = ["-fsanitize=undefined,float-cast-overflow", "-fno-sanitize-recover=all"]
+        result = subprocess.run(["c++", "-std=c++20", *flags, str(probe), "-o", str(probe_executable)],
+                                capture_output=True)
+        if result.returncode == 0:
+            result = subprocess.run([str(probe_executable)], capture_output=True)
+        if result.returncode:
+            warnings.warn("UBSan is unavailable; renderer assertions still run without it", RuntimeWarning)
+            flags = []
+        subprocess.run(["c++", "-std=c++20", "-finput-charset=UTF-8", "-fexec-charset=UTF-8",
+                        *flags, str(source), "-o", str(cls.executable)], check=True)
 
     def render(self, values, present=None):
         present = present or [True] * 5
         args = [item for value, exists in zip(values, present) for item in (str(value), str(int(exists)))]
-        result = subprocess.run([str(self.executable), *args], check=True, text=True, capture_output=True)
+        result = subprocess.run([str(self.executable), *args], check=True, text=True, encoding="utf-8", capture_output=True)
         text, lines = {}, []
         for line in result.stdout.splitlines():
             if line.startswith("text "):

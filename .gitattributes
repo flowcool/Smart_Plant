@@ -1,2 +1,5 @@
 # Treat PDF documents as binary to preserve their encoded content.
 *.pdf binary
+
+# Preserve deterministic recovered symbol libraries on Windows.
+Design/*.kicad_sym text eol=lf

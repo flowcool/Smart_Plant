@@ -1,0 +1,37 @@
+name: Firmware tests
+
+permissions:
+  contents: read
+
+on:
+  pull_request:
+  push:
+    branches: [V2R1, V2R2]
+
+jobs:
+  tests:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      # Keep the native and package tests on the validated ESPHome release.
+      - name: Install ESPHome
+        run: pip install esphome==2026.9.0 pyyaml
+
+      - name: Install Cairo build dependencies
+        run: sudo apt-get update && sudo apt-get install -y libcairo2-dev pkg-config
+
+      - name: Install label renderer dependencies
+        run: pip install -r examples/multi-device/label_maker/requirements.txt
+
+      - name: Unit tests
+        run: python -B -m unittest discover -s tests -v
+
+      - name: Validate standalone configuration
+        run: esphome config docs/source/files/configuration.yaml
