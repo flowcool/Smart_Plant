@@ -52,6 +52,7 @@ templates. Use it to add a plant name and illustration to your display.
 
 [![Example lemon-tree e-paper background](docs/source/images/programming/Lemon_tree_label_page_1.png)](https://github.com/JGAguado/Label-maker/tree/main/1_Plants)
 
+Follow the [step-by-step label guide](docs/source/labels.rst).
 Start with the [plant examples and generator](https://github.com/JGAguado/Label-maker/tree/main/1_Plants),
 then follow the programming guide to use the resulting background image.
 The firmware draws the live readings over that image.
@@ -60,9 +61,9 @@ The firmware draws the live readings over that image.
 
 | Setup | Starting point | During deep sleep |
 | --- | --- | --- |
-| One device with the native ESPHome API | [Standalone configuration](docs/source/files/configuration.yaml) | Home Assistant entities become unavailable. |
+| One device with the native ESPHome API | [Standalone configuration](docs/source/files/configuration.yaml) | No network response; entity availability depends on Home Assistant setup. |
 | Several devices with retained MQTT readings | [MQTT example](examples/multi-device/my-lemon-tree.yaml) | Last published readings remain available. |
-| Shared packages with the native ESPHome API | [API example](examples/multi-device/my-lemon-tree-api.yaml) | Home Assistant entities become unavailable. |
+| Shared packages with the native ESPHome API | [API example](examples/multi-device/my-lemon-tree-api.yaml) | No network response; entity availability depends on Home Assistant setup. |
 
 The [multi-device guide](examples/multi-device/README.md) explains the shared
 hardware core and transport profiles. Each device keeps a small configuration
