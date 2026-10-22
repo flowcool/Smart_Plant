@@ -36,6 +36,7 @@ MANAGED_SUBSTITUTIONS = {
     "configured_name",
     "name_add_mac_suffix",
     "display_name",
+    "screen_title",
     "botanical_name",
     "horticultural_name",
     "secondary_name",

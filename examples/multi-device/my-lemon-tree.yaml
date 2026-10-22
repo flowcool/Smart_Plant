@@ -13,14 +13,17 @@ substitutions:
   name_add_mac_suffix: "true"
 
   # Human and botanical identity. display_name is the single human source: the
-  # core package feeds it to esphome.friendly_name, device_comment and every
-  # e-paper text page. secondary_name is the botanical/cultivar label. Entities
+  # core package feeds it to esphome.friendly_name, device_comment and special
+  # e-paper pages. The normal title can use screen_title. See NAMING.md.
+  # secondary_name is the botanical/cultivar label. Entities
   # are function-only, so neither name enters an entity's MQTT unique_id and
   # either can change without a Home Assistant registry migration.
   # Production fleet devices instead import a generated, identity-preserving
   # metadata package (configured_name=<device_name>-<mac6>, name_add_mac_suffix:
   # false) from packages/generated/ — see scripts/generate_device_metadata.py.
   display_name: "Lemon Tree"
+  # Optional short title on the normal page only; defaults to display_name.
+  # screen_title: "Lemon Tree"
   secondary_name: "Citrus × limon"
 
   # Use secret references for new installations. Existing live credentials do

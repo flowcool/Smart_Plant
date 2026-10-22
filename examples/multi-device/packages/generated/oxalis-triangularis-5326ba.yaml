@@ -17,6 +17,7 @@ substitutions:
   configured_name: "oxalis-triangularis-5326ba"
   name_add_mac_suffix: "false"
   display_name: "Trèfle pourpre"
+  screen_title: "Trèfle pourpre"
   secondary_name: "Oxalis triangularis"
   label_image: "plant_labels/Oxalis_triangularis_label_page_1.png"
   timezone: "Europe/Paris"

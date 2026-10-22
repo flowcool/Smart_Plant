@@ -17,6 +17,7 @@ substitutions:
   configured_name: "cyperus-papyrus-54a9b2"
   name_add_mac_suffix: "false"
   display_name: "Papyrus"
+  screen_title: "Papyrus"
   secondary_name: "Cyperus papyrus"
   label_image: "plant_labels/Cyperus_papyrus_label_page_1.png"
   timezone: "Europe/Paris"

@@ -17,6 +17,7 @@ substitutions:
   configured_name: "rhipsalis-baccifera-54a936"
   name_add_mac_suffix: "false"
   display_name: "Cactus-gui"
+  screen_title: "Cactus-gui"
   secondary_name: "Rhipsalis baccifera"
   label_image: "plant_labels/Rhipsalis_baccifera_label_page_1.png"
   timezone: "Europe/Paris"

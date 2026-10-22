@@ -11,7 +11,7 @@ generated per-device metadata:
     (fnv1_hash of the entity name, source-verified against ESPHome 2026.7.4);
   * changing display_name changes only human-display outputs, never identity.
 
-Run: python3 -m unittest tests.test_device_metadata  (stdlib only).
+Run: python3 -m unittest tests.test_device_metadata (PyYAML and Pillow required).
 """
 from __future__ import annotations
 
@@ -153,7 +153,7 @@ class GeneratorTests(unittest.TestCase):
     def test_display_rename_changes_only_human_outputs(self):
         key = "cyperus-papyrus-54a9b2"
         base = dict(self.plants[key])
-        renamed = dict(base, display_name="Papyrus du Nil (renamed)")
+        renamed = dict(base, display_name="Papyrus du Nil")
         a = load_text(gen.render(key, base))["substitutions"]
         b = load_text(gen.render(key, renamed))["substitutions"]
         self.assertNotEqual(a["display_name"], b["display_name"])
@@ -162,8 +162,41 @@ class GeneratorTests(unittest.TestCase):
                       "soil_v_wet", "soil_v_dry"):
             self.assertEqual(a[field], b[field], f"{field} changed on a display rename")
 
+    def test_screen_rename_preserves_every_other_substitution(self):
+        key = "cyperus-papyrus-54a9b2"
+        base = self.plants[key]
+        a = load_text(gen.render(key, base))["substitutions"]
+        b = load_text(gen.render(key, dict(base, screen_title="Papyrus du Nil")))["substitutions"]
+        self.assertNotEqual(a.pop("screen_title"), b.pop("screen_title"))
+        self.assertEqual(a, b)
+
+    def test_screen_title_falls_back_to_display_name(self):
+        key = "cyperus-papyrus-54a9b2"
+        self.assertEqual(gen.screen_title(key, self.plants[key]), "Papyrus")
+
+    def test_invalid_screen_titles_fail_before_generation(self):
+        key = "cyperus-papyrus-54a9b2"
+        for title in ("", None, "Papyrus\nNil", "Papyrus\tNil", 'Hope "A"', r"A\B", "i" * 19, "W" * 10):
+            with self.subTest(title=title), self.assertRaises(ValueError):
+                gen.render(key, dict(self.plants[key], screen_title=title))
+
+    def test_long_display_name_is_allowed_with_short_screen_title(self):
+        key = "cyperus-papyrus-54a9b2"
+        values = dict(self.plants[key], display_name="A long Home Assistant name without a screen limit", screen_title="Papyrus")
+        sub = load_text(gen.render(key, values))["substitutions"]
+        self.assertEqual(sub["display_name"], values["display_name"])
+        self.assertEqual(sub["screen_title"], "Papyrus")
+
 
 class PackageNamingTests(unittest.TestCase):
+    def test_short_title_is_used_only_on_normal_page(self):
+        core = load_pkg(CORE)
+        pages = core["display"][0]["pages"]
+        self.assertIn('"%s", "${screen_title}"', pages[0]["lambda"])
+        for page in pages[1:]:
+            self.assertNotIn("${screen_title}", page["lambda"])
+        self.assertEqual(core["substitutions"]["screen_title"], "${display_name}")
+
     def test_no_friendly_name_substitution_remains(self):
         for path in (CORE, PROFILE_MQTT):
             self.assertNotIn("${friendly_name}", path.read_text(encoding="utf-8"))

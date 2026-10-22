@@ -20,6 +20,10 @@ workflow below only for the `flowcool` deployment.
 
 ## Device identity
 
+Read [Device names and screen titles](NAMING.md) for the field choices, their
+rationale, duplicate-device guidance and a short-title example. That guide
+separates reusable package behavior from the local fleet tooling below.
+
 The repository identity registry is [`plants.yaml`](plants.yaml). Live ESPHome
 files remain authoritative for credentials and runtime configuration, while the
 registry records the stable mapping operators need when comparing ESPHome,
@@ -41,7 +45,8 @@ Keep these identity layers separate:
 
 The repository packages decouple the three name layers: `display_name` is the
 single human source (the core package feeds it to `esphome.friendly_name`,
-`device_comment`, and every e-paper text page), and the 11 exposed entities have
+`device_comment`, and special e-paper pages; the normal title can use the
+separate `screen_title`), and the 11 exposed entities have
 function-only names (`Temperature`, `Air Humidity`, …), so no display or
 identity field enters an entity's MAC-generated MQTT `unique_id`. Per-device
 identity/display/tuning metadata is generated from `plants.yaml` into
@@ -57,6 +62,22 @@ packages:
   # Last on purpose: device metadata overrides the core defaults.
   metadata: github://flowcool/Smart_Plant/examples/multi-device/packages/generated/cyperus-papyrus-54a9b2.yaml@V2R1
 ```
+
+The normal e-paper page supports an optional `screen_title` in `plants.yaml`.
+It changes the large title only. HA/MQTT names continue to use `display_name`.
+The generator checks the title against 18 characters and 192 pixels at
+Audiowide size 20. Omit the override when `display_name` fits. See
+[`naming.md`](../../docs/naming.md#e-paper-naming) for the field contract.
+
+```bash
+python3 scripts/generate_device_metadata.py
+python3 scripts/generate_device_metadata.py --check
+python3 scripts/preview_screen_titles.py
+```
+
+The preview is written to ignored `tmp/screen-titles/fleet.png`.
+These commands require the existing `label_maker/requirements.txt` dependencies.
+They do not contact the NAS or any device.
 
 The coordinated naming cutover completed on 2026-09-03. All eight devices now
 use explicit identity-preserving configured names, function-only entity names,

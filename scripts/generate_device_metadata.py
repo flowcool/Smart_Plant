@@ -28,8 +28,10 @@ import yaml
 
 if __package__:
     from .smartplant_fleet_gauge_contract import device_scales
+    from .smartplant_screen_title import screen_title
 else:
     from smartplant_fleet_gauge_contract import device_scales
+    from smartplant_screen_title import screen_title
 
 ROOT = Path(__file__).resolve().parent.parent
 INVENTORY = ROOT / "examples/multi-device/plants.yaml"
@@ -57,7 +59,7 @@ def secondary_name(values: dict) -> str:
 
     The immutable device_name slug carries no botanical authority (it is
     non-unique across the two Ceropegia); secondary_name is the descriptive
-    label rendered under display_name on the e-paper and in device_comment.
+    label rendered under screen_title on the e-paper and in device_comment.
     """
     name = values.get("botanical_name") or values.get("horticultural_name")
     if not name:
@@ -89,6 +91,7 @@ def render(key: str, values: dict) -> str:
         "configured_name": configured_name(key, values),
         "name_add_mac_suffix": "false",
         "display_name": str(values["display_name"]),
+        "screen_title": screen_title(key, values),
         "secondary_name": secondary_name(values),
         "label_image": str(values["label_image"]),
         "timezone": str(values.get("timezone", "Europe/Paris")),
