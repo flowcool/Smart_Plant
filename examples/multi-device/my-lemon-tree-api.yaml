@@ -11,6 +11,8 @@ substitutions:
   configured_name: "lemon-tree-api"
   name_add_mac_suffix: "true"
   display_name: "Lemon Tree"
+  # Optional short normal-page title. HA keeps display_name. See NAMING.md.
+  # screen_title: "Lemon Tree"
   secondary_name: "Citrus × limon"
   wifi_ssid: !secret wifi_ssid
   wifi_password: !secret wifi_password

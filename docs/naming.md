@@ -5,6 +5,12 @@ cutover completed on 2026-09-03; acceptance evidence lives in closed Beads epics
 `infra-zdxz` and `infra-kl21`. The executed migration design and pre-cutover
 evidence remain in [`naming-architecture.md`](naming-architecture.md).
 
+For reusable choices, rationale and user examples, read
+[Device names and screen titles](../examples/multi-device/NAMING.md).
+That guide separates the optional core field from this deployment's inventory
+and migration history. The short-title source change does not itself deploy
+firmware or require a Home Assistant registry migration.
+
 ## Current deployed state
 
 | Surface | Current naming state | Authority |

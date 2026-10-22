@@ -89,6 +89,21 @@ The current `examples/multi-device/README.md` deliberately contains both generic
 package documentation and flowcool fleet operations. Do not copy it wholesale
 upstream: extract a short generic guide and leave deployment operations here.
 
+### Naming and screen-title contribution seam
+
+`examples/multi-device/NAMING.md` explains stable identity, full human names,
+function-only entity names and a separate short normal-page title. Use its
+generic sections for a future contribution. The core's `screen_title` defaults
+to `display_name`, so existing device overlays keep their previous behavior.
+It has no effect on HA device names, MQTT identity or special display pages.
+
+The 18-character/192-pixel check, local Audiowide copy, preview generator,
+inventory overrides and generated device packages belong to the fork's fleet
+tooling. They are not prerequisites for the generic core substitution. Do not
+transfer the fleet examples or its historical registry migration as a required
+upstream naming convention. Future publication still needs the fresh upstream
+comparison and authorization described above.
+
 ## Recommended PR series
 
 ### PR 1 — Baseline documentation and standalone configuration (published #27)

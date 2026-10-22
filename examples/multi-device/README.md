@@ -20,6 +20,10 @@ workflow below only for the `flowcool` deployment.
 
 ## Device identity
 
+Read [Device names and screen titles](NAMING.md) for the field choices, their
+rationale, duplicate-device guidance and a short-title example. That guide
+separates reusable package behavior from the local fleet tooling below.
+
 The repository identity registry is [`plants.yaml`](plants.yaml). Live ESPHome
 files remain authoritative for credentials and runtime configuration, while the
 registry records the stable mapping operators need when comparing ESPHome,
@@ -41,7 +45,8 @@ Keep these identity layers separate:
 
 The repository packages decouple the three name layers: `display_name` is the
 single human source (the core package feeds it to `esphome.friendly_name`,
-`device_comment`, and every e-paper text page), and the 11 exposed entities have
+`device_comment`, and special e-paper pages; the normal title can use the
+separate `screen_title`), and the 11 exposed entities have
 function-only names (`Temperature`, `Air Humidity`, …), so no display or
 identity field enters an entity's MAC-generated MQTT `unique_id`. Per-device
 identity/display/tuning metadata is generated from `plants.yaml` into
