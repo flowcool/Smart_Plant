@@ -13,6 +13,17 @@
 # It is listed here for reference, not manually managed. Two Ceropegias migrated
 # from legacy sequential suffixes (woodii1/woodii2) to MAC-based prefixes.
 
+# Presentation fields (see NAMING.md):
+# display_name: full human name for HA device metadata and special screen pages.
+# screen_title: optional normal-page title; defaults to display_name. The generator
+# validates one line, <=18 Unicode characters and <=192 pixels in Audiowide 20.
+# botanical_name / horticultural_name: descriptive source for secondary_name,
+# rendered below screen_title. The botanical value takes precedence if present.
+# room: inventory context only; it is not appended automatically to any name.
+# label_image: background artwork; normal-page text is drawn separately by core.
+# Inventory keys select generated package filenames; do not rename them casually.
+# Edit this inventory, then run scripts/generate_device_metadata.py. Do not edit
+# packages/generated/ directly or override their naming fields in live YAML.
 plants:
   ceropegia-woodii-54a8f2:
     device_name: "ceropegia-woodii"

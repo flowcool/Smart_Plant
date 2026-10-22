@@ -6,18 +6,31 @@
 # the device is in deep sleep.
 # =============================================================================
 
+# Naming guide: NAMING.md. Edit display_name/screen_title for presentation.
+# Keep technical names stable after installation. Choose a unique configured_name
+# per physical device: the runtime MAC suffix alone does not separate builds.
 substitutions:
+  # Stable technical key; not the visible plant name.
   device_name: "lemon-tree-api"
+  # ESPHome application/build name before optional runtime MAC suffixing.
   configured_name: "lemon-tree-api"
+  # Runtime node/hostname becomes <configured_name>-<mac6>.
   name_add_mac_suffix: "true"
+  # Full human name: HA device label, diagnostic comment and special pages.
   display_name: "Lemon Tree"
   # Optional short normal-page title. HA keeps display_name. See NAMING.md.
+  # One line; aim for <=18 characters AND <=192 pixels with Audiowide 20.
+  # The shared core does not enforce this budget or shorten text automatically.
   # screen_title: "Lemon Tree"
+  # Botanical/cultivar subtitle under screen_title; also in the device comment.
+  # Core entity names stay function-only; this text is not their identity.
   secondary_name: "Citrus × limon"
   wifi_ssid: !secret wifi_ssid
   wifi_password: !secret wifi_password
   api_encryption_key: !secret lemon_tree_api_encryption_key
   ota_password: !secret lemon_tree_api_ota_password
+  # Background artwork, independent from the text rendered by the core.
+  # Avoid a second baked-in title where the core draws screen_title.
   label_image: "plant_labels/Lemon_tree_label_page_1.png"
   timezone: "Europe/Paris"
   # Inherit the core soil calibration. Override only after measuring the sensor.

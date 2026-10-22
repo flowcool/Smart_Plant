@@ -15,6 +15,13 @@
 # profile, whose retained values survive sleep.
 # =============================================================================
 
+# Naming comes from the core: configured_name + optional MAC suffix identify
+# the node; display_name supplies esphome.friendly_name (human device label).
+# screen_title and secondary_name affect presentation, not the technical name.
+# Function-only entity names are inherited from the core. Internal id values
+# are firmware references, not HA entity_ids. HA owns its entity registry.
+# This API profile has no MQTT topics or MQTT discovery-ID generators.
+# See examples/multi-device/NAMING.md before renaming an installed device.
 substitutions:
   # Best-effort connection window. Offline wakes still complete one cycle.
   api_connection_timeout: "10s"

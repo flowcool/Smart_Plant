@@ -5,11 +5,16 @@
 # core package and MQTT profile (sensors, display, deep sleep, fonts, transport).
 # =============================================================================
 
+# Naming guide: NAMING.md. Edit display_name/screen_title for presentation.
+# Keep technical names stable after installation. Choose a unique configured_name
+# per physical device: the runtime MAC suffix alone does not separate builds.
 substitutions:
   # Immutable technical identity. Never rename an installed device or its MQTT
   # prefix merely to improve a visible label.
   device_name: "lemon-tree"
+  # ESPHome application/build name before optional runtime MAC suffixing.
   configured_name: "lemon-tree"
+  # Runtime node/hostname becomes <configured_name>-<mac6>.
   name_add_mac_suffix: "true"
 
   # Human and botanical identity. display_name is the single human source: the
@@ -23,6 +28,8 @@ substitutions:
   # false) from packages/generated/ — see scripts/generate_device_metadata.py.
   display_name: "Lemon Tree"
   # Optional short title on the normal page only; defaults to display_name.
+  # One line; aim for <=18 characters AND <=192 pixels with Audiowide 20.
+  # The shared core does not enforce this budget or shorten text automatically.
   # screen_title: "Lemon Tree"
   secondary_name: "Citrus × limon"
 
@@ -37,6 +44,8 @@ substitutions:
   ota_password: !secret lemon_tree_ota_password
 
   # Plant label image (place PNG in esphome/plant_labels/)
+  # Background artwork, independent from the text rendered by the core.
+  # Avoid a second baked-in title where the core draws screen_title.
   label_image: "plant_labels/Lemon_tree_label_page_1.png"
 
   timezone: "Europe/Paris"

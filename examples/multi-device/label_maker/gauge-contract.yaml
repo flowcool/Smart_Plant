@@ -1,3 +1,6 @@
+# Gauge geometry only. Metric keys and label values identify measurements in
+# the artwork; they are not plant names, ESPHome ids or Home Assistant entity_ids.
+# Set the PNG title/subtitle in example.yaml; firmware naming is in ../NAMING.md.
 size:
 - 296
 - 128

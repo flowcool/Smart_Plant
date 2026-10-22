@@ -1,3 +1,5 @@
+# Gauge geometry only. Metric keys match measurement functions, not device or
+# HA identities. Human plant names come from ../plants.yaml; see ../NAMING.md.
 # Display coordinates and full scales. Recommendations stay in the HA snapshot.
 # Runtime constants and call sites are checked against this contract by tests.
 size: [296, 128]
