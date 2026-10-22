@@ -9,6 +9,13 @@
 # <device_name>-<mac6> runtime name and name_add_mac_suffix is false, so the
 # hostname / MQTT topic prefix stay byte-identical to the deployed device while
 # the MAC is no longer appended to esphome.friendly_name (${display_name}).
+# Naming guide: examples/multi-device/NAMING.md.
+# device_name: stable technical key; configured_name: application/build name.
+# display_name: full human device label, diagnostic comment and special pages.
+# screen_title: normal-page title only; no HA/MQTT identity change.
+# secondary_name: botanical/cultivar subtitle, also used in device_comment.
+# Function-only entity names come from the core, not from these human labels.
+# Edit the inventory and regenerate; keep naming overrides out of live YAML.
 # Secrets and the wifi/use_address block stay in the live device YAML.
 # =============================================================================
 

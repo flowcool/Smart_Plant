@@ -11,10 +11,18 @@
 # Transport setup and boot orchestration belong to the selected profile.
 # =============================================================================
 
+# Naming guide: examples/multi-device/NAMING.md.
+# Keep technical identity stable; edit presentation fields for plant/room changes.
+# Entity name: function-only label (for example, Temperature), used by discovery.
+# Entity id: internal firmware reference for id(...), not an HA entity_id.
+# HA owns registered entity_ids; a firmware label edit does not migrate them.
 # Default values — override any of these in your device file.
 substitutions:
+  # Stable technical key; default input to configured_name and use_address.
+  # It is not a botanical authority or a visible plant title.
   device_name: "smart-plant"
-  # Configured ESPHome name. Normally identical to device_name with the MAC
+  # Configured ESPHome name and build directory key; unique per built device.
+  # Normally identical to device_name with the MAC
   # suffix appended at runtime. For duplicate botanical names, override this
   # with the already-effective <device_name>-<mac6> name and set
   # name_add_mac_suffix to false. The effective hostname/MQTT prefix remains
@@ -27,13 +35,18 @@ substitutions:
   # function-only, so no field couples the display name into the entity name
   # or the MQTT unique_id.
   display_name: "Smart Plant"
-  # Optional short normal-page title. This never changes HA/MQTT naming.
+  # Optional short normal-page title; defaults to display_name. No HA/MQTT effect.
+  # No automatic trimming/wrapping. With Audiowide 20, aim for <=18 characters
+  # AND <=192 pixels; check glyph support. Only the fleet generator enforces
+  # these local layout limits. Special pages still use display_name.
   screen_title: "${display_name}"
-  # Botanical/cultivar description rendered below display_name. Production
+  # Botanical/cultivar description rendered below screen_title. Production
   # metadata generates it from botanical_name, falling back to
   # horticultural_name when the botanical identification is absent.
   secondary_name: "Smart Plant"
+  # Diagnostic device description; independent from the short normal-page title.
   device_comment: "${secondary_name} / ${display_name}"
+  # Firmware project metadata, shared across plants; not a device identity.
   project_name: "smart.plant"
   project_version: "2.2"
   timezone: "Europe/Paris"

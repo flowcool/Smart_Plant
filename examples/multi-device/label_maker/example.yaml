@@ -1,3 +1,9 @@
+# Label-maker input, not an ESPHome device configuration.
+# name and subtitle are drawn into the generated PNG. They do not configure
+# device_name, esphome.friendly_name, entity names or MQTT discovery.
+# The standalone configuration displays this text as part of its background.
+# The shared core draws screen_title/secondary_name separately: use artwork
+# without overlapping baked-in text for that layout. See ../NAMING.md.
 name: Example plant
 subtitle: Synthetic recommendation bands
 metrics:

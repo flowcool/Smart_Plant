@@ -11,6 +11,12 @@
 #     transport: github://flowcool/Smart_Plant/examples/multi-device/packages/smart_plant_profile_mqtt.yaml@V2R1
 # =============================================================================
 
+# Naming comes from the core: configured_name + optional MAC suffix identify
+# the node and the default MQTT topic prefix; display_name is the human device
+# label. screen_title and secondary_name do not change MQTT identity.
+# Keep the node name and function-only entity names stable on installed devices.
+# Internal id values are firmware references, not HA entity_ids or MQTT IDs.
+# See examples/multi-device/NAMING.md for presentation-only edits.
 globals:
   - id: maintenance_requested
     type: bool
@@ -78,10 +84,14 @@ mqtt:
   password: "${mqtt_password}"
   discovery: true
   discovery_retain: true
+  # Discovery unique_id includes the MAC, component type and entity-name hash.
+  # A MAC-based generator still changes identity if an entity name changes.
   discovery_unique_id_generator: mac
   # Derive the discovery object_id (hence a fresh install's entity_id) from the
   # unique, MAC-bearing node name instead of the entity display name, so new
   # installs get clean <node>_<function> entity_ids with no HA-side action.
+  # Existing HA entity_ids belong to the HA registry; this setting does not
+  # migrate them. A human label or screen-title edit is not a registry rename.
   discovery_object_id_generator: device_name
   birth_message:    # disabled — prevents HA marking device offline during sleep
   will_message:
