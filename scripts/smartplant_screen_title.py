@@ -28,6 +28,8 @@ def screen_title(key: str, values: dict) -> str:
         raise ValueError(f"{key}: screen_title must be a non-empty string")
     if any(ord(char) < 32 or ord(char) == 127 or char in "\u2028\u2029" for char in title):
         raise ValueError(f"{key}: screen_title must be one line without control characters")
+    if any(char in title for char in ('"', "\\")):
+        raise ValueError(f"{key}: screen_title must not contain double quotes or backslashes; use typographic quotes")
     if len(title) > MAX_CHARACTERS:
         raise ValueError(f"{key}: screen_title exceeds {MAX_CHARACTERS} characters; set a shorter screen_title")
     width = title_width(title)

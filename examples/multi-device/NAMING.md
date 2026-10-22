@@ -116,6 +116,9 @@ The `flowcool` fleet stores its full names and optional short titles in
 `plants.yaml`. Its metadata generator validates every title before it writes
 any device package. Empty, multiline, overlong and overwide titles fail. The
 normal default remains `display_name`; no title is silently abbreviated.
+The generator also rejects literal double quotes and backslashes because the
+title is inserted into a C++ display string. Use typographic quotes such as
+`‘Hope’` for cultivar names. These characters are covered by the current font.
 
 For that inventory, install `label_maker/requirements.txt`, then run from the
 repository root:

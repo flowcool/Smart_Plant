@@ -176,7 +176,7 @@ class GeneratorTests(unittest.TestCase):
 
     def test_invalid_screen_titles_fail_before_generation(self):
         key = "cyperus-papyrus-54a9b2"
-        for title in ("", None, "Papyrus\nNil", "Papyrus\tNil", "i" * 19, "W" * 10):
+        for title in ("", None, "Papyrus\nNil", "Papyrus\tNil", 'Hope "A"', r"A\B", "i" * 19, "W" * 10):
             with self.subTest(title=title), self.assertRaises(ValueError):
                 gen.render(key, dict(self.plants[key], screen_title=title))
 

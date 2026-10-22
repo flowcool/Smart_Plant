@@ -155,6 +155,8 @@ The metadata generator rejects empty titles, control characters, titles over
 18 Unicode characters, and titles wider than 192 pixels in the checked-in
 Audiowide size 20 font. It validates every device before writing any packages.
 It does not silently shorten names.
+Literal double quotes and backslashes are rejected because the title is
+inserted into a C++ string. Typographic quotes such as `‘Hope’` remain valid.
 
 The width reference is `Peperomia ‘Hope’` (191 pixels with the offline checker).
 The 192-pixel limit also fits `Guirlande Cuisine` (191 pixels). The other
