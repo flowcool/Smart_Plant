@@ -27,7 +27,8 @@ plants.yaml
   └─ scripts/generate_device_metadata.py
        └─ packages/generated/<configured_name>.yaml
             ├─ configured_name + suffix mode → node/hostname/MQTT identity
-            ├─ display_name → ESPHome/HA device name + e-paper line 1
+            ├─ display_name → ESPHome/HA device name + special-page names
+            ├─ screen_title (display_name fallback) → normal e-paper line 1
             └─ secondary_name → comment + e-paper line 2
 
 function-only entity names
@@ -48,7 +49,8 @@ configuration; they must not duplicate naming literals.
 | `configured_name` | Exact already-effective `<device_name>-<mac6>` node identity. | No |
 | `name_add_mac_suffix` | `false` on all eight production devices because the suffix is frozen inside `configured_name`. | No |
 | `mqtt_topic_prefix` | Must equal `configured_name`; listed in inventory as the identity invariant. | No |
-| `display_name` | Single human/community name source. Drives `esphome.friendly_name` and e-paper line 1. | Yes |
+| `display_name` | Full human/community name. Drives `esphome.friendly_name` and the maintenance/storage/low-battery page names. | Yes |
+| `screen_title` | Optional short title for normal e-paper line 1 only. Falls back to `display_name`. Does not affect HA, MQTT, or device identity. | Screen title edit only |
 | `secondary_name` | Generated from `botanical_name`, falling back to `horticultural_name`. Drives `device_comment` and e-paper line 2. | Only for a deliberate descriptive rename |
 | Entity `name:` | One of 12 fixed function-only literals such as `Temperature` or `Maintenance`. | No |
 | Discovery topic leaf | Function snake only, for example `air_humidity`. | No |
@@ -137,13 +139,29 @@ duplicate device-registry row, which does not affect the 12-row scope.
 ## E-paper naming
 
 The versioned PNGs contain only line art and HA-derived recommended-range arcs.
-The firmware renders `display_name` and `secondary_name` dynamically using
+The firmware renders `screen_title` and `secondary_name` dynamically using
 Audiowide with `GF_Latin_Core`. A visible rename therefore changes metadata and
 text only; it does not change the label path or artwork checksum.
 
-The operator selected the pre-existing 20/15 title sizes. Long names can overlap
-the battery/time area; this is an explicitly accepted visual trade-off, not a
-claim that every title fits inside that area.
+The title/subtitle sizes remain 20/15. The normal-page title has a separate
+`screen_title` override in `plants.yaml`. Omit it when `display_name` fits.
+The metadata generator rejects empty titles, control characters, titles over
+18 Unicode characters, and titles wider than 192 pixels in the checked-in
+Audiowide size 20 font. It validates every device before writing any packages.
+It does not silently shorten names.
+
+The width reference is `Peperomia ‘Hope’` (191 pixels with the offline checker).
+The 192-pixel limit also fits `Guirlande Cuisine` (191 pixels). The other
+short overrides are `Guirlande Salon` and `Monnaie chinoise`. The full
+`display_name`, secondary botanical name, identities and entity names stay intact.
+
+Run `python3 scripts/generate_device_metadata.py --check` to check the inputs
+and generated packages. Install the existing label-maker requirements first.
+Run `python3 scripts/preview_screen_titles.py` for an eight-device preview in
+ignored `tmp/screen-titles/fleet.png`. Previews use illustrative battery/time
+values and omit live sensor values. Firmware still fetches Audiowide through
+ESPHome; verify the canary render before deployment. The subtitle/time layout
+is unchanged and can still overlap for long botanical names.
 
 ## Historical pre-flash invariants
 

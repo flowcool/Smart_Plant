@@ -4,7 +4,7 @@
 SmartPlant name-free e-paper label generator (infra-zdxz.3).
 
 Regenerates the 296x128 `page_1_background` PNGs so that:
-  - the plant NAME is NOT baked in (ESPHome renders display_name/secondary_name
+  - the plant NAME is NOT baked in (ESPHome renders screen_title/secondary_name
     as dynamic text on the normal page); the background carries only the
     hand-drawn illustration + the four recommended-range gauge arcs;
   - the arcs are reproducible from the infra-kl21.4 HA threshold snapshot

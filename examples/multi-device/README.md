@@ -58,6 +58,22 @@ packages:
   metadata: github://flowcool/Smart_Plant/examples/multi-device/packages/generated/cyperus-papyrus-54a9b2.yaml@V2R1
 ```
 
+The normal e-paper page supports an optional `screen_title` in `plants.yaml`.
+It changes the large title only. HA/MQTT names continue to use `display_name`.
+The generator checks the title against 18 characters and 192 pixels at
+Audiowide size 20. Omit the override when `display_name` fits. See
+[`naming.md`](../../docs/naming.md#e-paper-naming) for the field contract.
+
+```bash
+python3 scripts/generate_device_metadata.py
+python3 scripts/generate_device_metadata.py --check
+python3 scripts/preview_screen_titles.py
+```
+
+The preview is written to ignored `tmp/screen-titles/fleet.png`.
+These commands require the existing `label_maker/requirements.txt` dependencies.
+They do not contact the NAS or any device.
+
 The coordinated naming cutover completed on 2026-09-03. All eight devices now
 use explicit identity-preserving configured names, function-only entity names,
 and dynamic display text. The executed migration contract and its historical

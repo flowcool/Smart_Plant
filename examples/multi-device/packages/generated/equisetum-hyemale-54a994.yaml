@@ -17,6 +17,7 @@ substitutions:
   configured_name: "equisetum-hyemale-54a994"
   name_add_mac_suffix: "false"
   display_name: "Prêle du Japon"
+  screen_title: "Prêle du Japon"
   secondary_name: "Equisetum hyemale"
   label_image: "plant_labels/Equisetum_hyemale_label_page_1.png"
   timezone: "Europe/Paris"

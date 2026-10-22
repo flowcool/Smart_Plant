@@ -17,6 +17,7 @@ substitutions:
   configured_name: "pilea-peperomioides-54a8e4"
   name_add_mac_suffix: "false"
   display_name: "Plante à monnaie chinoise"
+  screen_title: "Monnaie chinoise"
   secondary_name: "Pilea peperomioides"
   label_image: "plant_labels/Pilea_peperomioides_label_page_1.png"
   timezone: "Europe/Paris"

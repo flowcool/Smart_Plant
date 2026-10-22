@@ -27,6 +27,8 @@ substitutions:
   # function-only, so no field couples the display name into the entity name
   # or the MQTT unique_id.
   display_name: "Smart Plant"
+  # Optional short normal-page title. This never changes HA/MQTT naming.
+  screen_title: "${display_name}"
   # Botanical/cultivar description rendered below display_name. Production
   # metadata generates it from botanical_name, falling back to
   # horticultural_name when the botanical identification is absent.
@@ -346,10 +348,10 @@ display:
           it.fill(bg);
           it.image(0, 0, id(page_1_background), fg, bg);
 
-          // Plant name, rendered dynamically (the background PNG is name-free).
+          // Screen-only title (the background PNG is name-free).
           // Top-left, above the illustration and clear of the gauges; a rename
           // touches only these substitutions, no image regeneration.
-          it.printf(2, 0,  id(font_title),    fg, TextAlign::TOP_LEFT, "${display_name}");
+          it.printf(2, 0,  id(font_title),    fg, TextAlign::TOP_LEFT, "%s", "${screen_title}");
           it.printf(2, 22, id(font_subtitle), fg, TextAlign::TOP_LEFT, "${secondary_name}");
           if (battery_valid) {
             float battery_perc = id(batpercent).state;

@@ -19,6 +19,7 @@ plants:
     configured_name: "ceropegia-woodii-54a8f2"
     name_add_mac_suffix: false
     display_name: "Guirlande de cœurs - Cuisine"
+    screen_title: "Guirlande Cuisine"
     botanical_name: "Ceropegia woodii"
     room: "Cuisine"
     ip_address: "192.168.2.232"
@@ -36,6 +37,7 @@ plants:
     configured_name: "ceropegia-woodii-54a99c"
     name_add_mac_suffix: false
     display_name: "Guirlande de cœurs - Séjour"
+    screen_title: "Guirlande Salon"
     botanical_name: "Ceropegia woodii"
     room: "Séjour"
     ip_address: "192.168.2.235"
@@ -126,6 +128,7 @@ plants:
     configured_name: "pilea-peperomioides-54a8e4"
     name_add_mac_suffix: false
     display_name: "Plante à monnaie chinoise"
+    screen_title: "Monnaie chinoise"
     botanical_name: "Pilea peperomioides"
     room: null
     ip_address: "192.168.2.231"
