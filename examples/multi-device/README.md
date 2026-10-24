@@ -63,6 +63,14 @@ packages:
   metadata: github://flowcool/Smart_Plant/examples/multi-device/packages/generated/cyperus-papyrus-54a9b2.yaml@V2R1
 ```
 
+The normal e-paper page draws all text, icons, gauges, recommendations and
+values in ESPHome. Its image contains only the plant illustration. Fixed
+`display.metrics` values in `plants.yaml` supply the fleet scales and care
+recommendations. Physical soil calibration remains separate. Align HA Plant
+manually; changing display values requires a firmware rebuild. The former
+`label_image` field and generators remain for historical/print workflows.
+Migration and isolated proof: [`../drawn-display/README.md`](../drawn-display/README.md).
+
 The normal e-paper page supports an optional `screen_title` in `plants.yaml`.
 It changes the large title only. HA/MQTT names continue to use `display_name`.
 The generator checks the title against 18 characters and 192 pixels at
@@ -363,17 +371,18 @@ This feature does not require MQTT or Home Assistant commands.
 
 ## Validate the public examples
 
-The examples fetch both packages from `JGAguado/Smart_Plant@V2R1`. Keep the
-core and transport on the same revision. The fork is not required.
+The examples select the repository and revision in their package URLs. Keep
+the core and transport on the same revision. The generic packages do not need
+the fork inventory or infrastructure.
 
-With ESPHome 2026.9.0 installed, run from the repository root:
+With ESPHome 2026.10.0 installed, run from the repository root:
 
 ```sh
 python scripts/validate_public_examples.py
 ```
 
 This command validates both actual example files with synthetic secrets, a
-local public background and packages from the current checkout. It does not
+local plant-only illustration and packages from the current checkout. It does not
 compile or contact a device or MQTT broker. ESPHome can download Google Fonts.
 CI runs the same command so a PR is checked against its own package source.
 
@@ -448,9 +457,10 @@ and generated code. Neither check proves physical panel or network behavior.
 
 ## Optional label generation
 
-Use the [generic label generator](label_maker/README.md) to keep recommendation
-bands and firmware needle scales aligned. Its example uses synthetic values.
-It does not read Home Assistant or any device inventory.
+The [generic label generator](label_maker/README.md) remains available for
+legacy backgrounds and print/export workflows. Current firmware draws its own
+page from a plant-only illustration and fixed YAML values.
 
-The `flowcool` fleet uses a separate, inventory-driven variant that reads the Home
-Assistant threshold snapshot: see [`label_maker/FLEET.md`](label_maker/FLEET.md).
+The historical fleet generator still reads its saved threshold snapshot. The
+metadata generator now reads fixed `display.metrics` values in `plants.yaml`.
+See [`label_maker/FLEET.md`](label_maker/FLEET.md).

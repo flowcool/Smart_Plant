@@ -144,8 +144,9 @@ duplicate device-registry row, which does not affect the 12-row scope.
 
 ## E-paper naming
 
-The versioned PNGs contain only line art and HA-derived recommended-range arcs.
-The firmware renders `screen_title` and `secondary_name` dynamically using
+The active page reads a plant-only illustration and fixed YAML recommendations.
+ESPHome draws the gauges and all text. Legacy full PNG backgrounds remain for
+historical/print tooling. The firmware renders `screen_title` and `secondary_name` using
 Audiowide with `GF_Latin_Core`. A visible rename therefore changes metadata and
 text only; it does not change the label path or artwork checksum.
 

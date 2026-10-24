@@ -1,7 +1,7 @@
 # =============================================================================
 # GENERATED FILE - DO NOT EDIT.
 # Sources: examples/multi-device/plants.yaml (key: ceropegia-woodii-54a99c)
-#          label_maker/fleet-gauge-contract.yaml + ha-thresholds-snapshot.json
+#          fixed display scales/recommendations and static illustration in that record
 # Regenerate: python3 scripts/generate_device_metadata.py
 # Drift check (CI): python3 scripts/generate_device_metadata.py --check
 # -----------------------------------------------------------------------------
@@ -27,11 +27,24 @@ substitutions:
   screen_title: "Guirlande Salon"
   secondary_name: "Ceropegia woodii"
   label_image: "plant_labels/Ceropegia_woodii_label_page_1.png"
+  plant_illustration: "https://raw.githubusercontent.com/flowcool/Smart_Plant/V2R1/examples/multi-device/label_maker/illustrations/Ceropegia_woodii.png"
+  illustration_x: "5"
+  illustration_y: "37"
+  illustration_width: "75"
+  illustration_height: "88"
   timezone: "Europe/Paris"
   soil_v_wet: "1.36"
   soil_v_dry: "2.8"
-  light_max: "35000"
-  temp_min: "-10"
-  temp_max: "50"
-  hum_min: "0"
-  hum_max: "100"
+  light_max: "35000.0"
+  temp_min: "-10.0"
+  temp_max: "50.0"
+  hum_min: "0.0"
+  hum_max: "100.0"
+  soil_recommended_min: "7.0"
+  soil_recommended_max: "50.0"
+  light_recommended_min: "2500.0"
+  light_recommended_max: "35000.0"
+  temp_recommended_min: "8.0"
+  temp_recommended_max: "35.0"
+  hum_recommended_min: "15.0"
+  hum_recommended_max: "80.0"

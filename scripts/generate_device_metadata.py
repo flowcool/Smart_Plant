@@ -2,8 +2,8 @@
 """Generate per-device metadata packages from the plants.yaml inventory.
 
 plants.yaml is the source for non-secret per-device identity/display/tuning
-metadata. Gauge scales derive from the accepted HA threshold snapshot and the
-shared gauge contract. This tool emits one deterministic ESPHome package per
+metadata. Fixed display scales and recommendations live in plants.yaml, separate
+from physical soil calibration. This tool emits one deterministic ESPHome package per
 inventory key under examples/multi-device/packages/generated/.
 
 Each generated package is identity-preserving: configured_name is set to the
@@ -27,10 +27,10 @@ from pathlib import Path
 import yaml
 
 if __package__:
-    from .smartplant_fleet_gauge_contract import device_scales
+    from .smartplant_gauge_contract import resolve_metrics, substitutions as scale_substitutions
     from .smartplant_screen_title import screen_title
 else:
-    from smartplant_fleet_gauge_contract import device_scales
+    from smartplant_gauge_contract import resolve_metrics, substitutions as scale_substitutions
     from smartplant_screen_title import screen_title
 
 ROOT = Path(__file__).resolve().parent.parent
@@ -41,7 +41,7 @@ HEADER = """\
 # =============================================================================
 # GENERATED FILE - DO NOT EDIT.
 # Sources: examples/multi-device/plants.yaml (key: {key})
-#          label_maker/fleet-gauge-contract.yaml + ha-thresholds-snapshot.json
+#          fixed display scales/recommendations and static illustration in that record
 # Regenerate: python3 scripts/generate_device_metadata.py
 # Drift check (CI): python3 scripts/generate_device_metadata.py --check
 # -----------------------------------------------------------------------------
@@ -92,7 +92,11 @@ def configured_name(key: str, values: dict) -> str:
 
 def render(key: str, values: dict) -> str:
     cal = values["soil_calibration"]
-    scales = device_scales(key)
+    metrics = resolve_metrics(values["display"])
+    illustration = Path(values["plant_illustration"])
+    base = ROOT / "examples/multi-device"
+    if illustration.is_absolute() or ".." in illustration.parts or not (base / illustration).is_file():
+        raise ValueError(f"{key}: illustration must be an existing relative asset")
     fields = {
         "device_name": str(values["device_name"]),
         "configured_name": configured_name(key, values),
@@ -101,15 +105,21 @@ def render(key: str, values: dict) -> str:
         "screen_title": screen_title(key, values),
         "secondary_name": secondary_name(values),
         "label_image": str(values["label_image"]),
+        "plant_illustration": "https://raw.githubusercontent.com/flowcool/Smart_Plant/V2R1/"
+                              f"examples/multi-device/{illustration.as_posix()}",
+        # Preserve the existing fleet illustration placement and aspect-fit box.
+        "illustration_x": "5",
+        "illustration_y": "37",
+        "illustration_width": "75",
+        "illustration_height": "88",
         "timezone": str(values.get("timezone", "Europe/Paris")),
         "soil_v_wet": str(cal["wet_voltage"]),
         "soil_v_dry": str(cal["dry_voltage"]),
-        "light_max": str(scales["illuminance"][1]),
-        "temp_min": str(scales["temperature"][0]),
-        "temp_max": str(scales["temperature"][1]),
-        "hum_min": str(scales["humidity"][0]),
-        "hum_max": str(scales["humidity"][1]),
+        **scale_substitutions(metrics),
     }
+    for metric, prefix in (("moisture", "soil"), ("illuminance", "light"),
+                           ("temperature", "temp"), ("humidity", "hum")):
+        fields[f"{prefix}_recommended_min"], fields[f"{prefix}_recommended_max"] = map(str, metrics[metric]["band"])
     lines = [HEADER.format(key=key), "substitutions:"]
     for name, val in fields.items():
         # Double-quote every value; escape embedded quotes/backslashes.

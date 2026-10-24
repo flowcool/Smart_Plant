@@ -1,4 +1,9 @@
-# Generic e-paper label generator
+# Legacy e-paper label generator
+
+The current ESPHome page draws its own gauges and text around a plant-only
+illustration. This generator remains available for legacy backgrounds and
+print/export workflows. Its output is not an input to the current renderer.
+See [`../../drawn-display/README.md`](../../drawn-display/README.md).
 
 This is an optional adaptation of JGAguado's [Label-maker](https://github.com/JGAguado/Label-maker).
 The original renderer already covers label creation. This extraction adds a
@@ -27,8 +32,9 @@ The command writes a 1-bit 296x128 PNG and matching ESPHome display substitution
 Validate the image before use. Place both generated files beside the local
 device configuration. Include `display-scales.yaml` as a package after the
 core package. Remove conflicting device-level gauge substitutions; they take
-precedence over package values. Set `label_image` to `example.png` in the
-device substitutions. Use the
+precedence over package values. For older firmware that still reads a background, set `label_image` to
+`example.png` in the device substitutions. Current firmware reads
+`plant_illustration` and draws the rings from fixed YAML values. Use the
 same YAML input to regenerate both outputs after a scale change. Moisture is
 fixed at 0-100 in firmware. Light starts at 0. The tool rejects unsupported or
 nonfinite ranges before writing either output.

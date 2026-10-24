@@ -63,6 +63,12 @@ class GaugeContractTests(unittest.TestCase):
                     position = tuple(map(int, call[3:5]))
                     self.assertEqual(position, tuple(settings["position"]))
                     band = [thresholds[metric]["min"], thresholds[metric]["max"]]
+                    # The snapshot is migration evidence only. Fixed YAML is
+                    # now the metadata generator's input. Preserve all 32 pairs.
+                    prefix = {"moisture": "soil", "illuminance": "light",
+                              "temperature": "temp", "humidity": "hum"}[metric]
+                    self.assertEqual([float(substitutions[f"{prefix}_recommended_min"]),
+                                      float(substitutions[f"{prefix}_recommended_max"])], band)
                     midpoint = sum(band) / 2
                     ctx = Mock()
                     with patch.object(labels, "draw_image"):

@@ -16,8 +16,10 @@ Run: python3 -m unittest tests.test_device_metadata (PyYAML and Pillow required)
 from __future__ import annotations
 
 import importlib.util
+import copy
 import unittest
 from pathlib import Path
+from unittest.mock import patch
 
 import yaml
 
@@ -133,6 +135,27 @@ class GeneratorTests(unittest.TestCase):
             self.assertEqual(sub["configured_name"], values["mqtt_topic_prefix"])
             if values.get("configured_name") is not None:
                 self.assertEqual(sub["configured_name"], values["configured_name"])
+
+    def test_display_inputs_are_fixed_yaml_without_snapshot_reads(self):
+        key = "cyperus-papyrus-54a9b2"
+        values = copy.deepcopy(self.plants[key])
+        original = load_text(gen.render(key, values))["substitutions"]
+        values["display"]["metrics"]["moisture"]["band"][0] += 1
+        # The complete render uses the inventory record, not a HA JSON file.
+        with patch.object(Path, "read_text", side_effect=AssertionError("unexpected external input read")):
+            changed = load_text(gen.render(key, values))["substitutions"]
+        self.assertNotEqual(original.pop("soil_recommended_min"), changed.pop("soil_recommended_min"))
+        self.assertEqual(original, changed)
+
+    def test_illustration_and_invalid_recommendations_fail_before_generation(self):
+        key = "cyperus-papyrus-54a9b2"
+        for illustration in ("/not/an/asset.png", "../plants.yaml", "missing.png"):
+            with self.subTest(illustration=illustration), self.assertRaises(ValueError):
+                gen.render(key, dict(self.plants[key], plant_illustration=illustration))
+        values = copy.deepcopy(self.plants[key])
+        values["display"]["metrics"]["humidity"]["band"] = [90, 20]
+        with self.assertRaises(ValueError):
+            gen.render(key, values)
 
     def test_name_add_mac_suffix_false_on_all(self):
         for key in self.plants:

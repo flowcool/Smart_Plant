@@ -60,6 +60,20 @@ class LiveMetadataMigrationTests(unittest.TestCase):
         new = live_metadata.transform(old, self.key)
         self.assertNotIn("\n", new.replace("\r\n", ""))
 
+    def test_removes_display_overrides_that_would_hide_fixed_metadata(self):
+        source = OLD.replace('  label_image:', '''  plant_illustration: "old.png"
+  illustration_width: "90"
+  light_max: "9999"
+  soil_recommended_min: "1"
+  hum_recommended_max: "80"
+  label_image:''')
+        new = live_metadata.transform(source, self.key)
+        self.assertEqual(live_metadata.validate(new, self.key), [])
+        for field in ("plant_illustration", "illustration_width", "light_max",
+                      "soil_recommended_min", "hum_recommended_max"):
+            self.assertNotIn(f"  {field}:", new)
+        self.assertIn("wifi_ssid: !secret wifi_ssid", new)
+
     def test_check_rejects_old_shape(self):
         errors = live_metadata.validate(OLD, self.key)
         self.assertTrue(any("duplicated" in error for error in errors))

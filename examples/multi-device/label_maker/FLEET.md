@@ -1,13 +1,18 @@
 # E-paper gauge inputs
 
-`ha-thresholds-snapshot.json` holds the accepted recommendation bands. Use
+The active firmware reads fixed recommendation bands and scales from
+`plants.yaml` through generated metadata. HA Plant alignment is manual.
+The metadata generator does not read the HA snapshot. Soil calibration stays
+independent. Legacy generators and the original backgrounds remain available.
+
+`ha-thresholds-snapshot.json` records the initial accepted recommendation bands
+and remains an input to the legacy background generator. Use
 `by_device_mac6.<mac6>.thresholds`. The manifest records extraction time,
 Home Assistant version and configuration-entry hash. The Rhipsalis record also
 records its accepted correction. `number_entity_states_raw` is historical
 evidence. It is not a rendering input. No automatic HA refresh runs here.
 
-`fleet-gauge-contract.yaml` defines display geometry and full scales. The two
-generators consume the contract through `scripts/smartplant_fleet_gauge_contract.py`.
+`fleet-gauge-contract.yaml` defines display geometry and full scales. The legacy background generator consumes the contract through `scripts/smartplant_fleet_gauge_contract.py`.
 Humidity and moisture use 0–100%. Temperature uses −10–50°C. Each light scale
 ends at the next 5000 lx step that contains its accepted maximum, with a minimum
 full scale of 5000 lx. These are display scales, not sensor calibration.
@@ -22,7 +27,8 @@ The filled segment ends at the recommendation midpoint. The runtime needle
 uses the same scale and angle. Its number shows the raw finite reading.
 The tests compile the runtime C++ lambda and check its coordinates against
 the renderer for all 32 device/metric combinations. Core geometry remains
-validated against this contract. Generated metadata supplies per-device scales.
+validated against this contract. Generated metadata supplies fixed per-device scales and recommendations from
+`plants.yaml`; migration tests compare all 32 pairs against the old snapshot.
 Two devices may share a label file only when their recommendation bands and
 scales match. The generator checks all filenames before rendering.
 
