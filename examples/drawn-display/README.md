@@ -1,116 +1,134 @@
-# ESPHome page proof
+# ESPHome page rendering
 
-This directory contains a local replacement candidate. It is not connected to
-the normal shared package or the standalone example. There is no runtime
-selector. The existing renderer and label generators remain available.
+The shared core and the public standalone example draw the normal page in
+ESPHome. The only image contains the plant illustration. ESPHome draws every
+text, icon, ring, recommendation segment, pointer and value. No renderer
+selector exists. The page needs no inventory, HA access or threshold messages.
 
-`page.yaml` owns the title, subtitle, illustration, display scales and care
-recommendations. `page.h` draws the gauge geometry. ESPHome draws all text,
-icons, rings, pointers and values. The only image is the existing plant
-illustration. The candidate uses no fleet inventory or local infrastructure.
+The generic page remains inline in both entry points. The standalone YAML can
+be copied without a C++ header or a fleet package. A parity test requires the
+normal-page lambdas to remain identical. Their IDs and hardware conventions
+are already shared. The original isolated candidate is available in commit
+`d0d3510`; it is no longer a third source of drawing code.
 
-## Input contract
+## Inputs and preserved meaning
 
 | Input | Purpose | Effect |
 | --- | --- | --- |
 | `*_recommended_min/max` | Plant care recommendation | Sets the filled ring endpoint |
 | `light_max`, `temp_min/max`, `hum_min/max` | Display scale | Sets ring and pointer angles |
 | Fixed soil scale `0..100` | Display scale | Sets the soil ring and pointer angles |
-| `soil_v_wet/dry` in the sensor configuration | Physical ADC calibration | Converts voltage to soil moisture; not read by the page |
+| `soil_v_wet/dry` in the sensor configuration | Physical ADC calibration | Converts voltage to soil moisture; not a drawing input |
+| `plant_illustration` and `illustration_*` | Plant-only artwork | Sets its source and aspect-fit placement |
 
 HA Plant values remain independent. Align them manually. A display value change
-requires a firmware rebuild and a separately authorized deployment. No HA
-lookup, threshold MQTT message or automatic export exists.
+requires a rebuild and a separately authorized deployment. No HA lookup,
+threshold MQTT protocol or automatic export exists.
 
-The example recommendations are synthetic. They are not advice for a species.
-Values outside the scale remain visible. Only the pointer is clamped. Missing
-and non-finite readings show `--` without a pointer. Invalid configuration
-omits the ring and pointer, and shows `--`.
+The generic recommendations match the illustrative values in
+`docs/source/files/lemon-tree-label.json`. They are not species care advice.
+Fleet recommendations and scales are explicit under `display.metrics` in
+`plants.yaml`. The metadata generator validates and emits those YAML values.
+It does not read the historical HA snapshot. Migration tests compare all 32
+recommendations and scales with that snapshot and the old gauge contract.
+The legacy `label_image` field remains for historical and printable tooling.
 
-The original artwork fills the ring from 135 degrees to the **midpoint** of the
-recommendation. It does not draw the recommendation interval itself. This
-candidate preserves that meaning. It preserves the 270-degree sweep, radius
-22, ring width 5, pointer width 7, four origins and value positions. A zero-width
-recommendation remains valid. A full-scale recommendation has the same endpoint
-as a point recommendation at mid-scale.
+The original renderer fills the ring from 135 degrees to the **midpoint** of
+the recommendation. It does not draw the recommendation interval itself.
+This meaning is unchanged. The sweep remains 270 degrees. Ring radius/width
+remain 22/5 pixels; pointer width remains 7. Origins and value positions stay
+unchanged. A zero-width recommendation is valid. A full-scale recommendation
+ends at the same angle as a point recommendation at mid-scale.
 
-## Reproduce the local proof
+Finite measurements keep their raw numeric text. Only the pointer is clamped.
+Missing and non-finite readings show `--` without a pointer. Invalid fixed
+recommendations or scales fail a C++ static assertion during the build.
+The battery icon clamps before converting a finite value to an integer.
 
-Use Python with `esphome==2026.10.0`, Pillow, PyYAML and pycairo. Use an existing
-Material Symbols Outlined TTF for `--icon-font`. No font download is needed.
-Build outputs stay below the ignored project `tmp/` directory.
+## Existing text contract
+
+Use the contract in [`../multi-device/NAMING.md`](../multi-device/NAMING.md).
+Titles remain one line, Audiowide 20, without automatic cutting or wrapping.
+The fleet generator enforces 18 Unicode characters and 192 pixels. The subtitle
+remains Audiowide 15 at its existing position. Its known overlap with the clock
+is unchanged. Generic users choose a fitting title and subtitle manually.
+No new text policy is introduced by this rendering change.
+
+## Reproduce the isolated proof
+
+Use Python with `esphome==2026.10.0`, Pillow, PyYAML and pycairo. Supply an
+existing Material Symbols Outlined TTF. Fonts and illustrations are reused.
+All generated fixtures, builds and captures stay below ignored project `tmp/`.
 
 ```bash
 python scripts/prove_drawn_display.py --icon-font /path/to/MaterialSymbolsOutlined.ttf
-esphome compile tmp/drawn-display/proof/host.yaml
-DRAWN_DISPLAY_HOST="$PWD/tmp/drawn-display/proof/host-build/.pioenvs/drawn-page-host/program" \
+esphome compile tmp/drawn-display/integrated/host.yaml
+esphome compile tmp/drawn-display/integrated/host-standalone.yaml
+DRAWN_DISPLAY_HOST="$PWD/tmp/drawn-display/integrated/host-build/.pioenvs/drawn-page-host/program" \
   python -m unittest discover -s tests -p test_drawn_display.py -v
 python scripts/prove_drawn_display.py --icon-font /path/to/MaterialSymbolsOutlined.ttf \
-  --render-host tmp/drawn-display/proof/host-build/.pioenvs/drawn-page-host/program
-esphome compile tmp/drawn-display/proof/candidate-api.yaml
-esphome compile tmp/drawn-display/proof/candidate-mqtt.yaml
-esphome compile tmp/drawn-display/proof/baseline-api.yaml
+  --render-host tmp/drawn-display/integrated/host-build/.pioenvs/drawn-page-host/program
+esphome compile tmp/drawn-display/integrated/candidate-api.yaml
+esphome compile tmp/drawn-display/integrated/candidate-mqtt.yaml
+esphome compile tmp/drawn-display/integrated/standalone.yaml
+esphome compile tmp/drawn-display/integrated/baseline-api.yaml
 ```
 
-The host build uses the candidate's actual YAML lambda, header and ESPHome
-display/font/image implementations. `tests/drawn_display_host.h` replaces the
-panel transport with a pixel buffer. mDNS is disabled. Sensors and clock use
-synthetic values. Host preferences use an isolated proof directory.
+The host fixtures execute each entry point's actual page lambda. They use
+ESPHome display/font/image code. Only panel transport becomes a pixel buffer.
+Host-only controls inject recommendation edge cases and isolate ring ink.
+mDNS is disabled. Sensors and time are synthetic; preferences are isolated.
 
-The ESP32-S2 fixtures use the current shared core and API/MQTT profiles with
-synthetic credentials and an RFC 5737 broker address. Compiling does not execute
-the firmware. The baseline uses the same fonts, core and compiler. It uses the
-existing public Lemon background. Its size comparison is illustrative; it is
-not a comparison of equal plant artwork.
+Run the firmware builds sequentially. Parallel ESP-IDF first builds can race
+while filling their common temporary component cache. If parallel builds are
+needed, set a distinct `ESPHOME_DATA_DIR` for each build. Never reset a live
+builder cache for this proof.
 
-The script creates `preview.png`, individual renders and `render-report.json`.
-The report binds source and host executable hashes to observed pixel writes and
-host durations. Raw build logs and linked firmware stay in `tmp/`. Beads owns
-the delivery results and remaining acceptance work.
+ESP32-S2 fixtures keep the real core, transport and sleep logic. Credentials are
+synthetic; the broker uses an RFC 5737 address. Compiling never executes that
+firmware. The baseline loads the previous core from local commit `d0d3510`.
+It uses the same compiler/fonts but different plant artwork. Its resource
+comparison is illustrative, not an equal-artwork benchmark.
 
-## Known limits
+The script creates eight PNGs, `preview.png` and `render-report.json`. The
+report records source, fixture and host executable hashes with observed pixel
+writes and host durations. Logs and linked firmware remain in `tmp/`. Beads
+owns delivery evidence and the remaining physical acceptance.
 
-- Binary ring pixels differ from Cairo's antialiasing. The proof checks that
-  ink stays within one pixel of the old contour. Needle coordinates match the
-  old C++ calculation exactly in the tested cases.
-- Gauge icons use Material Symbols glyphs for water, sunlight, temperature and
-  humidity. They replace the old PNG icon shapes. Their centre and 22-pixel
-  size remain fixed. The exact bitmap shape is not claimed to match.
-- Long titles and subtitles can overlap the clock or battery. The candidate
-  preserves the existing placement. Use a short title and check both lines
-  before integration. The existing fleet title checker remains unchanged.
-  Automatic resizing, truncation and wrapping need a separate layout decision.
-- Numeric text keeps the existing font and format. Very large finite readings
-  can overlap adjacent areas. The proof exercises this condition. No value is
-  silently replaced by its scale endpoint.
-- The bundled Audiowide font lacks 18 glyphs in `GF_Latin_Core`. ESPHome reports
-  them during validation. The tested French accents, ligature and `%` render.
-  Other scripts and unsupported glyphs need separate font qualification.
-- Each refresh visits 4 × 46 × 46 ring candidate pixels. Only the annular pixels
-  need `atan2`. No extra screen buffer or ring cache is added to the firmware.
-  Arrays and formatting still consume stack; the linked RAM report does not
-  measure peak stack or free heap.
-- Host timings do not measure ESP32 execution, screen refresh, acquisition,
-  deep sleep or energy. No battery improvement is claimed.
+## Limits and integration gates
 
-## Integration and rollback
+- Binary ring ink differs from Cairo antialiasing. Tests allow one pixel at the
+  contour and compare pointer coordinates with the unchanged runtime gauge.
+- Gauge icons use Material Symbols instead of PNG silhouettes, at the same
+  centres and 22-pixel size. Exact icon bitmaps do not match.
+- Long text and extreme raw numbers can overlap adjacent areas. Existing
+  fonts, placement and numeric formatting remain unchanged. The proof exposes
+  these limits; it does not silently truncate a reading or rename a plant.
+- Audiowide lacks 18 glyphs in `GF_Latin_Core`. ESPHome reports them during
+  validation. Tested French accents, ligature and `%` render.
+- Each refresh visits 4 × 46 × 46 ring candidate pixels. Only annular pixels
+  need `atan2`. Firmware adds no screen buffer or ring cache. Linked static RAM
+  does not measure peak stack or free heap.
+- Host timings are not ESP32 execution, physical refresh or energy measurements.
+  Acquisition and deep sleep still need a separately authorized device proof.
+  No battery improvement is claimed.
 
-Keep the old generators, fonts, illustrations, metadata tool and printable
-labels until the replacement passes the agreed validation. Do not edit the
-separate Oxalis canary or its evidence.
+The public Lemon illustration is an unmodified copy from J. G. Aguado's
+Label-maker at commit `85648df6982435ec3ca0dfb3d29630e85afb0fc0`, path
+`1_Plants/examples/Lemon_tree/Lemon_tree.png`. The generic default URL pins that
+source. The copy is `docs/source/images/programming/Lemon_tree.png`.
+The existing MIT notice is in `../multi-device/label_maker/LICENSE.Label-maker.txt`.
 
-Before integration, copy each accepted scale and recommendation into explicit
-device YAML values. Check them against the old offline inputs. Keep calibration
-independent. Replace the normal page and full background with this page and an
-illustration in one source change. Apply the same generic inputs to the public
-standalone example. Do not add a runtime renderer selector.
+Keep both legacy generators, their assets and printable-label support until
+replacement validation is complete. No historical bitmap is removed or
+rewritten. The separate Oxalis canary and its evidence are outside this work.
 
-Resolve long text policy before claiming full layout acceptance. Then use a
-separately authorized single-device operation plan to verify physical normal
-and inverted pages, readings, acquisition and deep sleep. Do not retire the
-e-paper generator or its dependencies before that validation. Inventory tools
-and printable-label support retain their own inputs and dependencies.
+Before any device action, prepare a separate operation plan. Verify the
+plant-only image and fixed YAML values, build one authorized canary, then check
+physical normal/inverted rendering, readings, acquisition and deep sleep.
+Source integration alone is not physical acceptance or deployment authority.
 
-Local rollback is an atomic revert of this candidate commit. No running device
-uses it. A later live integration needs a source revert, the last validated
-firmware and the project's verified recovery procedure under its own authority.
+Local rollback is a revert of the integration commit; commit `d0d3510` retains
+the old active pages. No device uses the local integration yet. A later live
+rollback also needs the last validated firmware and the project's verified
+recovery procedure under its own authority.

@@ -13,116 +13,32 @@ from PIL import Image, ImageChops
 from PIL.ImageFilter import MaxFilter
 import cairo
 import yaml
-from scripts.smartplant_gauge_contract import angle
-import test_display_gauge as legacy
 
 ROOT = Path(__file__).resolve().parents[1]
-HEADER = ROOT / "examples/drawn-display/page.h"
-
-STUB = r'''
-#include <array>
-#include <iostream>
-#include <iomanip>
-#include <string>
-#include <vector>
-#include <cstdarg>
-#include <cstdio>
-#include "HEADER"
-struct Display {
-  std::string text;
-  std::vector<std::array<int,4>> lines;
-  void draw_pixel_at(int,int,int) {}
-  void line(int x,int y,int xx,int yy,int) { lines.push_back({x,y,xx,yy}); }
-  void print(int,int,int*,int,int,const char *str) { text=str; }
-  void printf(int,int,int*,int,int,const char *fmt,...) {
-    char buffer[256]; va_list args; va_start(args,fmt);
-    vsnprintf(buffer,sizeof(buffer),fmt,args); va_end(args); text=buffer;
-  }
-  void start_clipping(int,int,int,int) {}
-  void end_clipping() {}
-};
-int main(int argc,char **argv) {
-  if(argc!=9) return 2;
-  using namespace smart_plant_page;
-  Gauge g{std::stof(argv[3]),std::stof(argv[4]),std::stof(argv[5]),std::stof(argv[6]),80,50,argv[7],"icon"};
-  Reading r{std::stof(argv[1]),std::string(argv[2])=="1"};
-  Display it; int font=0;
-  gauge(it,g,r,&font,&font,1,0);
-  std::cout << it.text << '\n';
-  if(g.valid() && r.valid()) {
-    std::cerr << std::setprecision(10) << g.angle(r.value);
-    for(auto line=it.lines.end()-3; line!=it.lines.end(); ++line) {
-      for(int v:*line) std::cout << v << ' ';
-      std::cout << '\n';
-    }
-  }
-}
-'''
 
 
-class DrawnGaugeTests(unittest.TestCase):
-    @classmethod
-    def setUpClass(cls):
-        cls.temp = tempfile.TemporaryDirectory(prefix="smartplant-drawn-")
-        cls.addClassCleanup(cls.temp.cleanup)
-        path = Path(cls.temp.name)
-        source = path / "gauge.cpp"
-        source.write_text(STUB.replace("HEADER", str(HEADER)))
-        cls.executable = path / "gauge"
-        subprocess.run(["g++", "-std=c++17", "-Wall", "-Wextra", "-Werror",
-                        "-fsanitize=undefined,float-cast-overflow", "-fno-sanitize-recover=all",
-                        str(source), "-o", str(cls.executable)], check=True, capture_output=True)
-        # Compile the existing needle unchanged, as an independent reference.
-        cls.old = type("LegacyRecorder", (), {"addClassCleanup": cls.addClassCleanup})
-        legacy.DisplayGaugeTests.setUpClass.__func__(cls.old)
+class IntegratedPageTests(unittest.TestCase):
+    def test_shared_and_standalone_use_the_same_generic_page(self):
+        from display_automation import PackageLoader
+        pages = [yaml.load((ROOT / filename).read_text(), PackageLoader)
+                 for filename in ("examples/multi-device/packages/smart_plant_core.yaml",
+                                  "docs/source/files/configuration.yaml")]
+        self.assertEqual(pages[0]["display"][0]["pages"][0]["lambda"],
+                         pages[1]["display"][0]["pages"][0]["lambda"])
+        for page in pages:
+            self.assertEqual(len(page["image"]), 1)
+            self.assertEqual(page["image"][0]["file"], "${plant_illustration}")
+            self.assertNotIn("page_1_background", page["display"][0]["pages"][0]["lambda"])
 
-    def run_gauge(self, value, present=True, scale=(0, 100), band=(20, 60), fmt="%.0f%%"):
-        result = subprocess.run([str(self.executable), str(value), str(int(present)),
-                                 *map(str, scale), *map(str, band), fmt, "unused"],
-                                check=True, capture_output=True, text=True)
-        output = result.stdout.splitlines()
-        return output[0], [tuple(map(int, line.split())) for line in output[1:]], result.stderr
-
-    def test_valid_values_and_boundaries_preserve_legacy_needles_and_raw_labels(self):
-        for scale, band, fmt in [((0, 100), (20, 60), "%.0f%%"),
-                                 ((0, 3775), (500, 2500), "%.0flx"),
-                                 ((-10, 50), (15, 30), "%.0f°C"),
-                                 ((20, 80), (30, 70), "%.0f%%")]:
-            for value in [scale[0] - 100, scale[0], band[0], sum(band)/2,
-                          band[1], scale[1], scale[1] + 100]:
-                with self.subTest(scale=scale, value=value):
-                    text, lines, _ = self.run_gauge(value, scale=scale, band=band, fmt=fmt)
-                    old = subprocess.run([str(self.old.executable), str(value), "1",
-                                          *map(str, scale), fmt, "80", "50"],
-                                         check=True, capture_output=True, text=True).stdout.splitlines()
-                    self.assertEqual(text, old[0])
-                    self.assertEqual(lines, [tuple(map(int, line.split())) for line in old[1:]])
-
-    def test_invalid_or_absent_readings_have_no_needle(self):
-        for value, present in [(40, False), ("nan", True), ("inf", True), ("-inf", True)]:
-            with self.subTest(value=value, present=present):
-                self.assertEqual(self.run_gauge(value, present)[:2], ("--", []))
-
-    def test_invalid_yaml_ranges_fail_closed(self):
-        for scale, band in [((0, 0), (0, 0)), ((100, 0), (20, 60)),
-                            ((0, 100), (-1, 60)), ((0, 100), (20, 101)),
-                            ((0, 100), (60, 20)), ((0, 100), ("nan", 60)),
-                            ((0, "inf"), (20, 60)), (("-3e38", "3e38"), (20, 60))]:
-            self.assertEqual(self.run_gauge(50, scale=scale, band=band)[:2], ("--", []))
-
-    def test_zero_width_and_scale_edge_recommendations_keep_midpoint_semantics(self):
-        for band in [(0, 0), (100, 100), (0, 100), (50, 50)]:
-            midpoint = sum(band) / 2
-            _, _, measured = self.run_gauge(midpoint, band=band)
-            self.assertAlmostEqual(float(measured), angle(midpoint, [0, 100]), delta=1e-6)
-
-    def test_extreme_finite_values_have_bounded_needles(self):
-        for value, endpoint in [("3e38", 100), ("-3e38", 0)]:
-            text, lines, _ = self.run_gauge(value)
-            self.assertNotEqual(text, "--")
-            self.assertEqual(lines, self.run_gauge(endpoint)[1])
-
-
+    def test_invalid_fixed_ranges_fail_in_the_actual_firmware_lambda(self):
+        import test_low_battery as battery
+        checker = battery.LowBatteryTests()
+        for overrides in ({"light_max": "0"}, {"hum_recommended_min": "-1"},
+                          {"temp_recommended_min": "35", "temp_recommended_max": "30"}):
+            with self.subTest(overrides=overrides), tempfile.TemporaryDirectory() as temporary:
+                result, _ = checker.compile(temporary, overrides)
+                self.assertNotEqual(result.returncode, 0)
+                self.assertIn("display range", result.stderr)
 @unittest.skipUnless(os.environ.get("DRAWN_DISPLAY_HOST"), "set DRAWN_DISPLAY_HOST to run exact ESPHome pixel tests")
 class ESPHomePageTests(unittest.TestCase):
     def render(self, battery=70, values=(40, 1500, 22, 50), present=True, **environment):
@@ -187,7 +103,7 @@ class ESPHomePageTests(unittest.TestCase):
 
     def test_ring_raster_preserves_legacy_geometry_with_one_pixel_edge_tolerance(self):
         from scripts import smartplant_label_maker as reference
-        page = yaml.safe_load((ROOT / "examples/drawn-display/page.yaml").read_text())
+        page = yaml.safe_load((ROOT / "examples/multi-device/packages/smart_plant_core.yaml").read_text().replace("!lambda", ""))
         values = page["substitutions"]
         surface = cairo.ImageSurface(cairo.FORMAT_RGB24, 296, 128)
         context = cairo.Context(surface)

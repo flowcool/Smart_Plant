@@ -2,7 +2,7 @@
 """Prepare synthetic local builds. Never call a device, broker, HA or builder.
 
 Run with the ESPHome 2026.10.0 Python environment. This writes only to tmp/.
-The candidate has no runtime renderer switch. Baseline fixtures are test inputs.
+Shared and standalone pages have no runtime renderer switch. Baselines are test inputs.
 """
 import argparse
 import copy
@@ -18,7 +18,7 @@ from PIL import Image, ImageDraw
 import yaml
 
 ROOT = Path(__file__).resolve().parents[1]
-CANDIDATE = ROOT / "examples/drawn-display"
+SOURCES = ("examples/multi-device/packages/smart_plant_core.yaml", "docs/source/files/configuration.yaml")
 PACKAGES = ROOT / "examples/multi-device/packages"
 
 
@@ -34,51 +34,58 @@ Loader.add_constructor("!lambda", lambda loader, node: Lambda(loader.construct_s
 yaml.SafeDumper.add_representer(Lambda, lambda dumper, value: dumper.represent_scalar("!lambda", value, style="|"))
 
 
+def load_page(path):
+    return yaml.load(path.read_text(encoding="utf-8"), Loader)
+
+
 def prepare(output, icon_font):
     output = output.resolve()
     if (ROOT / "tmp").resolve() not in output.parents:
         raise ValueError("proof output must be below the ignored project tmp/")
     output.mkdir(parents=True, exist_ok=True)
-    page = yaml.load((CANDIDATE / "page.yaml").read_text(), Loader)
-    core = yaml.load((PACKAGES / "smart_plant_core.yaml").read_text(), Loader)
-    page["esphome"]["includes"] = [str(CANDIDATE / "page.h")]
-    page["substitutions"]["plant_illustration"] = str(
-        ROOT / "examples/multi-device/label_maker/illustrations/Pilea_peperomioides.png")
-    for font in page["font"]:
-        font["file"] = str(icon_font.resolve()) if font["file"].startswith("gfonts://") else str(
-            (CANDIDATE / font["file"]).resolve())
-    # Fail before preparing any build if an asset is unavailable.
-    for filename in [page["substitutions"]["plant_illustration"], *[font["file"] for font in page["font"]]]:
-        if not Path(filename).is_file():
-            raise ValueError(f"missing asset: {filename}")
+    core = load_page(PACKAGES / "smart_plant_core.yaml")
+    public = load_page(ROOT / "docs/source/files/configuration.yaml")
+    fonts = copy.deepcopy(core["font"])
+    audiowide = ROOT / "examples/multi-device/label_maker/fonts/Audiowide-Regular.ttf"
+    for font in fonts:
+        font["file"] = str(audiowide) if font["file"] == "gfonts://Audiowide" else str(icon_font.resolve())
+        if not Path(font["file"]).is_file():
+            raise ValueError(f"missing font: {font['file']}")
+    illustration = ROOT / "examples/multi-device/label_maker/illustrations/Pilea_peperomioides.png"
+    synthetic = {"device_name": "drawn-page-proof", "display_name": "Example plant",
+                 "screen_title": "Example plant", "secondary_name": "Synthetic inputs",
+                 "wifi_ssid": "offline-synthetic", "wifi_password": "offline-synthetic-password",
+                 "mqtt_broker": "192.0.2.1", "api_encryption_key": "AQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQE=",
+                 "plant_illustration": str(illustration), "illustration_x": "5", "illustration_y": "37",
+                 "illustration_width": "75", "illustration_height": "88"}
     shutil.copyfile(ROOT / "tests/drawn_display_host.h", output / "host.h")
-
-    host = {key: copy.deepcopy(page[key]) for key in ("substitutions", "image", "font")}
-    host["host"] = {}
-    host["logger"] = {"level": "WARN"}
-    host["mdns"] = {"disabled": True}
-    host["display"] = []
-    body = page["display"][0]["pages"][0]["lambda"]
-    for name in ("batpercent", "soil", "light", "temp", "hum", "esptime"):
-        body = body.replace(f"id({name})", name)
-    body = body.replace('"${screen_title}"', "proof_title").replace('"${secondary_name}"', "proof_subtitle")
-    # Inject boundary inputs only in the host test. Firmware keeps fixed YAML.
-    body = body.replace("const Gauge gauges[]", "Gauge gauges[]")
-    body = body.replace("const Reading readings[] =", """
+    for name, entry in (("host", core), ("host-standalone", public)):
+        host = {key: copy.deepcopy(entry[key]) for key in ("substitutions", "image")}
+        host["substitutions"].update(synthetic)
+        host.update(host={}, logger={"level": "WARN"}, mdns={"disabled": True}, display=[], font=fonts)
+        body = entry["display"][0]["pages"][0]["lambda"]
+        for sensor in ("batpercent", "soil", "light", "temp", "hum", "esptime"):
+            body = body.replace(f"id({sensor})", sensor)
+        body = body.replace('"${screen_title}"', "proof_title").replace('"${secondary_name}"', "proof_subtitle")
+        # Host-only controls exercise edge recommendations and isolate ring ink.
+        body = body.replace("auto draw_ring =", "if (proof_ring_only) it.fill(bg);\nauto draw_ring =")
+        body = body.replace("const float midpoint =", '''
 if (const char *bands = std::getenv("SMART_PLANT_RECOMMENDATION")) {
   float low, high;
   if (std::sscanf(bands, "%f %f", &low, &high) != 2) std::exit(2);
-  for (auto &g : gauges) {
-    g.recommended_min = g.minimum + low * (g.maximum - g.minimum);
-    g.recommended_max = g.minimum + high * (g.maximum - g.minimum);
-  }
+  recommended_min = vmin + low * (vmax - vmin);
+  recommended_max = vmin + high * (vmax - vmin);
 }
-const Reading readings[] =""")
-    host["esphome"] = {
-        "name": "drawn-page-host",
-        "build_path": str(output / "host-build"),
-        "includes": [str(CANDIDATE / "page.h"), str(output / "host.h")],
-        "on_boot": {"priority": -100, "then": [{"lambda": """
+const float midpoint =''')
+        body = body.replace("it.printf(xc + 22, yc + 11", "if (!proof_ring_only) it.printf(xc + 22, yc + 11")
+        body = body.replace("draw_gauge(id(", "if (!proof_ring_only) draw_gauge(id(")
+        # Sensor id() references were replaced above.
+        for sensor in ("soil", "light", "temp", "hum"):
+            body = body.replace(f"draw_gauge({sensor}.", f"if (!proof_ring_only) draw_gauge({sensor}.")
+        host["esphome"] = {
+            "name": "drawn-page-host", "build_path": str(output / (name + "-build")),
+            "includes": [str(output / "host.h")],
+            "on_boot": {"priority": -100, "then": [{"lambda": '''
 const char *input = std::getenv("SMART_PLANT_VALUES");
 if (!input) std::exit(2);
 float v[5]; int present[5];
@@ -93,12 +100,9 @@ const char *proof_title = std::getenv("SMART_PLANT_TITLE");
 const char *proof_subtitle = std::getenv("SMART_PLANT_SUBTITLE");
 if (!proof_title) proof_title = "${screen_title}";
 if (!proof_subtitle) proof_subtitle = "${secondary_name}";
+const bool proof_ring_only = std::getenv("SMART_PLANT_RING_ONLY") != nullptr;
 const auto started = std::chrono::steady_clock::now();
-""" + body + """
-if (std::getenv("SMART_PLANT_RING_ONLY")) {
-  it.fill(bg);
-  for (const auto &g : gauges) if (g.valid()) ring(it, g, fg);
-}
+''' + body + '''
 const auto elapsed = std::chrono::duration_cast<std::chrono::microseconds>(
     std::chrono::steady_clock::now() - started).count();
 const char *path = std::getenv("SMART_PLANT_OUTPUT");
@@ -106,34 +110,33 @@ if (!path) std::exit(2);
 it.save(path);
 std::printf("PROOF us=%lld writes=%u\\n", static_cast<long long>(elapsed), it.writes);
 std::exit(0);
-"""}]},
-    }
-    (output / "host.yaml").write_text(yaml.safe_dump(host, allow_unicode=True, sort_keys=False))
+'''}]},
+        }
+        (output / (name + ".yaml")).write_text(yaml.safe_dump(host, allow_unicode=True, sort_keys=False))
 
-    for candidate in (False, True):
-        for profile in ("api", "mqtt"):
-            fixture = copy.deepcopy(core)
-            fixture["substitutions"].update({
-                "device_name": "drawn-page-proof", "display_name": "Example plant",
-                "screen_title": "Example plant", "secondary_name": "Synthetic inputs",
-                "wifi_ssid": "offline-synthetic", "wifi_password": "offline-synthetic-password",
-                "mqtt_broker": "192.0.2.1", "api_encryption_key": "AQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQE=",
-                "label_image": str(ROOT / "docs/source/images/programming/Lemon_tree_label_page_1.png"),
-            })
-            fixture["font"] = copy.deepcopy(page["font"][:4])
-            if candidate:
-                fixture["substitutions"].update(page["substitutions"])
-                fixture["image"] = page["image"]
-                fixture["font"] = page["font"]
-                fixture["esphome"]["includes"] = page["esphome"]["includes"]
-                fixture["display"][0]["pages"][0] = page["display"][0]["pages"][0]
-            name = f'{"candidate" if candidate else "baseline"}-{profile}'
-            fixture["esphome"]["build_path"] = str(output / (name + "-build"))
+    # Keep a reproducible pre-integration reference; no remote or device access.
+    previous = yaml.load(subprocess.check_output(
+        ["git", "show", "d0d3510:examples/multi-device/packages/smart_plant_core.yaml"], cwd=ROOT, text=True), Loader)
+    for name, entry in (("candidate-api", core), ("candidate-mqtt", core),
+                        ("standalone", public), ("baseline-api", previous)):
+        fixture = copy.deepcopy(entry)
+        fixture["substitutions"].update(synthetic)
+        fixture["font"] = copy.deepcopy(fonts if name != "baseline-api" else fonts[:4])
+        fixture["esphome"]["build_path"] = str(output / (name + "-build"))
+        if name == "baseline-api":
+            fixture["substitutions"]["label_image"] = str(ROOT / "docs/source/images/programming/Lemon_tree_label_page_1.png")
+        if name == "standalone":
+            # Import metadata is irrelevant to a local full-config compile.
+            fixture.pop("dashboard_import", None)
+            fixture["wifi"].update(ssid="offline-synthetic", password="offline-synthetic-password")
+        else:
+            profile = "mqtt" if name.endswith("mqtt") else "api"
             fixture["packages"] = {"transport": None}
-            text = yaml.safe_dump(fixture, allow_unicode=True, sort_keys=False)
+        text = yaml.safe_dump(fixture, allow_unicode=True, sort_keys=False)
+        if name != "standalone":
             text = text.replace("transport: null", f"transport: !include {PACKAGES}/smart_plant_profile_{profile}.yaml")
-            (output / (name + ".yaml")).write_text(text)
-    print(f"Prepared host and ESP32-S2 API/MQTT fixtures in {output}")
+        (output / (name + ".yaml")).write_text(text)
+    print(f"Prepared integrated shared/standalone host and ESP32-S2 fixtures in {output}")
 
 
 def render_cases(output, executable):
@@ -175,8 +178,8 @@ def render_cases(output, executable):
     report = {
         "scope": "Synthetic inputs; ESPHome host display/font/image implementation; no physical panel",
         "host_executable_sha256": hashlib.sha256(executable.read_bytes()).hexdigest(),
-        "source_sha256": {name: hashlib.sha256((CANDIDATE / name).read_bytes()).hexdigest()
-                          for name in ("page.h", "page.yaml")},
+        "source_sha256": {name: hashlib.sha256((ROOT / name).read_bytes()).hexdigest()
+                          for name in SOURCES},
         "fixture_sha256": {path.name: hashlib.sha256(path.read_bytes()).hexdigest()
                            for path in sorted(output.glob("*.yaml"))},
         "measurements": results,
@@ -188,7 +191,7 @@ def render_cases(output, executable):
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("--output", type=Path, default=ROOT / "tmp/drawn-display/proof")
+    parser.add_argument("--output", type=Path, default=ROOT / "tmp/drawn-display/integrated")
     parser.add_argument("--icon-font", type=Path, required=True,
                         help="Existing Material Symbols Outlined TTF (no network font lookup)")
     parser.add_argument("--render-host", type=Path, help="Run a previously built host proof executable")

@@ -20,7 +20,9 @@
 # botanical_name / horticultural_name: descriptive source for secondary_name,
 # rendered below screen_title. The botanical value takes precedence if present.
 # room: inventory context only; it is not appended automatically to any name.
-# label_image: background artwork; normal-page text is drawn separately by core.
+# label_image: retained legacy background for label/print tooling; not used by firmware.
+# plant_illustration: static plant-only asset for ESPHome.
+# display.metrics: fixed scales and recommendation bands, manually aligned with HA Plant.
 # Inventory keys select generated package filenames; do not rename them casually.
 # Edit this inventory, then run scripts/generate_device_metadata.py. Do not edit
 # packages/generated/ directly or override their naming fields in live YAML.
@@ -37,6 +39,22 @@ plants:
     mqtt_topic_prefix: "ceropegia-woodii-54a8f2"
     legacy_mqtt_topic_prefix: "ceropegia-woodii1-54a8f2"
     label_image: "plant_labels/Ceropegia_woodii_label_page_1.png"
+    plant_illustration: "label_maker/illustrations/Ceropegia_woodii.png"
+    # Fixed display values. HA alignment is manual; calibration is below.
+    display:
+      metrics:
+        moisture:
+          scale: [0, 100]
+          band: [7, 50]
+        illuminance:
+          scale: [0, 35000]
+          band: [2500, 35000]
+        temperature:
+          scale: [-10, 50]
+          band: [8, 35]
+        humidity:
+          scale: [0, 100]
+          band: [15, 80]
     timezone: "Europe/Paris"
     soil_calibration:
       wet_voltage: 1.36
@@ -55,6 +73,22 @@ plants:
     mqtt_topic_prefix: "ceropegia-woodii-54a99c"
     legacy_mqtt_topic_prefix: "ceropegia-woodii2-54a99c"
     label_image: "plant_labels/Ceropegia_woodii_label_page_1.png"
+    plant_illustration: "label_maker/illustrations/Ceropegia_woodii.png"
+    # Fixed display values. HA alignment is manual; calibration is below.
+    display:
+      metrics:
+        moisture:
+          scale: [0, 100]
+          band: [7, 50]
+        illuminance:
+          scale: [0, 35000]
+          band: [2500, 35000]
+        temperature:
+          scale: [-10, 50]
+          band: [8, 35]
+        humidity:
+          scale: [0, 100]
+          band: [15, 80]
     timezone: "Europe/Paris"
     soil_calibration:
       wet_voltage: 1.36
@@ -71,6 +105,22 @@ plants:
     ip_address: "192.168.2.237"
     mqtt_topic_prefix: "cyperus-papyrus-54a9b2"
     label_image: "plant_labels/Cyperus_papyrus_label_page_1.png"
+    plant_illustration: "label_maker/illustrations/Cyperus_papyrus.png"
+    # Fixed display values. HA alignment is manual; calibration is below.
+    display:
+      metrics:
+        moisture:
+          scale: [0, 100]
+          band: [15, 60]
+        illuminance:
+          scale: [0, 10000]
+          band: [2000, 7000]
+        temperature:
+          scale: [-10, 50]
+          band: [10, 35]
+        humidity:
+          scale: [0, 100]
+          band: [30, 100]
     timezone: "Europe/Paris"
     soil_calibration:
       wet_voltage: 1.36
@@ -87,6 +137,22 @@ plants:
     ip_address: "192.168.2.238"
     mqtt_topic_prefix: "equisetum-hyemale-54a994"
     label_image: "plant_labels/Equisetum_hyemale_label_page_1.png"
+    plant_illustration: "label_maker/illustrations/Equisetum_hyemale.png"
+    # Fixed display values. HA alignment is manual; calibration is below.
+    display:
+      metrics:
+        moisture:
+          scale: [0, 100]
+          band: [15, 60]
+        illuminance:
+          scale: [0, 10000]
+          band: [1500, 6000]
+        temperature:
+          scale: [-10, 50]
+          band: [8, 32]
+        humidity:
+          scale: [0, 100]
+          band: [30, 85]
     timezone: "Europe/Paris"
     soil_calibration:
       wet_voltage: 1.36
@@ -103,6 +169,22 @@ plants:
     ip_address: "192.168.2.234"
     mqtt_topic_prefix: "oxalis-triangularis-5326ba"
     label_image: "plant_labels/Oxalis_triangularis_label_page_1.png"
+    plant_illustration: "label_maker/illustrations/Oxalis_triangularis.png"
+    # Fixed display values. HA alignment is manual; calibration is below.
+    display:
+      metrics:
+        moisture:
+          scale: [0, 100]
+          band: [18, 60]
+        illuminance:
+          scale: [0, 40000]
+          band: [2000, 40000]
+        temperature:
+          scale: [-10, 50]
+          band: [3, 35]
+        humidity:
+          scale: [0, 100]
+          band: [30, 80]
     timezone: "Europe/Paris"
     soil_calibration:
       wet_voltage: 1.36
@@ -128,6 +210,22 @@ plants:
     ip_address: "192.168.2.236"
     mqtt_topic_prefix: "peperomia-tetraphylla-54a940"
     label_image: "plant_labels/Peperomia_Hope_label_page_1.png"
+    plant_illustration: "label_maker/illustrations/Peperomia_Hope.png"
+    # Fixed display values. HA alignment is manual; calibration is below.
+    display:
+      metrics:
+        moisture:
+          scale: [0, 100]
+          band: [15, 60]
+        illuminance:
+          scale: [0, 10000]
+          band: [1500, 6000]
+        temperature:
+          scale: [-10, 50]
+          band: [10, 32]
+        humidity:
+          scale: [0, 100]
+          band: [30, 85]
     timezone: "Europe/Paris"
     soil_calibration:
       wet_voltage: 1.36
@@ -145,6 +243,22 @@ plants:
     ip_address: "192.168.2.231"
     mqtt_topic_prefix: "pilea-peperomioides-54a8e4"
     label_image: "plant_labels/Pilea_peperomioides_label_page_1.png"
+    plant_illustration: "label_maker/illustrations/Pilea_peperomioides.png"
+    # Fixed display values. HA alignment is manual; calibration is below.
+    display:
+      metrics:
+        moisture:
+          scale: [0, 100]
+          band: [15, 65]
+        illuminance:
+          scale: [0, 10000]
+          band: [600, 8000]
+        temperature:
+          scale: [-10, 50]
+          band: [10, 32]
+        humidity:
+          scale: [0, 100]
+          band: [30, 85]
     timezone: "Europe/Paris"
     soil_calibration:
       wet_voltage: 1.36
@@ -161,6 +275,22 @@ plants:
     ip_address: "192.168.2.233"
     mqtt_topic_prefix: "rhipsalis-baccifera-54a936"
     label_image: "plant_labels/Rhipsalis_baccifera_label_page_1.png"
+    plant_illustration: "label_maker/illustrations/Rhipsalis_baccifera.png"
+    # Fixed display values. HA alignment is manual; calibration is below.
+    display:
+      metrics:
+        moisture:
+          scale: [0, 100]
+          band: [20, 55]
+        illuminance:
+          scale: [0, 20000]
+          band: [2000, 20000]
+        temperature:
+          scale: [-10, 50]
+          band: [15, 27]
+        humidity:
+          scale: [0, 100]
+          band: [45, 70]
     timezone: "Europe/Paris"
     soil_calibration:
       wet_voltage: 1.36

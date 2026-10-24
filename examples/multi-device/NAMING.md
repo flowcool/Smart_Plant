@@ -2,7 +2,8 @@
 
 This guide covers the shared core and the API/MQTT profiles. The standalone
 `docs/source/files/configuration.yaml` example has its own substitutions and
-image layout. Do not assume it provides the same naming controls.
+identity controls. It now shares the display-only `screen_title` and
+`secondary_name` fields. It does not share all device naming controls.
 
 ## Keep identity separate from presentation
 
