@@ -54,9 +54,9 @@ esphome:
     - priority: 700
       then:
         - lambda: 'delay(250);'
-    # Retained MQTT state handling suspends until MQTT is connected; this keeps
-    # cycle preparation after the remaining component setup work.
-    - priority: 600
+    # Start after sensor (600) and display (400) setup. The asynchronous MQTT
+    # wait below still lets Wi-Fi (250) and MQTT (200) initialize before use.
+    - priority: 399.0
       then:
         - lambda: 'id(storage_requested) = id(storage_active);'
         - wait_until:
