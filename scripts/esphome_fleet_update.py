@@ -59,7 +59,7 @@ import sys
 
 
 def secret(name):
-    path = "/volume1/docker/homeassistant/esphome/secrets.yaml"
+    path = "/volume1/home-assistant/esphome/config/secrets.yaml"
     with open(path, encoding="utf-8") as handle:
         for line in handle:
             key, separator, value = line.partition(":")
@@ -84,7 +84,7 @@ import sys
 
 
 def secret(name):
-    path = "/volume1/docker/homeassistant/esphome/secrets.yaml"
+    path = "/volume1/home-assistant/esphome/config/secrets.yaml"
     with open(path, encoding="utf-8") as handle:
         for line in handle:
             key, separator, value = line.partition(":")

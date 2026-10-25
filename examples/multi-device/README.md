@@ -223,7 +223,7 @@ Standard fleet rollout after a merged package change:
    cancels in-flight Device Builder jobs and disarms queued updates, so run it
    before, never during, a batch. Before `reset`, confirm the pool still holds
    only the pinned receiver (read-only, prints no key material):
-   `ssh ugreen "sudo python3 -c 'import json;d=json.load(open(\"/volume1/docker/homeassistant/esphome/.offloader_pairings.json\"));print(\"local_in_pool\",d[\"include_local_in_pool\"]);[print(p[\"pin_sha256\"],p[\"status\"],p[\"enabled\"],p[\"label\"]) for p in d[\"pairings\"]]'"`
+   `ssh ugreen "sudo python3 -c 'import json;d=json.load(open(\"/volume1/home-assistant/esphome/config/.offloader_pairings.json\"));print(\"local_in_pool\",d[\"include_local_in_pool\"]);[print(p[\"pin_sha256\"],p[\"status\"],p[\"enabled\"],p[\"label\"]) for p in d[\"pairings\"]]'"`
    Run `$S --receiver-pin <pin> reset` for each additional approved peer.
 2. `$S status` — confirm which devices show `expected != deployed`.
 3. `$S update all` — waits up to 75 min for each device's hourly maintenance

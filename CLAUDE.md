@@ -32,9 +32,9 @@ are in `docs/upstreaming-strategy.md` (`infra-3rr.26`); query GitHub or
   Do not infer the host type from a `/volume1/` path — that convention is not a
   vendor signature. Operational lessons (ACL/permission quirks, safe-write
   playbooks) live in the KB corpus `/home/flow/claude_project/knowledge-base/bundle/`.
-- ESPHome configs: `/volume1/docker/homeassistant/esphome/`
-- HA configs: `/volume1/docker/homeassistant/homeassistant/`
-- Plant label images: `/volume1/docker/homeassistant/esphome/plant_labels/`
+- ESPHome configs: `/volume1/home-assistant/esphome/config/`
+- HA configs: `/volume1/home-assistant/homeassistant/config/`
+- Plant label images: `/volume1/home-assistant/esphome/config/plant_labels/`
 - **Read-only by default** — write only on explicit user confirmation
 
 ## Device inventory

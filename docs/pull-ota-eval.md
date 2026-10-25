@@ -192,10 +192,10 @@ is legacy PlatformIO). Sketch of a post-build hook:
 ```bash
 # On the NAS, run after each Device Builder build of a pilot device
 DEV=<device>
-BIN="/volume1/docker/homeassistant/esphome/.esphome/build/$DEV/build/firmware.ota.bin"
+BIN="/volume1/home-assistant/esphome/config/.esphome/build/$DEV/build/firmware.ota.bin"
 WEB=/volume1/web/smartplant
 VER=$(yq -r '.esphome.project.version // .substitutions.project_version' \
-       /volume1/docker/homeassistant/esphome/$DEV.yaml)
+       /volume1/home-assistant/esphome/config/$DEV.yaml)
 MD5=$(md5sum "$BIN" | awk '{print $1}')
 cp "$BIN" "$WEB/firmware.ota.bin"
 jq -n --arg v "$VER" --arg md5 "$MD5" \
