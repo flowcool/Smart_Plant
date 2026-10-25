@@ -1,6 +1,6 @@
 """Execute the profile's YAML wait with pinned ESPHome C++ action classes.
 
-Run with ESPHome 2026.9.0 installed. Only scheduler/hardware scaffolding is fake;
+Run with ESPHome 2026.10.0 installed. Only scheduler/hardware scaffolding is fake;
 WaitUntilAction, APIConnectedCondition and the subscription lookup are extracted
 from that installed implementation. No socket or device is used.
 """
@@ -27,6 +27,7 @@ STUB = r"""
 #include <list>
 #include <optional>
 #include <tuple>
+#include <type_traits>
 using std::optional;
 uint32_t clock_ms = 0;
 uint32_t millis() { return clock_ms; }
@@ -120,9 +121,9 @@ class APIBootTests(unittest.TestCase):
     def setUpClass(cls):
         installed = importlib.util.find_spec("esphome")
         if installed is None:
-            raise unittest.SkipTest("Run this suite with pinned ESPHome 2026.9.0 installed")
-        if importlib.metadata.version("esphome") != "2026.9.0":
-            raise RuntimeError("API boot scenarios require exact ESPHome 2026.9.0")
+            raise unittest.SkipTest("Run this suite with pinned ESPHome 2026.10.0 installed")
+        if importlib.metadata.version("esphome") != "2026.10.0":
+            raise RuntimeError("API boot scenarios require exact ESPHome 2026.10.0")
         source = Path(installed.origin).parent
         cls.profile = yaml.safe_load(PROFILE.read_text(encoding="utf-8"))
         boot = cls.profile["esphome"]["on_boot"]
@@ -150,6 +151,10 @@ class APIBootTests(unittest.TestCase):
         action = (source / "core/base_automation.h").read_text()
         action = action[action.index("template<typename... Ts> class WaitUntilAction"):
                         action.index("template<typename... Ts> class UpdateComponentAction")]
+        automation = (source / "core/automation.h").read_text()
+        stored_arg = re.search(r"template<typename T>\s+using stored_trigger_arg_t\s*=.*?;", automation, re.S)
+        if stored_arg is None:
+            raise AssertionError("Cannot extract exact deferred argument storage type")
         api = (source / "components/api/api_server.h").read_text()
         api = api[api.index("template<typename... Ts> class APIConnectedCondition"):]
         api = api[:api.index("\n};") + len("\n};")]
@@ -162,10 +167,12 @@ class APIBootTests(unittest.TestCase):
         path = Path(cls.temp.name)
         cpp = path / "api.cpp"
         cls.executable = path / "api"
-        cpp.write_text(STUB.replace("// PINNED_IMPLEMENTATION", match[0] + "\n" + api + "\n" + action)
+        cpp.write_text(STUB.replace("// PINNED_IMPLEMENTATION", stored_arg[0] + "\n" + match[0] + "\n" + api + "\n" + action)
                        .replace("/* BATTERY_POLICY */", policy))
-        subprocess.run([shutil.which("g++") or "g++", "-std=c++17", str(cpp), "-o", str(cls.executable)],
-                       check=True, capture_output=True, text=True)
+        result = subprocess.run([shutil.which("g++") or "g++", "-std=c++20", str(cpp), "-o", str(cls.executable)],
+                                capture_output=True, text=True)
+        if result.returncode:
+            raise AssertionError(result.stderr)
 
     def run_scenario(self, subscribed_at=-1, disconnected_at=-1, connected=False, battery=80, valid=True, latched=False):
         result = subprocess.run([str(self.executable), str(self.timeout), str(subscribed_at),
