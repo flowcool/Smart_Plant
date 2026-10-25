@@ -34,8 +34,8 @@
 ## Live systems and safety
 
 - Live ESPHome configuration is on the NAS at
-  `/volume1/docker/homeassistant/esphome/`; HA configuration is at
-  `/volume1/docker/homeassistant/homeassistant/`.
+  `/volume1/home-assistant/esphome/config/`; HA configuration is at
+  `/volume1/home-assistant/homeassistant/config/`.
 - NAS access is read-only unless Florent explicitly authorizes a write, cache
   purge, compile, upload, or flash.
 - Validate exactly one canary before any fleet rollout. Never infer successful
