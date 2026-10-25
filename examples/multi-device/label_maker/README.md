@@ -18,7 +18,7 @@ The defaults preserve humidity 20-80 and light 0-3775. They are display ranges,
 not calibration or botanical advice. Change each `band` to the intended range.
 An optional `scale` must contain that band.
 
-Run from the repository root in a Python virtual environment:
+Run from the repository root in a Python 3.11 or later virtual environment:
 
 ```sh
 python3 -m pip install -r examples/multi-device/label_maker/requirements.txt
@@ -54,7 +54,9 @@ They need `g++` plus the listed Python packages. PNG bytes can change with
 rendering-library versions. New hardware or fleet validation remains a
 separate operation. Revert this isolated optional-tool contribution to undo it.
 
-With ESPHome 2026.9.0 installed, also run:
+Run the package tests in a separate virtual environment with ESPHome 2026.10.0
+and PyYAML installed. ESPHome pins Pillow 12.3.0. Keep that environment separate
+from the label tools, which require Pillow 13.0.0.
 
 ```sh
 python3 -m unittest discover -s tests -p test_label_packages.py -v

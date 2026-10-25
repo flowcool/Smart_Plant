@@ -1,6 +1,6 @@
 """Execute pinned sensor filters with the package's real soil configuration.
 
-Run with ESPHome 2026.9.0. Only storage and filter plumbing are local scaffolding;
+Run with ESPHome 2026.10.0. Only storage and filter plumbing are local scaffolding;
 median scheduling, median computation, rejection and calibration use its source.
 No ADC, broker or device is used.
 """
@@ -32,9 +32,9 @@ class SoilVoltageTests(unittest.TestCase):
     def setUpClass(cls):
         spec = importlib.util.find_spec("esphome")
         if spec is None:
-            raise unittest.SkipTest("Run with pinned ESPHome 2026.9.0")
-        if importlib.metadata.version("esphome") != "2026.9.0":
-            raise RuntimeError("Soil filter scenarios require ESPHome 2026.9.0")
+            raise unittest.SkipTest("Run with pinned ESPHome 2026.10.0")
+        if importlib.metadata.version("esphome") != "2026.10.0":
+            raise RuntimeError("Soil filter scenarios require ESPHome 2026.10.0")
         source = (Path(spec.origin).parent / "components/sensor/filter.cpp").read_text()
         cls.config = yaml.safe_load((ROOT / "examples/multi-device/packages/smart_plant_core.yaml").read_text().replace("!lambda", ""))
         voltage = next(s for s in cls.config["sensor"] if s.get("id") == "soil_voltage")

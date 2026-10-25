@@ -47,7 +47,7 @@ python3 scripts/generate_device_metadata.py --check
 python3 -m unittest discover -s tests -v
 ```
 
-Run these commands in a Python virtual environment. Rendering needs PyYAML,
+Run these commands in a Python 3.11 or later virtual environment. Rendering needs PyYAML,
 Pycairo and Pillow. The runtime test also needs `g++`.
 The suite checks PNG bytes against committed outputs and renders twice.
 Changing the renderer dependencies can change PNG bytes. Inspect image changes

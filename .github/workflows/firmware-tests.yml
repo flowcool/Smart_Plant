@@ -20,18 +20,44 @@ jobs:
         with:
           python-version: "3.12"
 
-      # The soil-voltage tests require this exact ESPHome release.
-      - name: Install ESPHome
-        run: pip install esphome==2026.9.0 pyyaml
-
       - name: Install Cairo build dependencies
         run: sudo apt-get update && sudo apt-get install -y libcairo2-dev pkg-config
 
       - name: Install label generator dependencies
         run: pip install -r examples/multi-device/label_maker/requirements.txt
 
+      - name: Check dependency consistency
+        run: python -m pip check
+
       - name: Unit tests
         run: python -B -m unittest discover -s tests -v
+
+  esphome:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      # These source/loader tests require this exact release. Keep its pinned
+      # Pillow 12.3.0 separate from the Pillow 13 label and image tests above.
+      # This job only validates repository configurations; it does not compile
+      # or deploy firmware and does not process external image uploads.
+      - name: Install pinned ESPHome
+        run: pip install esphome==2026.10.0 pyyaml
+
+      - name: Check dependency consistency
+        run: python -m pip check
+
+      - name: Pinned ESPHome tests
+        run: |
+          python -B -m unittest discover -s tests -p test_api_boot.py -v
+          python -B -m unittest discover -s tests -p test_soil_voltage.py -v
+          python -B -m unittest discover -s tests -p test_label_packages.py -v
 
       - name: Validate standalone configuration
         run: esphome config docs/source/files/configuration.yaml
