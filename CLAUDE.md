@@ -109,9 +109,11 @@ not evidence that every probe was calibrated individually.
 
 ## Durable work state
 
-All tasks tracked via `bd` (beads). Use `bd memories smartplant` for persistent
-knowledge. Ready/in-progress issue status is injected dynamically by the
-SessionStart hook — do not duplicate tactical status here.
+Beads owns active work: `bd list --metadata-field project=Smart_Plant`.
+Use `bd memories smartplant` for backlog navigation only. Reusable operational
+knowledge belongs in the KB corpus through `knowledge-lifecycle`.
+The SessionStart hook injects the project-filtered ready list, excluding epics.
+Read other issue states from Beads; do not duplicate tactical status here.
 
 Structural pointers (epics, plan docs, cross-project handoffs):
 

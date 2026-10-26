@@ -58,13 +58,10 @@
 ## Validation and operations
 
 - For GitHub source delivery, follow `.claude/rules/github-ops.md`.
-- Follow `.github/pull_request_template.md` for CodeRabbit review. Once an
-  open PR is ready, post `@coderabbitai review` after the final push: OSS
-  repositories below 10 stars require manual requests. Verify a completed
-  review on the current head, address confirmed findings and record the review
-  URL/head SHA. A summary or skipped notice is not completion evidence.
-  If unavailable, record the reason for the maintainer; CI and existing
-  canary/production authorization requirements still apply.
+- Follow `.github/pull_request_template.md` and the global PR lifecycle.
+  Pullfrog reviews the current head; docs-only PRs require CI only.
+- Before editing ESPHome YAML, read `.claude/rules/esphome-yaml.md`.
+  Codex does not automatically load Claude rules.
 - Parse changed YAML and run `git diff --check`; inspect both `git diff
   --numstat` and the semantic diff before committing.
 - Compile a real canary with the production ESPHome version after purging the
@@ -73,9 +70,10 @@
   `scripts/esphome_fleet_update.py`), which schedules work on its paired build
   servers, including the VPS. Do not run `esphome compile` directly inside the
   NAS container: that bypasses distributed scheduling and consumes NAS CPU.
-- After flash, verify: no OTA rollback log, expected running ESPHome version,
-  one short online measurement window, deep sleep, and at least two subsequent
-  hourly wake/sleep cycles.
+- After an authorized flash, verify no OTA rollback log, the expected running
+  version and config hash, one online measurement window, and deep sleep.
+  Use acceptance evidence for the exact candidate. Normal hourly cycles are
+  not a release gate.
 - OTA reachability: `nc -z -w1 <ip> 3232`; ICMP ping is not authoritative.
 - Next device wake time: take MAX(`last_updated`/`last_reported`) across ALL of a
   device's HA entities (soil/lux/RSSI change every wake), then add the cycle

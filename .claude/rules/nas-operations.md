@@ -1,10 +1,11 @@
 # NAS and OTA operations
 
 - NAS access is **read-only by default**. Write only when explicitly confirmed by the user.
-- **Validate one device before batch OTA.** Confirm the running version in HA,
-  inspect device runtime logs for rollback, and observe at least two subsequent
-  wake/sleep cycles. Device Builder's stored deployed hash is not authoritative
-  after rollback.
+- **Validate one device before batch OTA.** Confirm the running version and
+  config hash, inspect device runtime logs for rollback, and verify one online
+  measurement window followed by deep sleep. Use acceptance evidence for the
+  exact candidate; normal hourly cycles are not a release gate. Device Builder's
+  stored deployed hash is not authoritative after rollback.
 - **Clean rollback before moving on.** When rollback is requested, fully restore state and confirm before proceeding with new work.
 - `Bootloader too old for OTA rollback` requires one serial USB factory flash;
   an OTA upload does not update the bootloader.

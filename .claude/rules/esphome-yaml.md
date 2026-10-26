@@ -18,13 +18,10 @@ paths:
   revision runs.
 - Before adding other observability entities, verify HA/ESPHome does not already
   expose the same state and preserve existing MQTT unique IDs.
-- MQTT topic prefixes are auto-derived by ESPHome (`name_add_mac_suffix: true`):
-  `device_name` + last 3 MAC bytes. Device YAML files set only the botanical
-  `device_name`; do not manually include the MAC suffix in `device_name`.
-  Exception — duplicate species (same `device_name`) set an explicit unique
-  `configured_name` (`<device_name>-<mac6>`) with `name_add_mac_suffix: false`,
-  so their node name / hostname / MQTT prefix come verbatim from
-  `configured_name` and Device Builder does not collide on identical node names.
+- All eight production devices use an explicit `configured_name`
+  (`<device_name>-<mac6>`) with `name_add_mac_suffix: false`. Hostnames and MQTT
+  prefixes come verbatim from `configured_name`. Keep the botanical
+  `device_name` unchanged. Read `docs/naming.md` before changing identity fields.
 - Maintenance commands must be retained and published/subscribed at QoS 1.
 - Packages are fetched from GitHub by each build server — after pushing changes, run `scripts/esphome_fleet_update.py reset` (NAS + paired VPS builder) before compiling; a NAS-only purge leaves the VPS clone stale.
 - Production packages rely on ESPHome's native deep-sleep OTA guard
