@@ -228,7 +228,9 @@ Standard fleet rollout after a merged package change:
 2. `$S status` — confirm which devices show `expected != deployed`.
 3. `$S update all` — waits up to 75 min for each device's hourly maintenance
    window; devices below `ota_min_battery` (50%) self-reject and time out.
-4. Verify per AGENTS.md (no OTA rollback, expected version, ≥2 clean cycles).
+4. Verify per AGENTS.md: no OTA rollback, expected running version and config hash,
+   one online measurement window, then deep sleep. Use acceptance evidence for the
+   exact candidate; normal hourly cycles are not a release gate.
 
 Device Builder is the compile scheduler: its firmware API selects a paired
 build server, including the VPS offloader. Never use `esphome compile` directly
