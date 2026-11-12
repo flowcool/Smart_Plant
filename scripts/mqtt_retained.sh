@@ -24,7 +24,7 @@ set -euo pipefail
 
 TOPIC="${1:-#}"
 SSH_HOST="${SSH_HOST:-ugreen}"
-MQTT_CONTAINER="${MQTT_CONTAINER:-mqtt}"
+MQTT_CONTAINER="${MQTT_CONTAINER:-u-home-automation-eclipse-mosquitto}"
 WAIT="${MQTT_WAIT:-6}"
 HA_STORAGE="${HA_STORAGE:-/home/flow/claude_project/homeassistant/.storage/core.config_entries}"
 
