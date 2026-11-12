@@ -59,7 +59,7 @@ import sys
 
 
 def secret(name):
-    path = "/volume1/home-assistant/esphome/config/secrets.yaml"
+    path = "/volume1/docker/home-automation/esphome/config/secrets.yaml"
     with open(path, encoding="utf-8") as handle:
         for line in handle:
             key, separator, value = line.partition(":")
@@ -71,7 +71,7 @@ def secret(name):
 topic, payload = sys.argv[1:3]
 subprocess.run(
     [
-        "docker", "exec", "mqtt", "mosquitto_pub", "-h", "127.0.0.1",
+        "docker", "exec", "u-home-automation-eclipse-mosquitto", "mosquitto_pub", "-h", "127.0.0.1",
         "-u", secret("mqtt_username"), "-P", secret("mqtt_password"),
         "-q", "1", "-r", "-t", topic, "-m", payload,
     ],
@@ -84,7 +84,7 @@ import sys
 
 
 def secret(name):
-    path = "/volume1/home-assistant/esphome/config/secrets.yaml"
+    path = "/volume1/docker/home-automation/esphome/config/secrets.yaml"
     with open(path, encoding="utf-8") as handle:
         for line in handle:
             key, separator, value = line.partition(":")
@@ -95,7 +95,7 @@ def secret(name):
 
 topics = sys.argv[1:]
 command = [
-    "docker", "exec", "mqtt", "mosquitto_sub", "-h", "127.0.0.1",
+    "docker", "exec", "u-home-automation-eclipse-mosquitto", "mosquitto_sub", "-h", "127.0.0.1",
     "-u", secret("mqtt_username"), "-P", secret("mqtt_password"),
     "-W", "3", "-C", str(len(topics)), "-F", "%t\\t%p",
 ]
@@ -182,7 +182,7 @@ class FleetUpdater:
     def api(self, command: str, args: dict[str, Any] | None = None) -> Any:
         output = self.ssh(
             [
-                "sudo", "docker", "exec", "esphome", "python3", "-c",
+                "sudo", "docker", "exec", "u-home-automation-esphome", "python3", "-c",
                 encoded_python(WS_CLIENT), command, json.dumps(args or {}),
             ]
         )
