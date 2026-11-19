@@ -114,7 +114,6 @@ substitutions:
   # cutting power while the panel is still updating.
   display_busy_gpio: "14"
   display_reset_gpio: "15"
-  display_busy_assert_timeout: "2s"
   display_busy_clear_timeout: "30s"
   display_busy_recovery_timeout: "30s"
 
@@ -606,6 +605,7 @@ script:
     then:
       # Run before any new display SPI writes. A new refresh invalidates any
       # delayed recovery from an older one.
+      - script.stop: observe_display_busy
       - script.stop: settle_display
       - script.stop: recover_display_busy
       - script.stop: display_recovery_budget
@@ -623,6 +623,18 @@ script:
           id(display_settle_ok) = false;
           id(display_busy_seen) = false;
           id(display_safe_to_sleep) = false;
+      - script.execute: observe_display_busy
+
+  # epaper_spi cannot tell a refresh whose BUSY line never rose from a real one.
+  # Keep the fork guard: a refresh is confirmed only if BUSY was seen asserted.
+  - id: observe_display_busy
+    mode: restart
+    then:
+      - wait_until:
+          condition:
+            lambda: 'return digitalRead(${display_busy_gpio}) == HIGH;'
+          timeout: ${display_busy_clear_timeout}
+      - lambda: 'if (digitalRead(${display_busy_gpio}) == HIGH) id(display_busy_seen) = true;'
 
   - id: settle_display
     mode: restart
@@ -638,8 +650,10 @@ script:
           timeout: ${display_busy_clear_timeout}
       - lambda: |-
           const bool busy_low = digitalRead(${display_busy_gpio}) == LOW;
-          // An abandoned update (driver BUSY timeout) leaves a status warning.
-          id(display_busy_seen) = !id(my_display).is_updating() &&
+          // Confirmed only if BUSY was observed asserted (observe_display_busy)
+          // and the driver finished: an abandoned update leaves a status warning.
+          id(display_busy_seen) = id(display_busy_seen) &&
+                                  !id(my_display).is_updating() &&
                                   !id(my_display).status_has_warning();
           id(display_safe_to_sleep) = busy_low && !id(my_display).is_updating();
           id(display_settle_ok) = id(display_busy_seen) && busy_low;

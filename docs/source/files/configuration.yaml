@@ -48,7 +48,6 @@ substitutions:
   timezone: "UTC"
   display_busy_gpio: "14"
   display_reset_gpio: "15"
-  display_busy_assert_timeout: "2s"
   display_busy_clear_timeout: "30s"
   display_busy_recovery_timeout: "30s"
 
@@ -254,13 +253,13 @@ sensor:
     accuracy_decimals: 0
 
 display:
-  - platform: waveshare_epaper
+  - platform: epaper_spi
     cs_pin: GPIO10
     dc_pin: GPIO13
     busy_pin: GPIO${display_busy_gpio}
     reset_pin: GPIO${display_reset_gpio}
     rotation: 270
-    model: 2.90inv2
+    model: waveshare-2.9in-v2
     id: my_display
     update_interval: never
     full_update_every: 1
@@ -422,6 +421,7 @@ script:
     then:
       # Run before any new display SPI writes. A new refresh invalidates any
       # delayed recovery from an older one.
+      - script.stop: observe_display_busy
       - script.stop: settle_display
       - script.stop: recover_display_busy
       - script.stop: display_recovery_budget
@@ -438,33 +438,47 @@ script:
           id(display_settle_ok) = false;
           id(display_busy_seen) = false;
           id(display_safe_to_sleep) = false;
+      - script.execute: observe_display_busy
+
+  # epaper_spi cannot tell a refresh whose BUSY line never rose from a real one.
+  # Keep the fork guard: a refresh is confirmed only if BUSY was seen asserted.
+  - id: observe_display_busy
+    mode: restart
+    then:
+      - wait_until:
+          condition:
+            lambda: 'return digitalRead(${display_busy_gpio}) == HIGH;'
+          timeout: ${display_busy_clear_timeout}
+      - lambda: 'if (digitalRead(${display_busy_gpio}) == HIGH) id(display_busy_seen) = true;'
 
   - id: settle_display
     mode: restart
     then:
-      - delay: 100ms
+      # epaper_spi runs the whole update asynchronously and is_updating() stays
+      # true until the panel has refreshed, powered off and entered deep sleep.
+      # Its own 120 s BUSY abandon is not configurable, so this wait is bounded
+      # by display_busy_clear_timeout and falls through to the BUSY recovery path.
       - wait_until:
           condition:
-            lambda: 'return digitalRead(${display_busy_gpio}) == HIGH;'
-          timeout: ${display_busy_assert_timeout}
-      - if:
-          condition:
-            lambda: 'return digitalRead(${display_busy_gpio}) == HIGH;'
-          then:
-            - lambda: 'id(display_busy_seen) = true;'
-            - wait_until:
-                condition:
-                  lambda: 'return digitalRead(${display_busy_gpio}) == LOW;'
-                timeout: ${display_busy_clear_timeout}
+            not:
+              epaper_spi.is_updating: my_display
+          timeout: ${display_busy_clear_timeout}
       - lambda: |-
           const bool busy_low = digitalRead(${display_busy_gpio}) == LOW;
-          id(display_safe_to_sleep) = busy_low;
+          // Confirmed only if BUSY was observed asserted (observe_display_busy)
+          // and the driver finished: an abandoned update leaves a status warning.
+          id(display_busy_seen) = id(display_busy_seen) &&
+                                  !id(my_display).is_updating() &&
+                                  !id(my_display).status_has_warning();
+          id(display_safe_to_sleep) = busy_low && !id(my_display).is_updating();
           id(display_settle_ok) = id(display_busy_seen) && busy_low;
       - if:
           condition:
             lambda: 'return id(display_settle_ok);'
           then:
-            - delay: 500ms
+            - logger.log:
+                level: DEBUG
+                format: "E-paper update completed and display asleep"
           else:
             - logger.log:
                 level: ERROR
