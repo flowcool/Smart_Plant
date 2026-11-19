@@ -105,6 +105,14 @@ version/config hash live on the devices. Read them from the source every time:
 `python3 scripts/esphome_fleet_update.py status` (expected vs deployed hash) and
 `scripts/mqtt_retained.sh '+/sensor/esphome_version/state'` (runtime version + config hash).
 
+Wake times and canary choice: run `python3 scripts/esphome_fleet_update.py wakes`
+(read-only; add `--sort battery` or `--hours 72`). Retained MQTT topics carry no
+timestamp, so the tool reads the Home Assistant recorder (`u-home-automation-hapostgres`,
+battery `last_updated_ts`). Next wake is last wake plus the median gap (about 60 minutes,
+drift of about 6 to 16 minutes). Pick a canary with a regular cycle (low `sd_min`, `missed`
+0), `ota_ok` yes with margin above `ota_min_battery`, and a typical battery drop, and keep
+a same-species twin untouched as control when one exists.
+
 - Roadmap epic: `infra-3rr`.
 - **Delivered** (detail in Beads):
   - Low-battery protective hibernation + e-paper signalling — `infra-3rr.25` (closed

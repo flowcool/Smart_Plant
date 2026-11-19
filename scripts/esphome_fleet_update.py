@@ -15,6 +15,8 @@ import subprocess
 import sys
 import time
 from collections import defaultdict
+from datetime import datetime
+from zoneinfo import ZoneInfo
 from pathlib import Path
 from typing import Any
 
@@ -24,6 +26,15 @@ import yaml
 ROOT = Path(__file__).resolve().parents[1]
 INVENTORY = ROOT / "examples/multi-device/plants.yaml"
 TERMINAL_JOB_STATES = {"completed", "failed", "cancelled"}
+# Wake times come from the Home Assistant recorder, not MQTT: retained MQTT topics carry no
+# timestamp. The recorder stores each battery publish with its arrival time (last_updated_ts).
+HA_POSTGRES_CONTAINER = "u-home-automation-hapostgres"
+HA_TIMEZONE = "Europe/Paris"
+# Mirrors ota_min_battery in smart_plant_core.yaml (a test keeps them equal).
+OTA_MIN_BATTERY = 50
+# A force_update republish within 10 minutes is the same wake; a gap above 90 minutes is a missed wake.
+WAKE_MIN_GAP_S = 600
+WAKE_MISSED_GAP_S = 5400
 DEFAULT_RECEIVER_PIN = "ab350056a3c8251dcf8bd8c9b64ad7d64eca0d8a53f5049f458141d07ba54a01"
 
 WS_CLIENT = r'''import asyncio
@@ -106,6 +117,89 @@ if result.returncode not in (0, 27):
     raise RuntimeError(result.stderr.strip() or f"mosquitto_sub exited {result.returncode}")
 print(result.stdout, end="")
 '''
+
+
+WAKE_SQL = """
+with dev as (
+  select sm.entity_id, sm.metadata_id from states_meta sm
+  where sm.entity_id = any(array[{entities}])
+), r as (
+  select d.entity_id, s.last_updated_ts ts, s.state,
+         s.last_updated_ts - lag(s.last_updated_ts) over (partition by d.entity_id order by s.last_updated_ts) gap
+  from dev d join states s on s.metadata_id = d.metadata_id
+  where s.last_updated_ts > extract(epoch from now()) - {hours} * 3600
+    and s.state ~ '^[0-9.]+$'
+)
+select entity_id, max(ts),
+  (array_agg(state order by ts desc))[1], (array_agg(state order by ts asc))[1],
+  coalesce((percentile_cont(0.5) within group (order by gap) filter (where gap > {min_gap}))::text, ''),
+  coalesce((stddev(gap) filter (where gap > {min_gap}))::text, ''),
+  count(*) filter (where gap > {min_gap}), count(*) filter (where gap > {missed})
+from r group by entity_id
+"""
+
+
+def battery_entity(name: str) -> str:
+    return "sensor." + name.replace("-", "_") + "_battery"
+
+
+def parse_wake_rows(output: str, names: list[str]) -> dict[str, dict[str, Any]]:
+    by_entity = {battery_entity(name): name for name in names}
+    rows: dict[str, dict[str, Any]] = {}
+    for line in output.splitlines():
+        parts = line.split("|")
+        if len(parts) != 8 or parts[0] not in by_entity:
+            continue
+        median = float(parts[4]) if parts[4] else 3600.0
+        rows[by_entity[parts[0]]] = {
+            "last": float(parts[1]),
+            "battery": float(parts[2]),
+            "battery_before": float(parts[3]),
+            "median_gap": median,
+            "stddev": float(parts[5]) if parts[5] else 0.0,
+            "wakes": int(parts[6]),
+            "missed": int(parts[7]),
+        }
+    return rows
+
+
+def wake_table(
+    rows: dict[str, dict[str, Any]], names: list[str], now: float, sort: str
+) -> list[str]:
+    zone = ZoneInfo(HA_TIMEZONE)
+
+    def clock(epoch: float) -> str:
+        moment = datetime.fromtimestamp(epoch, zone)
+        today = datetime.fromtimestamp(now, zone).date()
+        return moment.strftime("%H:%M" if moment.date() == today else "%m-%d %H:%M")
+
+    entries = []
+    for name in names:
+        row = rows.get(name)
+        if row is None:
+            entries.append((name, None))
+            continue
+        row = dict(row, next=row["last"] + row["median_gap"])
+        row["until"] = round((row["next"] - now) / 60)
+        entries.append((name, row))
+    keys = {
+        "next": lambda e: (e[1] is None, e[1]["next"] if e[1] else 0),
+        "last": lambda e: (e[1] is None, e[1]["last"] if e[1] else 0),
+        "battery": lambda e: (e[1] is None, -(e[1]["battery"]) if e[1] else 0),
+    }
+    entries.sort(key=keys[sort])
+    lines = ["device\tlast_wake\tnext_wake\tin_min\tbattery\tchange\twakes\tmedian_min\tsd_min\tmissed\tota_ok"]
+    for name, row in entries:
+        if row is None:
+            lines.append(f"{name}\tno-data")
+            continue
+        lines.append("\t".join([
+            name, clock(row["last"]), clock(row["next"]), str(row["until"]),
+            f"{row['battery']:g}", f"{row['battery'] - row['battery_before']:+g}",
+            str(row["wakes"]), f"{row['median_gap'] / 60:.1f}", f"{row['stddev'] / 60:.1f}",
+            str(row["missed"]), "yes" if row["battery"] >= OTA_MIN_BATTERY else "no",
+        ]))
+    return lines
 
 
 def encoded_python(source: str) -> str:
@@ -506,6 +600,18 @@ class FleetUpdater:
             details = ", ".join(f"{name}: {error}" for name, error in failures.items())
             raise RuntimeError(f"fleet update partially failed: {details}")
 
+    def wakes(self, hours: int, sort: str) -> None:
+        names = list(self.devices)
+        query = WAKE_SQL.format(
+            entities=", ".join(f"'{battery_entity(name)}'" for name in names),
+            hours=int(hours), min_gap=WAKE_MIN_GAP_S, missed=WAKE_MISSED_GAP_S,
+        )
+        output = self.ssh([
+            "sudo", "docker", "exec", HA_POSTGRES_CONTAINER, "psql", "-U", "ha", "-d", "ha",
+            "-At", "-F", "|", "-c", query,
+        ])
+        print("\n".join(wake_table(parse_wake_rows(output, names), names, time.time(), sort)))
+
     def status(self) -> None:
         devices = self.api("devices/list")["configured"]
         selected = {row["configuration"]: row for row in devices}
@@ -588,6 +694,9 @@ def main() -> None:
     subparsers = parser.add_subparsers(dest="command", required=True)
     subparsers.add_parser("reset")
     subparsers.add_parser("status")
+    wakes = subparsers.add_parser("wakes", help="last/next wake, battery and OTA admission per device (HA recorder)")
+    wakes.add_argument("--hours", type=int, default=48)
+    wakes.add_argument("--sort", choices=["next", "last", "battery"], default="next")
     maintenance = subparsers.add_parser("maintenance")
     maintenance.add_argument("state", choices=["ON", "OFF"])
     maintenance.add_argument("devices", nargs="+", metavar="DEVICE")
@@ -617,6 +726,8 @@ def main() -> None:
         updater.reset()
     elif args.command == "status":
         updater.status()
+    elif args.command == "wakes":
+        updater.wakes(args.hours, args.sort)
     elif args.command == "maintenance":
         updater.publish_maintenance(parse_names(updater, args.devices), args.state)
     elif args.command == "storage":

@@ -1,4 +1,5 @@
 import importlib.util
+import re
 import unittest
 from pathlib import Path
 from unittest import mock
@@ -361,6 +362,59 @@ class FleetUpdaterMaintenanceAdmissionTests(unittest.TestCase):
             [mock.call([self.name], "ON"), mock.call([self.name], "OFF")],
         )
         self.updater.api.assert_not_called()
+
+
+class FleetWakeTableTests(unittest.TestCase):
+    names = ["ceropegia-woodii-54a8f2", "oxalis-triangularis-5326ba", "cyperus-papyrus-54a9b2"]
+    # 2026-11-19 08:40 Europe/Paris == 07:40 UTC
+    now = 1795074000.0
+
+    @staticmethod
+    def row(name: str, last: float, battery: str, before: str, median: str = "3580", missed: int = 0) -> str:
+        return "|".join([MODULE.battery_entity(name), str(last), battery, before, median, "530", "49", str(missed)])
+
+    def output(self) -> str:
+        return "\n".join([
+            self.row(self.names[0], self.now - 420, "64", "73"),
+            self.row(self.names[1], self.now - 3180, "82", "83"),
+            "sensor.unknown_battery|1|1|1|1|1|1|1",
+            "NOTICE: noise line",
+        ])
+
+    def test_entity_id_uses_underscores(self) -> None:
+        self.assertEqual(MODULE.battery_entity("oxalis-triangularis-5326ba"), "sensor.oxalis_triangularis_5326ba_battery")
+
+    def test_parse_ignores_unknown_entities_and_noise(self) -> None:
+        rows = MODULE.parse_wake_rows(self.output(), self.names)
+        self.assertEqual(sorted(rows), sorted(self.names[:2]))
+        self.assertEqual(rows[self.names[0]]["battery"], 64.0)
+        self.assertEqual(rows[self.names[0]]["median_gap"], 3580.0)
+
+    def test_table_sorts_by_next_wake_and_marks_missing_data(self) -> None:
+        rows = MODULE.parse_wake_rows(self.output(), self.names)
+        lines = MODULE.wake_table(rows, self.names, self.now, "next")
+        self.assertEqual(lines[0].split("\t")[0], "device")
+        cells = [line.split("\t") for line in lines[1:]]
+        self.assertEqual([c[0] for c in cells], ["oxalis-triangularis-5326ba", "ceropegia-woodii-54a8f2", "cyperus-papyrus-54a9b2"])
+        oxalis = cells[0]
+        self.assertEqual(oxalis[1:3], ["07:47", "08:46"])
+        self.assertEqual(oxalis[3], "7")  # 400 s = 6.7 min, rounded
+        self.assertEqual(oxalis[4:6], ["82", "-1"])
+        self.assertEqual(oxalis[-1], "yes")
+        self.assertEqual(cells[2], ["cyperus-papyrus-54a9b2", "no-data"])
+
+    def test_ota_admission_follows_the_core_threshold(self) -> None:
+        core = (Path(__file__).parents[1] / "examples/multi-device/packages/smart_plant_core.yaml").read_text()
+        match = re.search(r'^  ota_min_battery: "(\d+)"', core, re.M)
+        self.assertIsNotNone(match)
+        self.assertEqual(MODULE.OTA_MIN_BATTERY, int(match[1]))
+        rows = MODULE.parse_wake_rows(self.row(self.names[0], self.now, "49", "60"), self.names)
+        self.assertEqual(MODULE.wake_table(rows, self.names[:1], self.now, "last")[1].split("\t")[-1], "no")
+
+    def test_battery_sort_puts_highest_first(self) -> None:
+        rows = MODULE.parse_wake_rows(self.output(), self.names)
+        cells = [l.split("\t")[0] for l in MODULE.wake_table(rows, self.names, self.now, "battery")[1:]]
+        self.assertEqual(cells[0], "oxalis-triangularis-5326ba")
 
 
 if __name__ == "__main__":

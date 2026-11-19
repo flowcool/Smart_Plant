@@ -205,6 +205,7 @@ fleet. Defaults are correct for normal use; `ROOT=examples/multi-device`.
 # from repo root
 S="python3 scripts/esphome_fleet_update.py"
 $S status                 # read-only: expected vs deployed config-hash, version, online state
+$S wakes                  # read-only: last/next wake, battery, OTA admission per device (HA recorder); --sort next|last|battery --hours N
 $S reset                  # reset local + paired remote build envs (run before a batch)
 $S update all             # precompile all, open maintenance, arm OTA per device as it wakes (idempotent: no-op where deployed==expected)
 $S update <dev> [<dev>..] # same, scoped to named devices (canary first)
@@ -224,7 +225,7 @@ Standard fleet rollout after a merged package change:
    cancels in-flight Device Builder jobs and disarms queued updates, so run it
    before, never during, a batch. Before `reset`, confirm the pool still holds
    only the pinned receiver (read-only, prints no key material):
-   `ssh ugreen "sudo python3 -c 'import json;d=json.load(open(\"/volume1/home-assistant/esphome/config/.offloader_pairings.json\"));print(\"local_in_pool\",d[\"include_local_in_pool\"]);[print(p[\"pin_sha256\"],p[\"status\"],p[\"enabled\"],p[\"label\"]) for p in d[\"pairings\"]]'"`
+   `ssh ugreen "sudo python3 -c 'import json;d=json.load(open(\"/volume1/docker/home-automation/esphome/config/.offloader_pairings.json\"));print(\"local_in_pool\",d[\"include_local_in_pool\"]);[print(p[\"pin_sha256\"],p[\"status\"],p[\"enabled\"],p[\"label\"]) for p in d[\"pairings\"]]'"`
    Run `$S --receiver-pin <pin> reset` for each additional approved peer.
 2. `$S status` — confirm which devices show `expected != deployed`.
 3. `$S update all` — waits up to 75 min for each device's hourly maintenance
