@@ -366,13 +366,13 @@ text_sensor:
     entity_category: diagnostic
 
 display:
-  - platform: waveshare_epaper
+  - platform: epaper_spi
     cs_pin: GPIO10
     dc_pin: GPIO13
     busy_pin: GPIO${display_busy_gpio}
     reset_pin: GPIO${display_reset_gpio}
     rotation: 270
-    model: 2.90inv2
+    model: waveshare-2.9in-v2
     id: my_display
     update_interval: never
     full_update_every: 1
@@ -627,29 +627,29 @@ script:
   - id: settle_display
     mode: restart
     then:
-      - delay: 100ms
+      # epaper_spi runs the whole update asynchronously and is_updating() stays
+      # true until the panel has refreshed, powered off and entered deep sleep.
+      # Its own 120 s BUSY abandon is not configurable, so this wait is bounded
+      # by display_busy_clear_timeout and falls through to the BUSY recovery path.
       - wait_until:
           condition:
-            lambda: 'return digitalRead(${display_busy_gpio}) == HIGH;'
-          timeout: ${display_busy_assert_timeout}
-      - if:
-          condition:
-            lambda: 'return digitalRead(${display_busy_gpio}) == HIGH;'
-          then:
-            - lambda: 'id(display_busy_seen) = true;'
-            - wait_until:
-                condition:
-                  lambda: 'return digitalRead(${display_busy_gpio}) == LOW;'
-                timeout: ${display_busy_clear_timeout}
+            not:
+              epaper_spi.is_updating: my_display
+          timeout: ${display_busy_clear_timeout}
       - lambda: |-
           const bool busy_low = digitalRead(${display_busy_gpio}) == LOW;
-          id(display_safe_to_sleep) = busy_low;
+          // An abandoned update (driver BUSY timeout) leaves a status warning.
+          id(display_busy_seen) = !id(my_display).is_updating() &&
+                                  !id(my_display).status_has_warning();
+          id(display_safe_to_sleep) = busy_low && !id(my_display).is_updating();
           id(display_settle_ok) = id(display_busy_seen) && busy_low;
       - if:
           condition:
             lambda: 'return id(display_settle_ok);'
           then:
-            - delay: 500ms
+            - logger.log:
+                level: DEBUG
+                format: "E-paper update completed and display asleep"
           else:
             - logger.log:
                 level: ERROR
