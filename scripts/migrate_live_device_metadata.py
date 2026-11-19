@@ -3,8 +3,11 @@
 
 The transformation is deterministic and preserves the input line-ending style.
 It removes duplicated naming/calibration substitutions, removes the redundant
-top-level ``esphome.friendly_name`` override, and adds the device's matching
-generated metadata package before the shared core and transport packages.
+top-level ``esphome.friendly_name`` override, replaces a literal ``ota_password``
+substitution with ``!secret ota_password_<device>`` (the value is never read,
+printed or stored; the operator adds the matching key to secrets.yaml), and adds
+the device's matching generated metadata package before the shared core and
+transport packages.
 
 Run against an offline copy first:
 
@@ -67,6 +70,9 @@ MANAGED_SUBSTITUTIONS = {
 }
 
 KEY_LINE = re.compile(r"^  ([A-Za-z0-9_]+):(?:\s|$)")
+# A plant's OTA password must be a secret reference, never a literal in the device YAML.
+OTA_LINE = re.compile(r"^  ota_password:(?:\s|$)")
+OTA_REFERENCE = re.compile(r"^  ota_password:\s*!secret\s+\S+\s*(?:#.*)?$")
 
 
 class TolerantLoader(yaml.SafeLoader):
@@ -87,6 +93,11 @@ TolerantLoader.add_multi_constructor("!", _keep_tag)
 def inventory_keys() -> list[str]:
     plants = yaml.safe_load(INVENTORY.read_text(encoding="utf-8"))["plants"]
     return list(plants)
+
+
+def ota_secret_name(key: str) -> str:
+    """Per-device secrets.yaml key; one key per device keeps each value independently rotatable."""
+    return "ota_password_" + re.sub(r"[^A-Za-z0-9]+", "_", key).strip("_")
 
 
 def metadata_url(key: str) -> str:
@@ -134,6 +145,8 @@ def transform(text: str, key: str) -> str:
                 match = KEY_LINE.match(child)
                 if match and match.group(1) in MANAGED_SUBSTITUTIONS:
                     continue
+                if OTA_LINE.match(child) and not OTA_REFERENCE.match(child):
+                    child = f"  ota_password: !secret {ota_secret_name(key)}"
                 output.append(child)
             index = end
             continue
@@ -172,6 +185,9 @@ def validate(text: str, key: str) -> list[str]:
     duplicated = sorted(MANAGED_SUBSTITUTIONS & substitutions.keys())
     if duplicated:
         errors.append(f"duplicated generated substitutions: {', '.join(duplicated)}")
+
+    if any(OTA_LINE.match(line) and not OTA_REFERENCE.match(line) for line in text.splitlines()):
+        errors.append("ota_password must be a !secret reference, not a literal")
 
     esphome = doc.get("esphome") or {}
     if "friendly_name" in esphome:
