@@ -152,9 +152,10 @@ request below the battery threshold is reset to `OFF`, reports
 missing fuel-gauge reading instead reports `BATTERY_UNAVAILABLE`; it is never
 misrepresented as a genuinely low battery. The physical MAX17048 remains
 powered from VBAT across MCU deep sleep and uses its automatic hibernation. Do
-not call `max17043.sleep_mode`: released ESPHome versions without explicit
-MAX17048 model support do not set `MODE.EnSleep`, and forced sleep would also
-stop state-of-charge tracking for negligible fleet-level savings. A successful
+not call `max17048.sleep_mode`: forced sleep would stop state-of-charge tracking
+for negligible fleet-level savings. The package uses the dedicated `max17048`
+platform (ESPHome 2026.11.0 or later); it replaces `max17043`, which did not set
+`MODE.EnSleep` before `CONFIG.SLEEP`. A successful
 OTA clears both retained maintenance
 states immediately before its automatic reboot and never starts a physical
 refresh at that boundary. A normal
@@ -377,7 +378,7 @@ The examples select the repository and revision in their package URLs. Keep
 the core and transport on the same revision. The generic packages do not need
 the fork inventory or infrastructure.
 
-With ESPHome 2026.10.0 installed, run from the repository root:
+With ESPHome 2026.11.0 installed, run from the repository root:
 
 ```sh
 python scripts/validate_public_examples.py
