@@ -9,7 +9,7 @@
   `smart_plant_profile_mqtt.yaml`. Device files contain substitutions only and
   fetch both packages from GitHub `@V2R1`.
 - Devices measure AHT20 temperature/humidity, VEML7700 light, capacitive soil
-  moisture, and MAX17048 battery state through ESPHome's `max17043` component,
+  moisture, and MAX17048 battery state through ESPHome's `max17048` component,
   update a Waveshare 2.9-inch e-paper display once, then deep-sleep for one hour.
 - MQTT is the Home Assistant data path; retained values remain visible during
   sleep. The native API exists for Device Builder metadata and awake-window
