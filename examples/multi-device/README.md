@@ -377,7 +377,7 @@ The examples select the repository and revision in their package URLs. Keep
 the core and transport on the same revision. The generic packages do not need
 the fork inventory or infrastructure.
 
-With ESPHome 2026.10.0 installed, run from the repository root:
+With ESPHome 2026.11.0 installed, run from the repository root:
 
 ```sh
 python scripts/validate_public_examples.py

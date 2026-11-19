@@ -56,7 +56,7 @@ No new text policy is introduced by this rendering change.
 
 ## Reproduce the isolated proof
 
-Use Python with `esphome==2026.10.0`, Pillow, PyYAML and pycairo. Supply an
+Use Python with `esphome==2026.11.0`, Pillow, PyYAML and pycairo. Supply an
 existing Material Symbols Outlined TTF. Fonts and illustrations are reused.
 All generated fixtures, builds and captures stay below ignored project `tmp/`.
 

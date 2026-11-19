@@ -48,7 +48,7 @@ jobs:
       # This job only validates repository configurations; it does not compile
       # or deploy firmware and does not process external image uploads.
       - name: Install pinned ESPHome
-        run: pip install esphome==2026.10.0 pyyaml
+        run: pip install esphome==2026.11.0 pyyaml
 
       - name: Check dependency consistency
         run: python -m pip check
