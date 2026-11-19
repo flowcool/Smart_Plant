@@ -51,6 +51,24 @@ class LiveMetadataMigrationTests(unittest.TestCase):
         )
         self.assertGreater(new.index("  metadata:"), new.index("  transport:"))
 
+    def test_literal_ota_password_becomes_per_device_secret_reference(self):
+        literal = "dummy-literal-not-a-credential"
+        for quoted in (literal, f'"{literal}"', f"'{literal}'"):
+            with self.subTest(quoted=quoted):
+                old = OLD.replace("ota_password: !secret ota_password", f"ota_password: {quoted}")
+                self.assertTrue(live_metadata.validate(
+                    live_metadata.transform(old, self.key).replace(
+                        "!secret ota_password_cyperus_papyrus_54a9b2", quoted), self.key))
+                new = live_metadata.transform(old, self.key)
+                self.assertNotIn(literal, new)
+                self.assertIn("  ota_password: !secret ota_password_cyperus_papyrus_54a9b2\n", new)
+                self.assertEqual(live_metadata.validate(new, self.key), [])
+                self.assertEqual(live_metadata.transform(new, self.key), new)
+
+    def test_existing_secret_reference_is_left_alone(self):
+        self.assertEqual(live_metadata.ota_secret_name("cyperus-papyrus-54a9b2"), "ota_password_cyperus_papyrus_54a9b2")
+        self.assertIn("  ota_password: !secret ota_password\n", live_metadata.transform(OLD, self.key))
+
     def test_is_idempotent(self):
         once = live_metadata.transform(OLD, self.key)
         self.assertEqual(live_metadata.transform(once, self.key), once)
