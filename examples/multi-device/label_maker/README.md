@@ -54,7 +54,7 @@ They need `g++` plus the listed Python packages. PNG bytes can change with
 rendering-library versions. New hardware or fleet validation remains a
 separate operation. Revert this isolated optional-tool contribution to undo it.
 
-Run the package tests in a separate virtual environment with ESPHome 2026.10.0
+Run the package tests in a separate virtual environment with ESPHome 2026.11.0
 and PyYAML installed. ESPHome pins Pillow 12.3.0. Keep that environment separate
 from the label tools, which require Pillow 13.0.0.
 

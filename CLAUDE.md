@@ -20,7 +20,7 @@ are in `docs/upstreaming-strategy.md` (`infra-3rr.26`); query GitHub or
 - **Data path**: MQTT-only (retained values survive sleep, no "unavailable" in HA)
 - **Native API**: enabled for ESPHome dashboard metadata only (mDNS `_esphomelib._tcp`) — do NOT add to HA via ESPHome integration (duplicate entities)
 - **Package system**: `smart_plant_core.yaml` contains transport-agnostic shared logic; production device files compose it with `smart_plant_profile_mqtt.yaml` and otherwise contain substitutions only
-- Sensors: AHT20 (temp/humidity), VEML7700 (lux), ADC soil moisture, physical MAX17048 battery gauge through ESPHome's `max17043` component
+- Sensors: AHT20 (temp/humidity), VEML7700 (lux), ADC soil moisture, physical MAX17048 battery gauge through ESPHome's `max17048` component
 - Display: Waveshare 2.9" e-paper (2.90inv2), full refresh every wake
 
 ## NAS (source of truth for live configs)
