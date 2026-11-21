@@ -33,9 +33,21 @@
 
 ## Live systems and safety
 
-- Live ESPHome configuration is on the NAS at
-  `/volume1/home-assistant/esphome/config/`; HA configuration is at
-  `/volume1/home-assistant/homeassistant/config/`.
+- Live ESPHome configuration (changed 2026-11-16, Infra `infra-i8hvv`): the
+  Device Builder container `u-home-automation-esphome` (host ugreen) reads the
+  device YAMLs as READ-ONLY bind mounts from the Infra GitOps checkout
+  `/volume1/docker/deployment-control/periphery/data/repos/esphome-config/esphome-config/`
+  (private `flowcool/esphome-config`, deployed by the Komodo procedure
+  "Deploy ESPHome configuration"; Infra owns it). Its `/config` is
+  `/volume1/docker/home-automation/esphome/data`: new YAMLs created there
+  natively are accepted. Files under `/volume1/docker/home-automation/esphome/config/`
+  and `/volume1/home-assistant/esphome/config/` feed NO build: an edit there is a
+  silent no-op (incident 2026-11-21, `infra-3rr.86`: two "canaries" ran the old
+  firmware). Prove any YAML change by the `esphome_version` hash (retained MQTT
+  `<prefix>/sensor/esphome_version/state`) changing after the flash.
+  A package change compiles from `@<ref>` on the VPS receiver, so a canary uses a
+  NEW native YAML in `/config`, never an edit of a mounted device YAML.
+  HA configuration is at `/volume1/home-assistant/homeassistant/config/`.
 - NAS access is read-only unless Florent explicitly authorizes a write, cache
   purge, compile, upload, or flash.
 - Validate exactly one canary before any fleet rollout. Never infer successful

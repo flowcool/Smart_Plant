@@ -1,6 +1,11 @@
 # NAS and OTA operations
 
 - NAS access is **read-only by default**. Write only when explicitly confirmed by the user.
+- **Know which file the builder reads.** Device YAMLs are read-only mounts from
+  Infra's `esphome-config` GitOps checkout; edits in `.../home-automation/esphome/config/`
+  never reach a build. For a canary on a branch, create a NEW native YAML in the
+  builder `/config`. Acceptance = `esphome_version` hash changed (retained MQTT),
+  never `status`, a visual check or a regular wake cadence alone.
 - **Validate one device before batch OTA.** Confirm the running version and
   config hash, inspect device runtime logs for rollback, and verify one online
   measurement window followed by deep sleep. Use acceptance evidence for the

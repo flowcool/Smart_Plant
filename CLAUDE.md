@@ -23,7 +23,7 @@ are in `docs/upstreaming-strategy.md` (`infra-3rr.26`); query GitHub or
 - Sensors: AHT20 (temp/humidity), VEML7700 (lux), ADC soil moisture, physical MAX17048 battery gauge through ESPHome's `max17048` component
 - Display: Waveshare 2.9" e-paper (2.90inv2), full refresh every wake
 
-## NAS (source of truth for live configs)
+## NAS (live configs: see the GitOps note below)
 
 - **Host facts are NOT in this file — query the sources before assuming.** Which
   host `/volume1/...` lives on, its OS/type, and the access path are owned by the
@@ -32,7 +32,13 @@ are in `docs/upstreaming-strategy.md` (`infra-3rr.26`); query GitHub or
   Do not infer the host type from a `/volume1/` path — that convention is not a
   vendor signature. Operational lessons (ACL/permission quirks, safe-write
   playbooks) live in the KB corpus `/home/flow/claude_project/knowledge-base/bundle/`.
-- ESPHome configs: `/volume1/home-assistant/esphome/config/`
+- ESPHome configs: read-only mounts from the Infra GitOps checkout
+  `/volume1/docker/deployment-control/periphery/data/repos/esphome-config/esphome-config/`
+  (`flowcool/esphome-config`, Komodo, Infra-owned, since 2026-11-16). Builder
+  `/config` = `/volume1/docker/home-automation/esphome/data` (new native YAMLs
+  accepted). `/volume1/docker/home-automation/esphome/config/` and
+  `/volume1/home-assistant/esphome/config/` feed no build — editing them is a
+  silent no-op. Check `esphome_version` hash after every flash (details in `AGENTS.md`).
 - HA configs: `/volume1/home-assistant/homeassistant/config/`
 - Plant label images: `/volume1/home-assistant/esphome/config/plant_labels/`
 - **Read-only by default** — write only on explicit user confirmation
@@ -114,6 +120,15 @@ Use `bd memories smartplant` for backlog navigation only. Reusable operational
 knowledge belongs in the KB corpus through `knowledge-lifecycle`.
 The SessionStart hook injects the project-filtered ready list, excluding epics.
 Read other issue states from Beads; do not duplicate tactical status here.
+
+Live device deviations (Florent 2026-11-21): a test or canary can leave a device
+in a non-default state (retained storage mode, device YAML pointing at a branch
+instead of `@V2R1`, maintenance ON). Florent forgets them between sessions. At
+session start, read the `in_progress` and `open` project beads for such state
+and tell Florent in one line each (device, state, owning bead, planned end).
+Before any retained MQTT write on a device (`storage`, `maintenance`), record
+its purpose and end in the owning bead. Never leave a live deviation unrecorded
+at close.
 
 Structural pointers (epics, plan docs, cross-project handoffs):
 
