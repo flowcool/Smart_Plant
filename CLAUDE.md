@@ -23,7 +23,7 @@ are in `docs/upstreaming-strategy.md` (`infra-3rr.26`); query GitHub or
 - Sensors: AHT20 (temp/humidity), VEML7700 (lux), ADC soil moisture, physical MAX17048 battery gauge through ESPHome's `max17048` component
 - Display: Waveshare 2.9" e-paper (2.90inv2), full refresh every wake
 
-## NAS (source of truth for live configs)
+## NAS (live configs: see the GitOps note below)
 
 - **Host facts are NOT in this file — query the sources before assuming.** Which
   host `/volume1/...` lives on, its OS/type, and the access path are owned by the
@@ -32,7 +32,13 @@ are in `docs/upstreaming-strategy.md` (`infra-3rr.26`); query GitHub or
   Do not infer the host type from a `/volume1/` path — that convention is not a
   vendor signature. Operational lessons (ACL/permission quirks, safe-write
   playbooks) live in the KB corpus `/home/flow/claude_project/knowledge-base/bundle/`.
-- ESPHome configs: `/volume1/home-assistant/esphome/config/`
+- ESPHome configs: read-only mounts from the Infra GitOps checkout
+  `/volume1/docker/deployment-control/periphery/data/repos/esphome-config/esphome-config/`
+  (`flowcool/esphome-config`, Komodo, Infra-owned, since 2026-11-16). Builder
+  `/config` = `/volume1/docker/home-automation/esphome/data` (new native YAMLs
+  accepted). `/volume1/docker/home-automation/esphome/config/` and
+  `/volume1/home-assistant/esphome/config/` feed no build — editing them is a
+  silent no-op. Check `esphome_version` hash after every flash (details in `AGENTS.md`).
 - HA configs: `/volume1/home-assistant/homeassistant/config/`
 - Plant label images: `/volume1/home-assistant/esphome/config/plant_labels/`
 - **Read-only by default** — write only on explicit user confirmation
