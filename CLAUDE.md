@@ -21,7 +21,7 @@ are in `docs/upstreaming-strategy.md` (`infra-3rr.26`); query GitHub or
 - **Native API**: enabled for ESPHome dashboard metadata only (mDNS `_esphomelib._tcp`) — do NOT add to HA via ESPHome integration (duplicate entities)
 - **Package system**: `smart_plant_core.yaml` contains transport-agnostic shared logic; production device files compose it with `smart_plant_profile_mqtt.yaml` and otherwise contain substitutions only
 - Sensors: AHT20 (temp/humidity), VEML7700 (lux), ADC soil moisture, physical MAX17048 battery gauge through ESPHome's `max17048` component
-- Display: Waveshare 2.9" e-paper, ESPHome `epaper_spi` model `waveshare-2.9in-v2` (since 2026-11-21, fleet-wide; was `waveshare_epaper` 2.90inv2), full refresh every wake
+- Display: Waveshare 2.9" e-paper, ESPHome `epaper_spi` model `waveshare-2.9in-v2` (since 2026-11-21 on 7 of 8 devices, `peperomia` flashed after storage mode ends 2026-11-22; was `waveshare_epaper` 2.90inv2), full refresh every wake
 
 ## NAS (live configs: see the GitOps note below)
 
