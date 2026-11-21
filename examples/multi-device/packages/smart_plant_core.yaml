@@ -663,7 +663,7 @@ script:
           id(display_safe_to_sleep) = driver_done;
           id(display_settle_ok) = id(display_busy_seen) && driver_done;
       - logger.log:
-          level: INFO
+          level: WARN
           format: "E-paper settle: driver_done=%d busy_high=%d confirmed=%d"
           args:
             - '(int) id(display_safe_to_sleep)'
