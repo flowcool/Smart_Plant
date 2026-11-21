@@ -44,6 +44,20 @@ from upstream commit `bcf373144b2d5c7e3a712fd02698e2e98e45aeed`. It keeps
 contribution review separate from the deployed fork branch. This run does not
 authorize new PRs to `JGAguado/Smart_Plant`.
 
+### Consolidated PR #47 (2026-11-21)
+
+Florent authorized one consolidated PR to `JGAguado/Smart_Plant`.
+[#47](https://github.com/JGAguado/Smart_Plant/pull/47) (branch
+`flowcool:upstream/consolidated-2026-11`, 13 commits, based on upstream `V2R1`
+`8f2d9cf`) replaces the open PRs #41, #43, #44, #45 and #46, closed the same day
+with a pointer to #47. It adds the ESPHome 2026.11.0 pin and dependency updates,
+the `max17048` platform, 200 ms soil spacing and the `epaper_spi` display driver.
+Fork-only files (`plants.yaml`, generated metadata, fleet scripts, agent docs,
+`docs/display-recovery.md`) stay out. Lesson: when a cherry-pick conflicts,
+resolve hunk by hunk. `git checkout --theirs` takes the whole fork file and
+carries fleet text upstream. Scan the final diff for `plants.yaml`, `flowcool`,
+private addresses and bead IDs before publishing. Live review state: query GitHub.
+
 ## Historical preparation baseline
 
 Historical audit snapshot before preparation:
