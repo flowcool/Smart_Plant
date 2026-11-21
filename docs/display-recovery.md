@@ -47,3 +47,21 @@ maintenance callers. They cover permanent HIGH, guard oscillation, late LOW,
 BUSY reassertion during the final sleep delay, cancellation during reset and
 notification, fresh budgets, and battery/storage duration priority. They do not
 execute the display driver, ESP-IDF, network shutdown or physical hardware.
+
+## epaper_spi migration (infra-3rr.86, unflashed)
+
+The shared core and the public standalone example use the released
+`epaper_spi` driver (model `waveshare-2.9in-v2`, ESPHome 2026.11.0). The notes
+above describe the legacy `waveshare_epaper` path. Differences that matter:
+
+- `update()` is asynchronous. `epaper_spi.is_updating` stays true until the
+  refresh, power off and display deep sleep are done. `settle_display` waits for
+  it, bounded by `display_busy_clear_timeout`.
+- The driver abandons an update after a fixed 120 s BUSY timeout (not
+  configurable): it powers the panel off, sets a status warning and sends no
+  deep-sleep command. `settle_display` treats that warning as not confirmed.
+- The driver cannot tell a refresh whose BUSY line never rose. The fork guard
+  stays: `observe_display_busy` must see BUSY asserted for the refresh to be
+  confirmed.
+- `on_safe_shutdown()` sends the deep-sleep command without checking the update
+  state; the BUSY-low sleep guard remains the protection.

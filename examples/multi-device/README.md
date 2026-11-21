@@ -341,8 +341,8 @@ validation window. The core package and the public standalone
 `configuration.yaml` still call `safe_mode.mark_successful` before sleep, as the
 upstream-reviewed shared recovery does, so they stay version-agnostic. On
 ESPHome 2026.8.0 and later the call is redundant and harmless.
-Both profiles use the released `waveshare_epaper` driver and wait for the
-panel's physical BUSY cycle before deep sleep. They deliberately keep the
+Both profiles use the released `epaper_spi` driver (model `waveshare-2.9in-v2`) and wait for
+`epaper_spi.is_updating` to clear, with the BUSY pin as a bounded safety check, before deep sleep. They deliberately keep the
 captive portal and Improv Serial recovery paths from the original example; the
 captive portal also enables ESPHome's browser-based recovery upload surface.
 Deployments that do not need local fallback provisioning can remove
