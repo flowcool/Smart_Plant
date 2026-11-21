@@ -115,6 +115,15 @@ knowledge belongs in the KB corpus through `knowledge-lifecycle`.
 The SessionStart hook injects the project-filtered ready list, excluding epics.
 Read other issue states from Beads; do not duplicate tactical status here.
 
+Live device deviations (Florent 2026-11-21): a test or canary can leave a device
+in a non-default state (retained storage mode, device YAML pointing at a branch
+instead of `@V2R1`, maintenance ON). Florent forgets them between sessions. At
+session start, read the `in_progress` and `open` project beads for such state
+and tell Florent in one line each (device, state, owning bead, planned end).
+Before any retained MQTT write on a device (`storage`, `maintenance`), record
+its purpose and end in the owning bead. Never leave a live deviation unrecorded
+at close.
+
 Structural pointers (epics, plan docs, cross-project handoffs):
 
 - Roadmap epic: `infra-3rr` (post-baseline: durability, validation, OTA, upstream).
